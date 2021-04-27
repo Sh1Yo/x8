@@ -144,7 +144,7 @@ OPTIONS:
 - Linux
     - from releases
     - from source code (rust should be installed)
-        ```
+        ```bash
         git clone https://github.com/Sh1Yo/x8
         cd x8
         cargo build --release
