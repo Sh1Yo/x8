@@ -34,7 +34,6 @@ Firstly, it makes a few basic requests to learn the target, and then it tries to
 ```x8 -u https://example.com/ -w <wordlist>```
 
 With some default parameters:
-
 ```x8 -u https://example.com/?something=1 -w <wordlist>```
 
 `/?something=1` equals to `/?something=1&%s`
@@ -43,19 +42,15 @@ With some default parameters:
 `x8 -u https://example.com/ -X POST --as-body -w <wordlist>`
 
 Or with a custom body:
-
 ```x8 -u https://example.com/ -X POST --as-body -b '{"x":{%s}}' -w <wordlist>```
-
 `%s` will be replaced with different parameters like `{"x":{"a":"b3a1a", "b":"ce03a", ...}}`
 
 #### Custom template
 ```x8 -u https://example.com/ --key-template user[%s] -w <wordlist>```
-
 Now every request would look like `/?user[a]=hg2s4&user[b]=a34fa&...`
 
 #### Variables
 In the next example, `something` will take on new values every request:
-
 ```x8 -u https://example.com/?something={{random}}&%s -w <wordlist>```
 
 #### Percent encoding
@@ -163,7 +158,5 @@ OPTIONS:
 
 # Donation
 Want to support the project? You can donate to the following addresses:
-
 Monero: 46pni5AY9Ra399sivBykVucaK6KdU3rYiSqFsZinfaEgd3qUkeZvRxjEdhPPmsmZQwTDPBSrvSpkaj4LsHqLH6GG7zMmgiW
-
 Bitcoin: bc1q8q9hfmejxd65jcrszwpgj7xnwhy32gpxay2h604xwvjwtw8jh8vq8kev5r
