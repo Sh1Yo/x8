@@ -3,7 +3,7 @@
 
 <h3 align="center">Hidden parameters discovery suite written in Rust.</h3>
 
-<p align="center"><a href="https://asciinema.org/a/lDEZ69TlYgzMTTeieeGJBoW1B" target="_blank"><img src="https://asciinema.org/a/lDEZ69TlYgzMTTeieeGJBoW1B.svg" /></a></p>
+<p align="center"><a href="https://asciinema.org/a/6bLxIIDdBqcgws84clSO35C2y" target="_blank"><img src="https://asciinema.org/a/6bLxIIDdBqcgws84clSO35C2y.svg" /></a></p>
 
 - [How does it work](#how-does-it-work)
 - [Features](#features)
