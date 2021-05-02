@@ -3,7 +3,7 @@
 
 <h3 align="center">Hidden parameters discovery suite written in Rust.</h3>
 
-<p align="center"><a href="https://asciinema.org/a/lDEZ69TlYgzMTTeieeGJBoW1B" target="_blank"><img src="https://asciinema.org/a/lDEZ69TlYgzMTTeieeGJBoW1B.svg" /></a></p>
+<p align="center"><a href="https://asciinema.org/a/6bLxIIDdBqcgws84clSO35C2y" target="_blank"><img src="https://asciinema.org/a/6bLxIIDdBqcgws84clSO35C2y.svg" /></a></p>
 
 - [How does it work](#how-does-it-work)
 - [Features](#features)
@@ -139,7 +139,7 @@ OPTIONS:
 - Linux
     - from releases
     - from source code (rust should be installed)
-        ```
+        ```bash
         git clone https://github.com/Sh1Yo/x8
         cd x8
         cargo build --release
@@ -158,5 +158,7 @@ OPTIONS:
 
 # Donation
 Want to support the project? You can donate to the following addresses:
+
 Monero: 46pni5AY9Ra399sivBykVucaK6KdU3rYiSqFsZinfaEgd3qUkeZvRxjEdhPPmsmZQwTDPBSrvSpkaj4LsHqLH6GG7zMmgiW
+
 Bitcoin: bc1q8q9hfmejxd65jcrszwpgj7xnwhy32gpxay2h604xwvjwtw8jh8vq8kev5r
