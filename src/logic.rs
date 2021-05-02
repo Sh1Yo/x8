@@ -30,7 +30,7 @@ pub fn cycles(
     let all = params.len() / max;
 
     for (count, chunk) in params.chunks(max).enumerate() {
-        let query = &make_hashmap(&chunk, &config.value_template, &config.key_template, config.value_size);
+        let query = &make_hashmap(&chunk, config.value_size);
 
         let response = request(config, client, query, reflections_count);
 
@@ -251,8 +251,6 @@ pub fn cycles(
 
                         let query = make_hashmap(
                             &random_params[..],
-                            &config.value_template,
-                            &config.key_template,
                             config.value_size,
                         );
 

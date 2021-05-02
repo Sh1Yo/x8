@@ -39,17 +39,10 @@ pub fn get_config() -> (Config, usize) {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("key_template")
-                .short("K")
-                .long("key-template")
-                .help("Example: --key-template 'user[%s]'")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("value_template")
-                .short("V")
-                .long("value-template")
-                .help("Example: --value-template 'https://example.com/%s'")
+            Arg::with_name("parameter_template")
+                .short("P")
+                .long("param-template")
+                .help("%k - key, %v - value. Example: --param-template 'user[%k]=%v&'")
                 .takes_value(true),
         )
         .arg(
@@ -107,12 +100,12 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("as-body")
                 .long("as-body")
-                .help("Send parameters via body")
+                .help("Send parameters via body.\nBuilt in body types that can be detected automatically: json, urlencode")
         )
         .arg(
-            Arg::with_name("force-binary")
-                .long("force-binary")
-                .help("Ignore 'binary data detected' message")
+            Arg::with_name("force")
+                .long("force")
+                .help("Ignore 'binary data detected', 'the page is too huge', 'param_template lacks variables' error messages")
         )
         .arg(
             Arg::with_name("disable-response-correction")
@@ -345,7 +338,7 @@ pub fn get_config() -> (Config, usize) {
         args.value_of("body-type").unwrap_or("urlencode-").to_string()
     };
 
-    let body = if !body.is_empty() && !body.contains("%s") && args.is_present("as-body") {
+    let body = if !body.contains("%s") && args.is_present("as-body") {
         adjust_body(body, &body_type)
     } else {
         body.to_string()
@@ -412,18 +405,23 @@ pub fn get_config() -> (Config, usize) {
         path.push_str("?%s");
     }
 
-    let /*mut*/ value_template = args.value_of("value_template").unwrap_or("").to_string();
-    let /*mut*/ key_template = args.value_of("key_template").unwrap_or("").to_string();
+    let mut parameter_template = args.value_of("parameter_template").unwrap_or("");
 
-    /*if args.is_present("fuzz") {
-        match args.value_of("fuzz").unwrap_or("x") {
-            "1" => value_template = "%s'\">;".to_string(),
-            "2" => value_template = "%s%00%ff".to_string(),
-            "3" => key_template = "%s[]".to_string(),
-            "4" => key_template = "%s[something]".to_string(),
-            _ => ()
-        };
-    }*/
+    if !parameter_template.is_empty()
+        && (!parameter_template.contains("%k") || !parameter_template.contains("%v"))
+        && !args.is_present("force") {
+            writeln!(io::stderr(), "param_template lacks important variables like %k or %v").ok();
+            std::process::exit(1);
+    }
+
+    if parameter_template.is_empty() {
+        if body_type.contains("urlencode") {
+            parameter_template = "%k=%v&";
+        } else if body_type.contains("json") {
+            parameter_template = "\"%k\":\"%v\", ";
+        }
+    }
+
 
     let custom_keys: Vec<String> = match args.values_of("custom-parameters") {
         Some(val) => {
@@ -474,10 +472,9 @@ pub fn get_config() -> (Config, usize) {
         method: args.value_of("method").unwrap_or("GET").to_string(),
         url,
         host: host.to_string(),
-        path: path.to_string(),
+        path,
         wordlist: args.value_of("wordlist").unwrap_or("").to_string(),
-        key_template,
-        value_template,
+        parameter_template: parameter_template.to_string(),
         custom_parameters,
         headers,
         body,
@@ -489,7 +486,7 @@ pub fn get_config() -> (Config, usize) {
         save_responses: args.value_of("save-responses").unwrap_or("").to_string(),
         tmp_directory: args.value_of("tmp-directory").unwrap_or(temp_dir().to_str().unwrap_or("/tmp")).to_string()+"/",
         as_body: args.is_present("as-body"),
-        force_binary: args.is_present("force-binary"),
+        force: args.is_present("force"),
         disable_response_correction: args.is_present("disable-response-correction"),
         disable_custom_parameters: args.is_present("disable-custom-parameters"),
         disable_progress_bar: args.is_present("disable-progress-bar"),

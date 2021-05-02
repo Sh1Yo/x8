@@ -102,8 +102,6 @@ fn main() {
     //generate random query for the first request
     let query = make_hashmap(
         &(0..max).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
-        &config.value_template,
-        &config.key_template,
         config.value_size,
     );
 
@@ -306,8 +304,6 @@ fn main() {
                 &replay_client,
                 &make_hashmap(
                     &found_params,
-                    &config.value_template,
-                    &config.key_template,
                     config.value_size
                 ),
                 0
@@ -319,8 +315,6 @@ fn main() {
                     &replay_client,
                     &make_hashmap(
                         &[param.to_owned()],
-                        &config.value_template,
-                        &config.key_template,
                         config.value_size
                     ),
                     0
@@ -339,7 +333,7 @@ fn main() {
             let response = request(
                 &config, &client,
                 &random_hashmap(
-                    &[param.clone()], &config.value_template, &config.key_template
+                    &[param.clone()], &config.parameter_template, &config.parameter_delimiter
                 ),
                 reflections_count
             );

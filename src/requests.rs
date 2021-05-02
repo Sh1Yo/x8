@@ -40,7 +40,7 @@ pub fn empty_reqs(
             io::stdout().flush().unwrap_or(());
         }
 
-        if response.text.len() > 25 * 1024 * 1024 && !config.force_binary {
+        if response.text.len() > 25 * 1024 * 1024 && !config.force {
             writeln!(io::stderr(), "[!] {} the page is too huge", &config.url).ok();
             std::process::exit(1)
         }
@@ -97,8 +97,6 @@ pub fn random_request(
         &client,
         &make_hashmap(
             &(0..max).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
-            &config.value_template,
-            &config.key_template,
             config.value_size,
         ),
         reflections
