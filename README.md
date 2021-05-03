@@ -23,7 +23,7 @@ Firstly, it makes a few basic requests to learn the target, and then it tries to
 
 # Features
 - A lot of things to customize: key template, value template, encodings, and even injection points.
-- Supports 6 main methods: GET, POST, PUT, PATH, DELETE, HEAD.
+- Supports 6 main methods: GET, POST, PUT, PATCH, DELETE, HEAD.
 - Has built in 2 main body types: json, urlencode.
 - Able to discover parameters with not random value, like admin=true
 - Uses fast GNU diff as a response comparer.
@@ -183,5 +183,7 @@ OPTIONS:
 
 # Donation
 Want to support the project? You can donate to the following addresses:
+
 Monero: 46pni5AY9Ra399sivBykVucaK6KdU3rYiSqFsZinfaEgd3qUkeZvRxjEdhPPmsmZQwTDPBSrvSpkaj4LsHqLH6GG7zMmgiW
+
 Bitcoin: bc1q8q9hfmejxd65jcrszwpgj7xnwhy32gpxay2h604xwvjwtw8jh8vq8kev5r
