@@ -53,6 +53,7 @@ pub struct Config {
     //pub verify: bool,
     pub delay: Duration,
     pub diff_location: String,
+    pub external_diff: bool,
     pub value_size: usize,
     pub learn_requests_count: usize,
     pub max: usize

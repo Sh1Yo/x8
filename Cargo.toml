@@ -1,9 +1,9 @@
 [package]
 name = "x8"
-version = "0.2.0"
+version = "1.0.0"
 authors = ["Alexander Mironov <sh1yo@tuta.io>"]
 edition = "2018"
-license = "MIT"
+license = "GPL-3.0-or-later"
 homepage = "https://github.com/Sh1Yo/x8"
 repository = "https://github.com/Sh1Yo/x8"
 description = "Hidden parameters discovery suite."
@@ -19,4 +19,5 @@ lazy_static = "1.4.0"
 clap = "2.33.1"
 rand = "0.5.0"
 colored = "2"
+diffs = "0.2.1"
 url = "2.1.1"

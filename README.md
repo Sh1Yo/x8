@@ -104,6 +104,7 @@ FLAGS:
     -c, --disable-response-correction    Do not beautify responses before processing. Reduces accuracy.
         --encode                         Encodes query or body before a request, i.e & -> %26, = -> %3D
                                          List of chars to encode: ", `, , <, >, &, #, ;, /, =, %
+        --external-diff                  Use external diff instead of internal one
     -L, --follow-redirects               Follow redirections
         --force                          Ignore 'binary data detected', 'the page is too huge', 'param_template lacks
                                          variables' error messages
@@ -121,7 +122,7 @@ OPTIONS:
     -t, --body-type <body type>
             Available: urlencode, json. (default is "urlencode")
             Can be detected automatically if --body is specified
-    -l, --diff-location <custom-diff-location>              Default: takes from $PATH
+    -l, --diff-location <custom-diff-location>              Custom location for external diff. Default: takes from $PATH
         --custom-parameters <custom-parameters>
             Check these parameters with non-random values like true/false yes/no
             (default is "admin bot captcha debug disable encryption env show sso test waf")
@@ -159,8 +160,6 @@ OPTIONS:
 <a name="Installation"/>
 
 # Installation
-**You need gnu diff**. If you are using a Linux distributive then most likely it is already installed in your system. You can check whether it is installed or not by running `diff --help` if you see `command not found: diff` install diffutils package. Unfortunately, Windows does not support gnu diff.
-
 - Linux
     - from releases
     - from source code (rust should be installed)
@@ -168,6 +167,10 @@ OPTIONS:
         git clone https://github.com/Sh1Yo/x8
         cd x8
         cargo build --release
+        ```
+    - using cargo install
+        ```bash
+        cargo install x8
         ```
 - Mac
     - currently, there are no binaries for Mac OS
@@ -177,9 +180,13 @@ OPTIONS:
         cd x8
         cargo build --release
         ```
+    - using cargo install
+        ```bash
+        cargo install x8
+        ```
 
 - Windows
-    - Windows is not supported for this moment, but it is still possible to run the tool via wsl.
+    - from releases
 
 # Donation
 Want to support the project? You can donate to the following addresses:

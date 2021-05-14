@@ -15,8 +15,20 @@ use x8::{
     utils::{compare, generate_data, heuristic, make_hashmap, random_line, read_lines},
 };
 
+#[cfg(windows)]
 fn main() {
+    colored::control::set_virtual_terminal(true).unwrap();
+    run()
+}
+
+#[cfg(not(windows))]
+fn main() {
+    run()
+}
+
+fn run() {
     //colored::control::set_override(true);
+
     //saves false-positive diffs
     let mut green_lines: HashMap<String, usize> = HashMap::new();
 

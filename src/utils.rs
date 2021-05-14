@@ -1,5 +1,6 @@
 use crate::requests::request;
 use crate::structs::{Config, ResponseData};
+use crate::diff::diff;
 
 use lazy_static::lazy_static;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
@@ -7,6 +8,7 @@ use rand::Rng;
 use regex::Regex;
 use reqwest::Client;
 use std::{
+//    env,
     collections::HashMap,
     fs::{self, File},
     io::{self, BufRead, Write},
@@ -253,7 +255,7 @@ pub fn make_hashmap(
     hashmap
 }
 
-//use external diff tool to compare responses
+//use external or internal diff to compare responses
 pub fn check_diffs(
     config: &Config,
     resp1: &str,
@@ -262,6 +264,19 @@ pub fn check_diffs(
     postfix2: &str,
 ) -> Vec<String> {
     use std::process::Command;
+
+    // TODO leave only internal diff
+    if !config.external_diff {
+        let diffs = match diff(resp1, resp2) {
+            Ok(val) => val,
+            Err(err) => {
+                writeln!(io::stderr(), "Unable to compare: {}", err).ok();
+                std::process::exit(1);
+            }
+        };
+
+        return diffs
+    }
 
     let mut name1 = config.tmp_directory.clone();
     let mut name2 = config.tmp_directory.clone();
@@ -339,6 +354,7 @@ pub fn check_diffs(
             std::process::exit(1)
         }
     }
+
     diffs
 }
 
@@ -415,6 +431,23 @@ where
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
+
+/*pub fn is_external_diff_exist() -> bool {
+    let paths = env::var_os("PATH");
+    if paths.is_none() {
+        false
+    } else {
+        let paths = paths.unwrap();
+        for path in env::split_paths(&paths) {
+            if path.join(&"diff").is_file() {
+                return true
+            } else {
+                continue
+            }
+        }
+        false
+    }
+}*/
 
 //beautify json before comparing responses
 pub fn beautify_json(json: &str) -> String {

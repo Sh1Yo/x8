@@ -202,8 +202,14 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("custom-diff-location")
                 .long("diff-location")
                 .short("l")
-                .help("Default: takes from $PATH")
+                .help("Custom location for external diff. Default: takes from $PATH")
+                .requires("external_diff")
                 .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("external_diff")
+                .long("external-diff")
+                .help("Use external diff instead of internal one")
         )
         /*.arg(
             Arg::with_name("verify")
@@ -499,6 +505,7 @@ pub fn get_config() -> (Config, usize) {
         //verify: args.is_present("verify"),
         delay,
         diff_location: args.value_of("custom-diff-location").unwrap_or("diff").to_string(),
+        external_diff: args.is_present("external_diff"),
         value_size,
         learn_requests_count,
         max,
