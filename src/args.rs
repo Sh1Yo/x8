@@ -385,17 +385,17 @@ pub fn get_config() -> (Config, usize) {
     }
 
     if !headers.keys().any(|i| i.contains("Content-Type")) && (args.is_present("as-body") || args.value_of("body").is_some()) {
-        match args.value_of("body-type").unwrap_or("urlencode") {
-            "urlencode" => Some(headers.insert(
-                String::from("Content-Type"),
-                String::from("application/x-www-form-urlencoded"),
-            )),
-            "json" => Some(headers.insert(
+        if body_type.contains("json") {
+            headers.insert(
                 String::from("Content-Type"),
                 String::from("application/json"),
-            )),
-            _ => None,
-        };
+            );
+        } else {
+            headers.insert(
+                String::from("Content-Type"),
+                String::from("application/x-www-form-urlencoded"),
+            );
+        }
     }
 
     let mut url = args
