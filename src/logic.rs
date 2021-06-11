@@ -11,7 +11,7 @@ use std::{
 };
 
 //check parameters in a loop chunk by chunk
-pub fn cycles(
+pub async fn cycles(
     first: bool,
     config: &Config,
     initial_response: &ResponseData,
@@ -32,7 +32,7 @@ pub fn cycles(
     for (count, chunk) in params.chunks(max).enumerate() {
         let query = &make_hashmap(&chunk, config.value_size);
 
-        let response = request(config, client, query, reflections_count);
+        let response = request(config, client, query, reflections_count).await;
 
         //progress bar
         if config.verbose > 0 && !config.disable_progress_bar {
@@ -145,7 +145,7 @@ pub fn cycles(
                                 } else {
                                     //check whether the diff was stored or not
                                     let tmp_resp =
-                                        random_request(&config, &client, reflections_count, max);
+                                        random_request(&config, &client, reflections_count, max).await;
 
                                     let tmp_diffs = check_diffs(
                                         config,
@@ -254,7 +254,7 @@ pub fn cycles(
                             config.value_size,
                         );
 
-                        let check_response = request(config, client, &query, 0);
+                        let check_response = request(config, client, &query, 0).await;
 
                         if check_response.code != initial_response.code {
                             writeln!(

@@ -22,11 +22,12 @@ fn main() {
 }
 
 #[cfg(not(windows))]
-fn main() {
-    run()
+#[tokio::main]
+async fn main() {
+    run().await;
 }
 
-fn run() {
+async fn run() {
     //colored::control::set_override(true);
 
     //saves false-positive diffs
@@ -80,8 +81,8 @@ fn run() {
     let mut client = Client::builder()
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(60))
-        .max_idle_per_host(10)
         .http1_title_case_headers()
+        .use_rustls_tls()
         .cookie_store(true);
 
     if !config.proxy.is_empty() {
@@ -89,7 +90,7 @@ fn run() {
     }
 
     if !config.follow_redirects {
-        client = client.redirect(reqwest::RedirectPolicy::none());
+        client = client.redirect(reqwest::redirect::Policy::none());
     }
 
     let client = client.build().unwrap();
@@ -97,8 +98,8 @@ fn run() {
     let mut replay_client = Client::builder()
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(60))
-        .max_idle_per_host(10)
         .http1_title_case_headers()
+        .use_rustls_tls()
         .cookie_store(true);
 
     if !config.replay_proxy.is_empty() {
@@ -106,28 +107,28 @@ fn run() {
     }
 
     if !config.follow_redirects {
-        replay_client = replay_client.redirect(reqwest::RedirectPolicy::none());
+        replay_client = replay_client.redirect(reqwest::redirect::Policy::none());
     }
 
     let replay_client = replay_client.build().unwrap();
 
-    //generate random query for the first request
+    //generate random query for the first requestca
     let query = make_hashmap(
         &(0..max).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
         config.value_size,
     );
 
     //get cookies
-    request(&config, &client, &HashMap::new(), 0);
+    request(&config, &client, &HashMap::new(), 0).await;
 
     // if opened in the test mode - generate request/response and quit
     if config.test {
-        generate_data(&config, &client, &query);
+        generate_data(&config, &client, &query).await;
         std::process::exit(0)
     }
 
     // make first request and collect some information like code, reflections, possible parameters
-    let mut initial_response = request(&config, &client, &query, 0);
+    let mut initial_response = request(&config, &client, &query, 0).await;
 
     if initial_response.code == 0 {
         writeln!(io::stderr(), "Unable to reach - {} ", &config.url).ok();
@@ -173,11 +174,11 @@ fn run() {
         config.learn_requests_count,
         &client,
         max,
-    );
+    ).await;
 
     //check whether it is possible to use 192 or 256 params in a single request instead of 128 default
     if max == 128 {
-        let response = random_request(&config, &client, reflections_count, max + 64);
+        let response = random_request(&config, &client, reflections_count, max + 64).await;
 
         let (is_code_the_same, new_diffs) = compare(&config, &initial_response, &response);
         let mut is_the_body_the_same = true;
@@ -189,7 +190,7 @@ fn run() {
         }
 
         if is_code_the_same && (!stable.body || is_the_body_the_same) {
-            let response = random_request(&config, &client, reflections_count, max + 128);
+            let response = random_request(&config, &client, reflections_count, max + 128).await;
             let (is_code_the_same, new_diffs) = compare(&config, &initial_response, &response);
 
             for diff in new_diffs {
@@ -234,7 +235,7 @@ fn run() {
             &mut green_lines,
             &mut remaining_params,
             &mut found_params,
-        );
+        ).await;
         first = false;
         count += 1;
 
@@ -308,7 +309,7 @@ fn run() {
             ..config.clone()
         };
 
-        request(&temp_config, &replay_client, &HashMap::new(), 0);
+        request(&temp_config, &replay_client, &HashMap::new(), 0).await;
 
         if config.replay_once {
             request(
@@ -319,7 +320,7 @@ fn run() {
                     config.value_size
                 ),
                 0
-            );
+            ).await;
         } else {
             for param in &found_params {
                 request(
@@ -330,7 +331,7 @@ fn run() {
                         config.value_size
                     ),
                     0
-                );
+                ).await;
             }
         }
     }

@@ -1,17 +1,17 @@
 use crate::{
-    structs::{Config, DefaultResponse, ResponseData, Stable},
+    structs::{Config, ResponseData, Stable},
     utils::{compare, beautify_html, beautify_json, make_body, make_query, make_hashmap, random_line},
 };
 use colored::*;
 use reqwest::Client;
 use std::{
+    time::Duration,
     collections::{BTreeMap, HashMap},
     io::{self, Write},
-    time::Duration,
 };
 
 //makes first requests and checks page behavior
-pub fn empty_reqs(
+pub async fn empty_reqs(
     config: &Config,
     initial_response: &ResponseData,
     reflections_count: usize,
@@ -26,7 +26,7 @@ pub fn empty_reqs(
     let mut diffs: Vec<String> = Vec::new();
 
     for i in 0..count {
-        let response = random_request(config, client, reflections_count, max);
+        let response = random_request(config, client, reflections_count, max).await;
 
         //progress bar
         if config.verbose > 0 && !config.disable_progress_bar {
@@ -67,7 +67,7 @@ pub fn empty_reqs(
         }
     }
 
-    let response = random_request(config, client, reflections_count, max);
+    let response = random_request(config, client, reflections_count, max).await;
 
     for diff in compare(config, initial_response, &response).1 {
         if !diffs.iter().any(|i| i == &diff) {
@@ -86,7 +86,7 @@ pub fn empty_reqs(
 }
 
 //calls request() with random parameters
-pub fn random_request(
+pub async fn random_request(
     config: &Config,
     client: &Client,
     reflections: usize,
@@ -100,38 +100,15 @@ pub fn random_request(
             config.value_size,
         ),
         reflections
-    )
+    ).await
 }
 
-pub fn request(
+fn create_request(
+    url: &str,
+    body: String,
     config: &Config,
-    client: &Client,
-    initial_query: &HashMap<String, String>,
-    reflections: usize,
-) -> ResponseData {
-    let mut query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
-    for (k, v) in initial_query.iter() {
-        query.insert(k.to_string(), v.replace("%random%_", ""));
-    }
-
-    let body: String = if config.as_body && !query.is_empty() {
-        make_body(&config, &query)
-    } else {
-        String::new()
-    };
-
-    let initial_client = client.clone();
-
-    std::thread::sleep(config.delay);
-
-    let url: String = if config.url.contains("%s") {
-        config.url.replace("%s", &make_query(&query, config))
-    } else {
-        config.url.clone()
-    };
-
-    let url: &str = &url;
-
+    client: &Client
+) -> reqwest::RequestBuilder {
     let mut client = if config.as_body {
         match config.method.as_str() {
             "GET" => client.get(url).body(body),
@@ -176,37 +153,72 @@ pub fn request(
         client = client.header(key, value.replace("{{random}}", &random_line(config.value_size)));
     }
 
-    let mut res = match client.send() {
+    client
+}
+
+pub async fn request(
+    config: &Config,
+    client: &Client,
+    initial_query: &HashMap<String, String>,
+    reflections: usize,
+) -> ResponseData {
+    let mut query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
+    for (k, v) in initial_query.iter() {
+        query.insert(k.to_string(), v.replace("%random%_", ""));
+    }
+
+    let body: String = if config.as_body && !query.is_empty() {
+        make_body(&config, &query)
+    } else {
+        String::new()
+    };
+
+    std::thread::sleep(config.delay);
+
+    let url: String = if config.url.contains("%s") {
+        config.url.replace("%s", &make_query(&query, config))
+    } else {
+        config.url.clone()
+    };
+
+    let url: &str = &url;
+
+    let res = match create_request(url, body.clone(), config, client).send().await {
         Ok(val) => val,
         Err(err) => {
             writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
-            if !query.is_empty() {
-                //detect whether the host died
-                if request(config, &initial_client, &HashMap::new(), reflections).code == 0 {
-                    writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
-                    std::thread::sleep(Duration::from_secs(50));
-
-                    if request(config, &initial_client, &HashMap::new(), reflections).code == 0 {
-                        writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
-                        std::process::exit(1)
-                    }
+            writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
+            std::thread::sleep(Duration::from_secs(50));
+            match create_request(url, body.clone(), config, client).send().await {
+                Ok(val) => val,
+                Err(_) => {
+                    writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
+                    std::process::exit(1);
                 }
             }
-            return <ResponseData as DefaultResponse>::default();
         }
     };
 
-    let body = match res.text() {
+    let code = res.status().as_u16();
+    let mut headers: BTreeMap<String, String> = BTreeMap::new();
+    for (key, value) in res.headers().iter() {
+        headers.insert(
+            key.as_str().to_string(),
+            value.to_str().unwrap().to_string(),
+        );
+    }
+
+    let body = match res.text().await {
         Ok(val) => {
             if config.disable_response_correction {
                 val
             } else if config.is_json
-                || (res.headers().get("content-type").is_some()
-                    && res.headers().get("content-type").unwrap().to_str().unwrap_or("").contains(&"json"))
+                || (headers.get("content-type").is_some()
+                    && headers.get("content-type").unwrap().as_str().contains(&"json"))
             {
                 beautify_json(&val)
-            } else if res.headers().get("content-type").is_some()
-                && res.headers().get("content-type").unwrap().to_str().unwrap_or("").contains(&"html")
+            } else if headers.get("content-type").is_some()
+                && headers.get("content-type").unwrap().as_str().contains(&"html")
             {
                 beautify_html(&val)
             } else {
@@ -225,14 +237,6 @@ pub fn request(
         }
     }
 
-    let mut headers: BTreeMap<String, String> = BTreeMap::new();
-    for (key, value) in res.headers().iter() {
-        headers.insert(
-            key.as_str().to_string(),
-            value.to_str().unwrap().to_string(),
-        );
-    }
-
     let mut text = String::new();
     for (key, value) in headers.iter() {
         text.push_str(&key);
@@ -242,8 +246,6 @@ pub fn request(
     }
     text.push_str(&"\n\n");
     text.push_str(&body);
-
-    let code = res.status().as_u16();
 
     ResponseData {
         text,

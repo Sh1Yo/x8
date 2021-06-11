@@ -159,12 +159,12 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
 }
 
 //prints request and response
-pub fn generate_data(config: &Config, client: &Client, query: &HashMap<String, String>) {
+pub async fn generate_data(config: &Config, client: &Client, query: &HashMap<String, String>) {
     let req = generate_request(config, query);
 
     writeln!(io::stdout(), "Request:\n{}", req).ok();
 
-    let response = request(config, client, &query, 0);
+    let response = request(config, client, &query, 0).await;
 
     writeln!(
         io::stdout(),
