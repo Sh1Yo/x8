@@ -1,10 +1,9 @@
 use crate::{structs::Config, utils::{parse_request, adjust_body}};
 use clap::{crate_version, App, AppSettings, Arg};
-use std::{collections::HashMap, fs, time::Duration, io::{self, Write}, env::temp_dir};
+use std::{collections::HashMap, fs, time::Duration, io::{self, Write}};
 use url::Url;
 
 pub fn get_config() -> (Config, usize) {
-    let tmp_dir_help_message: String = format!("Directory for response comparing. Default: {}", temp_dir().to_str().unwrap_or("/tmp"));
 
     let app = App::new("x8")
         .setting(AppSettings::ArgRequiredElseHelp)
@@ -110,7 +109,7 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("disable-response-correction")
                 .long("disable-response-correction")
-                .short("c")
+                .short("C")
                 .help("Do not beautify responses before processing. Reduces accuracy.")
         )
         .arg(
@@ -189,27 +188,8 @@ pub fn get_config() -> (Config, usize) {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("tmp-directory")
-                .long("tmp-directory")
-                .help(&tmp_dir_help_message)
-                .takes_value(true)
-        )
-        .arg(
             Arg::with_name("disable-cachebuster")
                 .long("disable-cachebuster")
-        )
-        .arg(
-            Arg::with_name("custom-diff-location")
-                .long("diff-location")
-                .short("l")
-                .help("Custom location for external diff. Default: takes from $PATH")
-                .requires("external_diff")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name("external_diff")
-                .long("external-diff")
-                .help("Use external diff instead of internal one")
         )
         /*.arg(
             Arg::with_name("verify")
@@ -225,7 +205,7 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("learn_requests_count")
                 .long("learn-requests")
-                .help("Set the custom number of learning requests. (default is 10)")
+                .help("Set the custom number of learning requests. (default is 9)")
                 .takes_value(true)
         )
         .arg(
@@ -234,6 +214,17 @@ pub fn get_config() -> (Config, usize) {
                 .long("max")
                 .help("Change the maximum number of parameters. (default is 128/192/256 for query and 512 for body)")
                 .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("concurrency")
+                .short("c")
+                .help("The number of concurrent requests (default is 1)")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("http2")
+                .long("http2")
+                .help("Use http/2 instead of http/1.1")
         );
 
     let args = app.clone().get_matches();
@@ -288,7 +279,20 @@ pub fn get_config() -> (Config, usize) {
             }
         },
         None => {
-            10
+            9
+        }
+    };
+
+    let concurrency: usize = match args.value_of("concurrency") {
+        Some(val) => match val.parse() {
+            Ok(val) => val,
+            Err(_) => {
+                writeln!(io::stderr(), "Unable to parse 'concurrency' value").ok();
+                std::process::exit(1);
+            }
+        },
+        None => {
+            1
         }
     };
 
@@ -358,12 +362,6 @@ pub fn get_config() -> (Config, usize) {
     //let origin_cachebuster_value: String = "Origin:https://{{random}}.{{host}}".replace("{{host}}", host);
 
     if !args.is_present("disable-cachebuster") {
-        if !headers.keys().any(|i| i.contains("Accept-Encoding")) {
-            headers.insert(
-                String::from("Accept-Encoding"),
-                String::from("gzip, deflate, {{random}}"),
-            );
-        }
         if !headers.keys().any(|i| i.contains("Accept")) {
             headers.insert(String::from("Accept"), String::from("*/*, text/{{random}}"));
         }
@@ -400,7 +398,7 @@ pub fn get_config() -> (Config, usize) {
 
     let mut url = args
         .value_of("url")
-        .unwrap_or("https://example.com")
+        .unwrap_or("https://something.something")
         .to_string();
 
     if !args.is_present("as-body") && url.contains('?') && url.contains('=') && !url.contains("%s") {
@@ -490,7 +488,6 @@ pub fn get_config() -> (Config, usize) {
         replay_once: args.is_present("replay-once"),
         output_file: args.value_of("output").unwrap_or("").to_string(),
         save_responses: args.value_of("save-responses").unwrap_or("").to_string(),
-        tmp_directory: args.value_of("tmp-directory").unwrap_or(temp_dir().to_str().unwrap_or("/tmp")).to_string()+"/",
         as_body: args.is_present("as-body"),
         force: args.is_present("force"),
         disable_response_correction: args.is_present("disable-response-correction"),
@@ -504,11 +501,11 @@ pub fn get_config() -> (Config, usize) {
         disable_cachebuster: args.is_present("disable-cachebuster"),
         //verify: args.is_present("verify"),
         delay,
-        diff_location: args.value_of("custom-diff-location").unwrap_or("diff").to_string(),
-        external_diff: args.is_present("external_diff"),
         value_size,
         learn_requests_count,
         max,
+        concurrency,
+        http2: args.is_present("http2")
     };
 
     config = if !request.is_empty() {

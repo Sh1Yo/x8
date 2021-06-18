@@ -22,6 +22,12 @@ pub struct ResponseData {
 }*/
 
 #[derive(Debug, Clone)]
+pub struct FuturesData {
+    pub remaining_params: Vec<String>,
+    pub found_params: Vec<String>
+}
+
+#[derive(Debug, Clone)]
 pub struct Config {
     pub method: String,
     pub url: String,
@@ -36,7 +42,6 @@ pub struct Config {
     pub proxy: String,
     pub output_file: String,
     pub save_responses: String,
-    pub tmp_directory: String,
     pub force: bool,
     pub disable_response_correction: bool,
     pub disable_custom_parameters: bool,
@@ -52,11 +57,11 @@ pub struct Config {
     pub disable_cachebuster: bool,
     //pub verify: bool,
     pub delay: Duration,
-    pub diff_location: String,
-    pub external_diff: bool,
     pub value_size: usize,
     pub learn_requests_count: usize,
-    pub max: usize
+    pub max: usize,
+    pub concurrency: usize,
+    pub http2: bool
 }
 
 #[derive(Debug)]

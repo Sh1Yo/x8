@@ -8,9 +8,8 @@ use rand::Rng;
 use regex::Regex;
 use reqwest::Client;
 use std::{
-//    env,
     collections::HashMap,
-    fs::{self, File},
+    fs::File,
     io::{self, BufRead, Write},
     path::Path,
 };
@@ -40,12 +39,9 @@ lazy_static! {
 
 //calls check_diffs & returns code and found diffs
 pub fn compare(
-    config: &Config,
     initial_response: &ResponseData,
     response: &ResponseData,
 ) -> (bool, Vec<String>) {
-    let name1 = random_line(3);
-    let name2 = random_line(3);
 
     let mut code: bool = true;
     let mut diffs: Vec<String> = Vec::new();
@@ -55,11 +51,8 @@ pub fn compare(
     }
 
     for diff in check_diffs(
-        config,
         &initial_response.text,
         &response.text,
-        &name1,
-        &name2,
     ) {
         diffs.push(diff)
     }
@@ -255,107 +248,18 @@ pub fn make_hashmap(
     hashmap
 }
 
-//use external or internal diff to compare responses
+//use internal diff to compare responses
 pub fn check_diffs(
-    config: &Config,
     resp1: &str,
-    resp2: &str,
-    postfix1: &str,
-    postfix2: &str,
+    resp2: &str
 ) -> Vec<String> {
-    use std::process::Command;
-
-    // TODO leave only internal diff
-    if !config.external_diff {
-        let diffs = match diff(resp1, resp2) {
-            Ok(val) => val,
-            Err(err) => {
-                writeln!(io::stderr(), "Unable to compare: {}", err).ok();
-                std::process::exit(1);
-            }
-        };
-
-        return diffs
-    }
-
-    let mut name1 = config.tmp_directory.clone();
-    let mut name2 = config.tmp_directory.clone();
-
-    name1.push_str(postfix1);
-    name2.push_str(postfix2);
-
-    let mut diffs: Vec<String> = Vec::new();
-
-    match fs::write(&name1, resp1) {
-        Ok(_) => (),
-        Err(err) => {
-            writeln!(io::stderr(), "[!] unable to create temp file: {}", err).ok();
-            std::process::exit(1);
-        }
-    };
-    match fs::write(&name2, resp2) {
-        Ok(_) => (),
-        Err(err) => {
-            writeln!(io::stderr(), "[!] unable to create temp file: {}", err).ok();
-            std::process::exit(1);
-        }
-    };
-
-    let output = match Command::new(&config.diff_location)
-        .arg(&name1)
-        .arg(&name2)
-        .output()
-    {
+    match diff(resp1, resp2) {
         Ok(val) => val,
         Err(err) => {
-            writeln!(io::stderr(), "[!] diff: {}", err).ok();
+            writeln!(io::stderr(), "Unable to compare: {}", err).ok();
             std::process::exit(1);
         }
-    };
-
-    match fs::remove_file(name1) {
-        Ok(_) => (),
-        Err(err) => writeln!(io::stderr(), "[!] unable to remove file: {}", err).unwrap_or(()),
-    };
-    match fs::remove_file(name2) {
-        Ok(_) => (),
-        Err(err) => writeln!(io::stderr(), "[!] unable to remove file: {}", err).unwrap_or(()),
-    };
-
-    for line in match std::str::from_utf8(&output.stdout) {
-        Ok(val) => val,
-        Err(err) => {
-            writeln!(io::stderr(), "[!] {}", err).ok();
-            return Vec::new();
-        }
-    }.split('\n') {
-        let line = line.to_string();
-
-        if !line.is_empty() {
-            match line.chars().next().unwrap() {
-                '<' => (),
-                '>' => (),
-                '\\' => (),
-                _ => {
-                    if line.len() == 3 {
-                        match &line[..3] {
-                            "---" => (),
-                            _ => diffs.push(line),
-                        }
-                    } else {
-                        diffs.push(line)
-                    }
-                }
-            }
-        }
-
-        if !diffs.is_empty() && diffs[0].contains("Binary files") && !config.force {
-            writeln!(io::stderr(), "[!] binary data detected").ok();
-            std::process::exit(1)
-        }
     }
-
-    diffs
 }
 
 pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Config> {

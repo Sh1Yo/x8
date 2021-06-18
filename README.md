@@ -10,7 +10,7 @@
 
 <h3 align="center">Hidden parameters discovery suite written in Rust.</h3>
 
-<p align="center"><a href="https://asciinema.org/a/6bLxIIDdBqcgws84clSO35C2y" target="_blank"><img src="https://asciinema.org/a/6bLxIIDdBqcgws84clSO35C2y.svg" /></a></p>
+<p align="center"><a href="https://asciinema.org/a/oAMn0LK0NciNHgzirYJClyB2v" target="_blank"><img src="https://asciinema.org/a/oAMn0LK0NciNHgzirYJClyB2v.svg" /></a></p>
 
 - [How does it work](#how-does-it-work)
 - [Features](#features)
@@ -33,7 +33,7 @@ Firstly, it makes a few basic requests to learn the target, and then it tries to
 - Supports 6 main methods: GET, POST, PUT, PATCH, DELETE, HEAD.
 - Has built in 2 main body types: json, urlencode.
 - Able to discover parameters with not random value, like admin=true
-- Uses fast GNU diff as a response comparer.
+- Compares responses line-by-line.
 - Adds to every request cachebuster by default.
 
 # Examples
@@ -108,14 +108,14 @@ FLAGS:
         --disable-colors
         --disable-custom-parameters      Do not check automatically parameters like admin=true
         --disable-progress-bar
-    -c, --disable-response-correction    Do not beautify responses before processing. Reduces accuracy.
+    -C, --disable-response-correction    Do not beautify responses before processing. Reduces accuracy.
         --encode                         Encodes query or body before a request, i.e & -> %26, = -> %3D
                                          List of chars to encode: ", `, , <, >, &, #, ;, /, =, %
-        --external-diff                  Use external diff instead of internal one
     -L, --follow-redirects               Follow redirections
         --force                          Ignore 'binary data detected', 'the page is too huge', 'param_template lacks
                                          variables' error messages
     -h, --help                           Prints help information
+        --http2                          Use http/2 instead of http/1.1
         --insecure                       Use http instead of https when the request file is used
         --is-json                        If the output is valid json and the content type does not contain 'json'
                                          keyword - specify this argument for a more accurate search
@@ -129,7 +129,7 @@ OPTIONS:
     -t, --body-type <body type>
             Available: urlencode, json. (default is "urlencode")
             Can be detected automatically if --body is specified
-    -l, --diff-location <custom-diff-location>              Custom location for external diff. Default: takes from $PATH
+    -c <concurrency>                                        The number of concurrent requests (default is 1)
         --custom-parameters <custom-parameters>
             Check these parameters with non-random values like true/false yes/no
             (default is "admin bot captcha debug disable encryption env show sso test waf")
@@ -138,7 +138,7 @@ OPTIONS:
 
     -d, --delay <Delay between requests in milliseconds>
     -H, --header <headers>                                  Example: -H 'one:one' 'two:two'
-        --learn-requests <learn_requests_count>             Set the custom number of learning requests. (default is 10)
+        --learn-requests <learn_requests_count>             Set the custom number of learning requests. (default is 9)
     -m, --max <max>
             Change the maximum number of parameters. (default is 128/192/256 for query and 512 for body)
 
@@ -155,7 +155,6 @@ OPTIONS:
 
     -r, --request <request>                                 The file with raw http request
         --save-responses <save-responses>                   Save matched responses to a directory
-        --tmp-directory <tmp-directory>                     Directory for response comparing. Default: /tmp
     -u, --url <url>                                         You can add a custom injection point with %s
         --value-size <value_size>
             Custom value size. Affects {{random}} variables as well (default is 5)

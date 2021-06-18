@@ -49,7 +49,7 @@ pub async fn empty_reqs(
             stable.reflections = false;
         }
 
-        let (is_code_the_same, new_diffs) = compare(config, initial_response, &response);
+        let (is_code_the_same, new_diffs) = compare(initial_response, &response);
 
         if !is_code_the_same {
             writeln!(
@@ -69,7 +69,7 @@ pub async fn empty_reqs(
 
     let response = random_request(config, client, reflections_count, max).await;
 
-    for diff in compare(config, initial_response, &response).1 {
+    for diff in compare(initial_response, &response).1 {
         if !diffs.iter().any(|i| i == &diff) {
             if config.verbose > 0 {
                 writeln!(
@@ -185,15 +185,20 @@ pub async fn request(
 
     let res = match create_request(url, body.clone(), config, client).send().await {
         Ok(val) => val,
-        Err(err) => {
-            writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
-            writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
-            std::thread::sleep(Duration::from_secs(50));
+        Err(_) => {
             match create_request(url, body.clone(), config, client).send().await {
                 Ok(val) => val,
-                Err(_) => {
-                    writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
-                    std::process::exit(1);
+                Err(err) => {
+                    writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
+                    writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
+                    std::thread::sleep(Duration::from_secs(50));
+                    match create_request(url, body.clone(), config, client).send().await {
+                        Ok(val) => val,
+                        Err(_) => {
+                            writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
+                            std::process::exit(1);
+                        }
+                    }
                 }
             }
         }
@@ -204,7 +209,7 @@ pub async fn request(
     for (key, value) in res.headers().iter() {
         headers.insert(
             key.as_str().to_string(),
-            value.to_str().unwrap().to_string(),
+            value.to_str().unwrap_or("").to_string(),
         );
     }
 

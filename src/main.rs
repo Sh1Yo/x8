@@ -16,9 +16,10 @@ use x8::{
 };
 
 #[cfg(windows)]
-fn main() {
+#[tokio::main]
+async fn main() {
     colored::control::set_virtual_terminal(true).unwrap();
-    run()
+    run().await;
 }
 
 #[cfg(not(windows))]
@@ -82,13 +83,14 @@ async fn run() {
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(60))
         .http1_title_case_headers()
-        .use_rustls_tls()
         .cookie_store(true);
 
+    if config.http2 {
+        client = client.use_rustls_tls();
+    }
     if !config.proxy.is_empty() {
         client = client.proxy(reqwest::Proxy::all(&config.proxy).unwrap());
     }
-
     if !config.follow_redirects {
         client = client.redirect(reqwest::redirect::Policy::none());
     }
@@ -99,20 +101,21 @@ async fn run() {
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(60))
         .http1_title_case_headers()
-        .use_rustls_tls()
         .cookie_store(true);
 
+    if config.http2 {
+        replay_client = replay_client.use_rustls_tls();
+    }
     if !config.replay_proxy.is_empty() {
         replay_client = replay_client.proxy(reqwest::Proxy::all(&config.replay_proxy).unwrap());
     }
-
     if !config.follow_redirects {
         replay_client = replay_client.redirect(reqwest::redirect::Policy::none());
     }
 
     let replay_client = replay_client.build().unwrap();
 
-    //generate random query for the first requestca
+    //generate random query for the first request
     let query = make_hashmap(
         &(0..max).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
         config.value_size,
@@ -135,7 +138,12 @@ async fn run() {
         std::process::exit(1)
     }
 
-    params.append(&mut heuristic(&initial_response.text));
+    //params.append(&mut heuristic(&initial_response.text));
+    for param in heuristic(&initial_response.text) {
+        if !params.contains(&param) {
+            params.push(param)
+        }
+    }
 
     if params.len() < max {
         max = params.len();
@@ -145,7 +153,6 @@ async fn run() {
         }
     }
 
-    //get reflection count
     initial_response.reflected_params = Vec::new();
 
     let reflections_count = initial_response
@@ -180,7 +187,7 @@ async fn run() {
     if max == 128 {
         let response = random_request(&config, &client, reflections_count, max + 64).await;
 
-        let (is_code_the_same, new_diffs) = compare(&config, &initial_response, &response);
+        let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
         let mut is_the_body_the_same = true;
 
         for diff in new_diffs.iter() {
@@ -191,7 +198,7 @@ async fn run() {
 
         if is_code_the_same && (!stable.body || is_the_body_the_same) {
             let response = random_request(&config, &client, reflections_count, max + 128).await;
-            let (is_code_the_same, new_diffs) = compare(&config, &initial_response, &response);
+            let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
 
             for diff in new_diffs {
                 if !diffs.iter().any(|i| i == &diff) {
