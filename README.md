@@ -12,7 +12,9 @@
 
 <p align="center"><a href="https://asciinema.org/a/oAMn0LK0NciNHgzirYJClyB2v" target="_blank"><img src="https://asciinema.org/a/oAMn0LK0NciNHgzirYJClyB2v.svg" /></a></p>
 
-- [How does it work](#how-does-it-work)
+The tool helps to find hidden parameters that can be vulnerable or can reveal interesting functionality that other hunters miss. Greater accuracy is achieved thanks to the line-by-line comparison of pages, comparison of response code and reflections.
+
+
 - [Features](#features)
 - [Examples](#examples)
     - [Send parameters via query]("send-parameters-via-query")
@@ -24,9 +26,6 @@
 - [Usage](#usage)
 - [Installation](#installation)
 - [Donation](#donation)
-
-# How does it work
-Firstly, it makes a few basic requests to learn the target, and then it tries to adjust the optimal amount of parameters in every request. Next requests contain parameters from the user-supplied list. If the response has unique differences - parameters from the request are split into two heaps and added to the queue for another cycle. Cycles repeat until there remains one parameter in every heap that causes a unique difference.
 
 # Features
 - A lot of things to customize: key template, value template, encodings, and even injection points.
