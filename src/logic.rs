@@ -85,7 +85,7 @@ pub async fn cycles(
                     for el in chunk.iter() {
                         if !response.reflected_params.contains(el) {
                             not_reflected_one = el;
-                            if config.verbose > 1 {
+                            if config.verbose > 0 {
                                 writeln!(
                                     io::stdout(),
                                     "{}: {}",
