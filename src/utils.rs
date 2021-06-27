@@ -54,7 +54,15 @@ pub fn compare(
         &initial_response.text,
         &response.text,
     ) {
-        diffs.push(diff)
+        if !diffs.contains(&diff) {
+            diffs.push(diff);
+        } else {
+            let mut c = 1;
+            while diffs.contains(&[&diff, "(", &c.to_string(), ")"].concat()) {
+                c += 1
+            }
+            diffs.push([&diff, " (", &c.to_string(), ")"].concat());
+        }
     }
 
     (code, diffs)
