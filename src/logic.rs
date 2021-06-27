@@ -1,7 +1,7 @@
 use crate::{
     requests::{random_request, request},
     structs::{Config, ResponseData, Stable, FuturesData},
-    utils::{check_diffs, make_hashmap, random_line, generate_request},
+    utils::{compare, make_hashmap, random_line, generate_request},
 };
 use colored::*;
 use futures::stream::StreamExt;
@@ -112,9 +112,9 @@ pub async fn cycles(
 
             if initial_response.code == response.code {
                 if stable.body {
-                    let new_diffs = check_diffs(
-                        &initial_response.text,
-                        &response.text,
+                    let (_, new_diffs) = compare(
+                        initial_response,
+                        &response,
                     );
                     let mut diffs = cloned_diffs.lock();
 
@@ -131,9 +131,9 @@ pub async fn cycles(
                         //lock it again
                         diffs = cloned_diffs.lock();
 
-                        let tmp_diffs = check_diffs(
-                            &initial_response.text,
-                            &tmp_resp.text,
+                        let (_, tmp_diffs) = compare(
+                            initial_response,
+                            &tmp_resp,
                         );
 
                         for diff in tmp_diffs {
