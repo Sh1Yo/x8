@@ -278,6 +278,7 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
     let mut firstline = lines.next()?.split(' ');
     let method = firstline.next()?.to_string();
     let path = firstline.next()?.to_string();
+    let mut parameter_template = String::from("%k=%v&");
 
     while let Some(line) = lines.next() {
         if line.is_empty() {
@@ -303,6 +304,7 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
 
     let body = lines.next().unwrap_or("");
     let body_type = if config.body_type.contains('-') && !body.is_empty() && body.starts_with('{') {
+        parameter_template = String::from("\"%k\":\"%v\", ");
         String::from("json-")
     } else {
         config.body_type
@@ -328,6 +330,7 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
         headers,
         body,
         body_type,
+        parameter_template,
         ..config
     })
 }
