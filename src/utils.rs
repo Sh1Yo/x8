@@ -292,9 +292,12 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
         ].concat();
 
         if key.to_lowercase() == "host" {
-            host = value.clone()
-        };
+            host = value.clone();
+        }
 
+        if key.to_lowercase() == "content-length" {
+            continue;
+        }
         headers.insert(key.to_string(), value);
     }
 
