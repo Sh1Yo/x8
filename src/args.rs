@@ -83,30 +83,9 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("output-format")
                 .short("O")
                 .long("output-format")
-                .help("standart, csv, json, url (default is \"standart\")")
+                .help("standart, json, url (default is \"standart\")")
                 .takes_value(true)
         )
-        /*.arg(
-            Arg::with_name("output_format")
-                .short("O")
-                .long("output-format")
-                .help("%m - method, %p - parameters, %u - url.\n (default is \"%m %u % %p\")")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name("output_delimiter")
-                .short("D")
-                .long("output-delimiter")
-                .help("Delimiter between parameter names (default is \", \")")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name("output_parameter_template")
-                .short("T")
-                .long("output-parameter-template")
-                .help("(default is \"%s\")")
-                .takes_value(true)
-        )*/
         .arg(
             Arg::with_name("method")
                 .short("X")
