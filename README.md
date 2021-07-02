@@ -24,6 +24,7 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
     - [Percent encoding](#percent-encoding)
 - [Test](#test)
 - [Usage](#usage)
+- [Troubleshooting](#troubleshooting)
 - [Installation](#installation)
 - [Donation](#donation)
 
@@ -162,7 +163,13 @@ OPTIONS:
     -w, --wordlist <wordlist>                               The file with parameters
 ```
 
-<a name="Installation"/>
+
+# Troubleshooting
+I chose the POST/PUT method and/or provided a body, but the tool sends parameters via query.
+- make sure you are adding --as-body flag.
+
+The tool fails to send requests via <a href="https://portswigger.net/burp">burp suite proxy</a>.
+- try to use --http2 flag.
 
 # Installation
 - Linux
