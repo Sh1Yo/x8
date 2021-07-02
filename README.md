@@ -17,7 +17,7 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
 
 - [Features](#features)
 - [Examples](#examples)
-    - [Send parameters via query]("send-parameters-via-query")
+    - [Send parameters via query](#send-parameters-via-query)
     - [Send parameters via body](#send-parameters-via-body)
     - [Custom template](#custom-template)
     - [Variables](#variables)
