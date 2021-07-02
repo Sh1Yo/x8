@@ -12,7 +12,7 @@ use x8::{
     logic::cycles,
     requests::{empty_reqs, random_request, request},
     structs::Config,
-    utils::{compare, generate_data, heuristic, make_hashmap, random_line, read_lines},
+    utils::{compare, generate_data, heuristic, make_hashmap, random_line, read_lines, create_output},
 };
 
 #[cfg(windows)]
@@ -343,52 +343,19 @@ async fn run() {
         }
     }
 
-    //TODO different output types
-    let mut output = format!("{} {} % ", &config.method, &config.url);
+    if !found_params.is_empty() {
+        let output = create_output(&config, found_params);
 
-    /*if config.verify {
-        let mut filtered_params = Vec::new();
-        for param in found_params {
-
-            let response = request(
-                &config, &client,
-                &random_hashmap(
-                    &[param.clone()], &config.parameter_template, &config.parameter_delimiter
-                ),
-                reflections_count
-            );
-
-            let (is_code_the_same, new_diffs) = compare(&config, &initial_response, &response);
-            let mut is_the_body_the_same = true;
-
-            for diff in new_diffs.iter() {
-                if !diffs.iter().any(|i| &i==&diff) {
-                    is_the_body_the_same = false;
+        if !config.output_file.is_empty() {
+            match std::fs::write(&config.output_file, &output) {
+                Ok(_) => (),
+                Err(err) => {
+                    writeln!(io::stderr(), "[!] {}", err).ok();
                 }
-            }
-
-            if !response.reflected_params.is_empty() || !is_the_body_the_same || !is_code_the_same {
-                filtered_params.push(param);
-            }
+            };
         }
-        found_params = filtered_params;
-    }*/
-
-    for param in &found_params {
-        output.push_str(&param);
-        output.push_str(", ")
+        writeln!(io::stdout(), "\n{}", &output).ok();
+    } else {
+        writeln!(io::stdout(), "nothing found").ok();
     }
-
-    let mut output = output[..output.len() - 2].to_string();
-    output.push('\n');
-
-    if !config.output_file.is_empty() && !found_params.is_empty() {
-        match std::fs::write(&config.output_file, &output) {
-            Ok(_) => (),
-            Err(err) => {
-                writeln!(io::stderr(), "[!] {}", err).ok();
-            }
-        };
-    }
-    writeln!(io::stdout(), "{}", &output).ok();
 }

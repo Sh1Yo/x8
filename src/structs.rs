@@ -30,6 +30,7 @@ pub struct FuturesData {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub method: String,
+    pub initial_url: String,
     pub url: String,
     pub host: String,
     pub path: String,
@@ -41,6 +42,7 @@ pub struct Config {
     pub body_type: String,
     pub proxy: String,
     pub output_file: String,
+    pub output_format: String,
     pub save_responses: String,
     pub force: bool,
     pub disable_response_correction: bool,

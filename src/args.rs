@@ -80,6 +80,34 @@ pub fn get_config() -> (Config, usize) {
                 .takes_value(true)
         )
         .arg(
+            Arg::with_name("output-format")
+                .short("O")
+                .long("output-format")
+                .help("standart, csv, json, url (default is \"standart\")")
+                .takes_value(true)
+        )
+        /*.arg(
+            Arg::with_name("output_format")
+                .short("O")
+                .long("output-format")
+                .help("%m - method, %p - parameters, %u - url.\n (default is \"%m %u % %p\")")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("output_delimiter")
+                .short("D")
+                .long("output-delimiter")
+                .help("Delimiter between parameter names (default is \", \")")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("output_parameter_template")
+                .short("T")
+                .long("output-parameter-template")
+                .help("(default is \"%s\")")
+                .takes_value(true)
+        )*/
+        .arg(
             Arg::with_name("method")
                 .short("X")
                 .long("method")
@@ -474,6 +502,7 @@ pub fn get_config() -> (Config, usize) {
 
     let mut config = Config {
         method: args.value_of("method").unwrap_or("GET").to_string(),
+        initial_url: args.value_of("url").unwrap_or("").to_string(),
         url,
         host: host.to_string(),
         path,
@@ -488,6 +517,7 @@ pub fn get_config() -> (Config, usize) {
         replay_once: args.is_present("replay-once"),
         output_file: args.value_of("output").unwrap_or("").to_string(),
         save_responses: args.value_of("save-responses").unwrap_or("").to_string(),
+        output_format: args.value_of("output-format").unwrap_or("").to_string(),
         as_body: args.is_present("as-body"),
         force: args.is_present("force"),
         disable_response_correction: args.is_present("disable-response-correction"),

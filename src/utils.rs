@@ -309,7 +309,7 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
     } else {
         config.body_type
     };
-    let body = if !body.is_empty() && !body.contains("%s") {
+    let body = if !body.is_empty() && !body.contains("%s") && config.as_body {
         adjust_body(body, &body_type)
     } else {
         body.to_string()
@@ -350,22 +350,53 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
-/*pub fn is_external_diff_exist() -> bool {
-    let paths = env::var_os("PATH");
-    if paths.is_none() {
-        false
-    } else {
-        let paths = paths.unwrap();
-        for path in env::split_paths(&paths) {
-            if path.join(&"diff").is_file() {
-                return true
-            } else {
-                continue
+pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
+    match config.output_format.as_str() {
+        "url" => {
+            let mut line = config.initial_url.to_owned()+"?";
+
+            for param in &found_params {
+                line.push_str(&param);
+                if !param.contains("=") {
+                    line.push('=');
+                    line.push_str(&random_line(config.value_size));
+                }
+                line.push('&')
             }
+            line.pop();
+
+            line
         }
-        false
+        "json" => {
+            let mut line = format!(
+                "{{\"method\":\"{}\", \"url\":\"{}\", \"parameters\":[",
+                &config.method,
+                &config.initial_url
+            );
+
+            for param in &found_params {
+                line.push('\"');
+                line.push_str(&param.replace("\"", "\\\""));
+                line.push('\"');
+                line.push_str(", ");
+            }
+
+            let mut line = line[..line.len() - 2].to_string();
+            line.push_str("]}");
+            line
+        },
+        _ => {
+            let mut line = format!("{} {} % ", &config.method, &config.initial_url);
+
+            for param in &found_params {
+                line.push_str(&param);
+                line.push_str(", ")
+            }
+
+            line[..line.len() - 2].to_string()
+        },
     }
-}*/
+}
 
 //beautify json before comparing responses
 pub fn beautify_json(json: &str) -> String {
