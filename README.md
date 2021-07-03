@@ -25,6 +25,7 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
 - [Test](#test)
 - [Usage](#usage)
 - [Troubleshooting](#troubleshooting)
+- [Burp Suite integrations](#burp-suite-integrations)
 - [Installation](#installation)
 - [Donation](#donation)
 
@@ -171,6 +172,31 @@ I chose the POST/PUT method and/or provided a body, but the tool sends parameter
 
 The tool fails to send requests via <a href="https://portswigger.net/burp">burp suite proxy</a>.
 - try to use --http2 flag.
+
+# Burp Suite integrations
+It is possible to run parameter discovery in a few clicks using <a href="https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e">Custom Send To</a> extension.
+1. Open Burp Suite and go to the extender tab.
+2. Find and install the "Custom Send To" extension in BApp Store.
+3. Go to the "Send to" tab and click Add.
+
+Name - x8 query.
+
+Command - `/path/to/x8 -r %R -w wordlist.txt`. You can also add your frequently used arguments like `--output-format`,`--replay-proxy`, `-c`...
+
+Then switch from Run in background to Run in terminal.
+
+![command](https://user-images.githubusercontent.com/54232788/124345616-18837d00-dbeb-11eb-9861-9fda256622e3.png)
+
+4. Repeat step 3 with Name - "x8 body" and add `--as-body` flag to the Command.
+
+Now you can go to the proxy/repeater tab and send the request to the tool:
+
+![extension_tab](https://user-images.githubusercontent.com/54232788/124345628-2f29d400-dbeb-11eb-991e-7ba1a2800522.png)
+
+In the next dialog, you can change the command and run it in a new terminal window.
+
+![dialog](https://user-images.githubusercontent.com/54232788/124345626-2c2ee380-dbeb-11eb-9dc5-315293a45cf9.png)
+
 
 # Installation
 - Linux
