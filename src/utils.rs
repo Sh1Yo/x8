@@ -278,6 +278,13 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
     let mut firstline = lines.next()?.split(' ');
     let method = firstline.next()?.to_string();
     let path = firstline.next()?.to_string();
+
+    let http2: bool = if firstline.next()?.to_string().contains("HTTP/2") {
+        true
+    } else {
+        false
+    };
+
     let mut parameter_template = String::from("%k=%v&");
 
     while let Some(line) = lines.next() {
@@ -331,6 +338,7 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
         body,
         body_type,
         parameter_template,
+        http2,
         ..config
     })
 }
