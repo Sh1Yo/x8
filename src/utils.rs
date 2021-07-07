@@ -173,6 +173,12 @@ pub async fn generate_data(config: &Config, client: &Client, query: &HashMap<Str
         response.code,
         response.text
     ).ok();
+
+    writeln!(
+        io::stdout(),
+        "Possible parameters: {}",
+        heuristic(&response.text).join(", ")
+    ).ok();
 }
 
 //Add %s if it is absent in the body
