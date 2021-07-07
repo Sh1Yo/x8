@@ -367,7 +367,10 @@ where
 pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
     match config.output_format.as_str() {
         "url" => {
-            let mut line = config.initial_url.to_owned()+"?";
+            let mut line = match config.initial_url.contains("?") {
+                true => config.initial_url.to_owned()+"&",
+                false => config.initial_url.to_owned()+"?"
+            };
 
             for param in &found_params {
                 line.push_str(&param);
