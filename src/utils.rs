@@ -68,9 +68,11 @@ pub fn compare(
     (code, diffs)
 }
 
-//get possible parameters from the page source code
+//get possible parameters from the page code
 pub fn heuristic(body: &str) -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
+
+    let re_special_chars = Regex::new(r#"[\W]"#).unwrap();
 
     let re_name = Regex::new(r#"(?i)name=("|')?"#).unwrap();
     let re_inputs = Regex::new(r#"(?i)name=("|')?[\w-]+"#).unwrap();
@@ -84,10 +86,14 @@ pub fn heuristic(body: &str) -> Vec<String> {
         found.push(re_var.replace_all(&cap[0], "").to_string());
     }
 
-    let re_quotes = Regex::new(r#"("|')"#).unwrap();
     let re_words_in_quotes = Regex::new(r#"("|')\w{3,20}('|")"#).unwrap();
     for cap in re_words_in_quotes.captures_iter(body) {
-        found.push(re_quotes.replace_all(&cap[0], "").to_string());
+        found.push(re_special_chars.replace_all(&cap[0], "").to_string());
+    }
+
+    let re_words_within_objects = Regex::new(r#"[\{,]\s*[[:alpha:]]\w{2,25}:"#).unwrap();
+    for cap in re_words_within_objects.captures_iter(body){
+        found.push(re_special_chars.replace_all(&cap[0], "").to_string());
     }
 
     found.sort();
