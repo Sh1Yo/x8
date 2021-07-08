@@ -387,6 +387,7 @@ pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
                 line.push('&')
             }
             line.pop();
+            line.push('\n');
 
             line
         }
@@ -405,7 +406,7 @@ pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
             }
 
             let mut line = line[..line.len() - 2].to_string();
-            line.push_str("]}");
+            line.push_str("]}\n");
             line
         },
         _ => {
@@ -416,7 +417,9 @@ pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
                 line.push_str(", ")
             }
 
-            line[..line.len() - 2].to_string()
+            line = line[..line.len() - 2].to_string();
+            line.push('\n');
+            line
         },
     }
 }

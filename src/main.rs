@@ -354,7 +354,7 @@ async fn run() {
                 }
             };
         }
-        writeln!(io::stdout(), "\n{}", &output).ok();
+        write!(io::stdout(), "\n{}", &output).ok();
     } else {
         writeln!(io::stdout(), "nothing found").ok();
     }
