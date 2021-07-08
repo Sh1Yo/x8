@@ -1,5 +1,7 @@
 [![Twitter](https://img.shields.io/twitter/follow/sh1yo_.svg?logo=twitter)](https://twitter.com/sh1yo_)
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B0B858X5E)
+
 ![crates.io](https://img.shields.io/crates/v/x8.svg)
 ![stars](https://img.shields.io/github/stars/Sh1Yo/x8)
 ![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust)
@@ -27,7 +29,6 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
 - [Troubleshooting](#troubleshooting)
 - [Burp Suite integrations](#burp-suite-integrations)
 - [Installation](#installation)
-- [Donation](#donation)
 
 # Features
 - A lot of things to customize: key template, value template, encodings, and even injection points.
@@ -226,10 +227,3 @@ In the next dialog, you can change the command and run it in a new terminal wind
 
 - Windows
     - from releases
-
-# Donation
-Want to support the project? You can donate to the following addresses:
-
-Monero: 46pni5AY9Ra399sivBykVucaK6KdU3rYiSqFsZinfaEgd3qUkeZvRxjEdhPPmsmZQwTDPBSrvSpkaj4LsHqLH6GG7zMmgiW
-
-Bitcoin: bc1q8q9hfmejxd65jcrszwpgj7xnwhy32gpxay2h604xwvjwtw8jh8vq8kev5r
