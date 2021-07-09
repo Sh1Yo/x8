@@ -191,14 +191,15 @@ pub async fn generate_data(config: &Config, client: &Client, query: &HashMap<Str
 pub fn adjust_body(body: &str, t: &str) -> String {
     let mut body = body.to_string();
 
-    if t.contains("json") && !body.is_empty() {
+    //if type is json and body has parameters -> add an injection to the end
+    if t.contains("json") && !body.is_empty() && body.contains('"') {
         body.pop();
         body.push_str(", %s}");
         body
     } else if t.contains("json") {
-        body.push_str("{%s}");
-        body
-    } else if !body.is_empty() {
+        String::from("{%s}")
+    //suppose that body type is urlencode
+    } else if !body.is_empty()  {
         body.push_str("&%s");
         body
     } else {
@@ -285,20 +286,21 @@ pub fn check_diffs(
 pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Config> {
     let mut lines = request.lines();
     let mut host = String::new();
+    let mut content_type = String::new();
     let mut headers: HashMap<String, String> = config.headers.clone();
     let proto = if insecure { "http://" } else { "https://" };
     let mut firstline = lines.next()?.split(' ');
     let method = firstline.next()?.to_string();
     let path = firstline.next()?.to_string();
 
-    let http2: bool = if firstline.next()?.to_string().contains("HTTP/2") {
-        true
-    } else {
-        false
+    let http2: bool = firstline.next()?.to_string().contains("HTTP/2");
+
+    let mut parameter_template = match config.body_type == "json" {
+        true => String::from("\"%k\":\"%v\", "),
+        false => String::from("%k=%v&")
     };
 
-    let mut parameter_template = String::from("%k=%v&");
-
+    //read headers
     while let Some(line) = lines.next() {
         if line.is_empty() {
             break;
@@ -311,24 +313,29 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
             k_v.map(|x| ":".to_owned() + x).collect(),
         ].concat();
 
-        if key.to_lowercase() == "host" {
-            host = value.clone();
-        }
+        match key.to_lowercase().as_str() {
+            "content-type" => content_type = value.clone(),
+            "host" => host = value.clone(),
+            "content-length" => continue,
+            _ => ()
+        };
 
-        if key.to_lowercase() == "content-length" {
-            continue;
-        }
         headers.insert(key.to_string(), value);
     }
 
     let body = lines.next().unwrap_or("");
-    let body_type = if config.body_type.contains('-') && !body.is_empty() && body.starts_with('{') {
+
+    //check whether the body type can be json
+    let body_type = if config.body_type.contains('-') && config.as_body
+    && (content_type.contains("json") || (!body.is_empty() && body.starts_with('{'))) {
         parameter_template = String::from("\"%k\":\"%v\", ");
         String::from("json-")
     } else {
         config.body_type
     };
-    let body = if !body.is_empty() && !body.contains("%s") && config.as_body {
+
+    //if --as-body is specified and body is empty or lacks injection points - add an injection point
+    let body = if config.as_body && ((!body.is_empty() && !body.contains("%s")) || body.is_empty()) {
         adjust_body(body, &body_type)
     } else {
         body.to_string()
@@ -373,14 +380,14 @@ where
 pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
     match config.output_format.as_str() {
         "url" => {
-            let mut line = match config.initial_url.contains("?") {
+            let mut line = match config.initial_url.contains('?') {
                 true => config.initial_url.to_owned()+"&",
                 false => config.initial_url.to_owned()+"?"
             };
 
             for param in &found_params {
                 line.push_str(&param);
-                if !param.contains("=") {
+                if !param.contains('=') {
                     line.push('=');
                     line.push_str(&random_line(config.value_size));
                 }
