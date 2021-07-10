@@ -291,7 +291,7 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
     let proto = if insecure { "http://" } else { "https://" };
     let mut firstline = lines.next()?.split(' ');
     let method = firstline.next()?.to_string();
-    let path = firstline.next()?.to_string();
+    let mut path = firstline.next()?.to_string();
 
     let http2: bool = firstline.next()?.to_string().contains("HTTP/2");
 
@@ -315,7 +315,12 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
 
         match key.to_lowercase().as_str() {
             "content-type" => content_type = value.clone(),
-            "host" => host = value.clone(),
+            "host" => {
+                host = value.clone();
+                if http2 {
+                    continue
+                }
+            },
             "content-length" => continue,
             _ => ()
         };
@@ -342,10 +347,13 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
     };
 
     let mut url = [proto.to_string(), host.clone(), path.clone()].concat();
+    let initial_url = url.clone();
     if !config.as_body && url.contains('?') && url.contains('=') && !url.contains("%s") {
         url.push_str("&%s");
+        path.push_str("&%s");
     } else if !config.as_body {
         url.push_str("?%s");
+        path.push_str("?%s");
     }
 
     Some(Config {
@@ -358,6 +366,7 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
         body_type,
         parameter_template,
         http2,
+        initial_url,
         ..config
     })
 }
