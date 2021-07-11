@@ -416,13 +416,11 @@ pub fn get_config() -> (Config, usize) {
     }
 
     if parameter_template.is_empty() {
-        if body_type.contains("json") && args.is_present("as_body") {
+        if body_type.contains("json") && args.is_present("as-body") {
             parameter_template = "\"%k\":\"%v\", ";
-        } else if body_type.contains("urlencode") {
+        } else {
             parameter_template = "%k=%v&";
-        } /*else {
-            parameter_template = "%k=%v&";
-        }*/
+        }
     }
 
 
