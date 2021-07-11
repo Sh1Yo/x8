@@ -321,7 +321,12 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
         headers.insert(key.to_string(), value);
     }
 
-    let body = lines.next().unwrap_or("");
+    let mut body = lines.next().unwrap_or("").to_string();
+    while let Some(part) = lines.next() {
+        if !part.is_empty() {
+            body.push_str(part);
+        }
+    }
 
     //check whether the body type can be json
     let body_type = if config.body_type.contains('-') && config.as_body
@@ -334,9 +339,9 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
 
     //if --as-body is specified and body is empty or lacks injection points - add an injection point
     let body = if config.as_body && ((!body.is_empty() && !body.contains("%s")) || body.is_empty()) {
-        adjust_body(body, &body_type)
+        adjust_body(&body, &body_type)
     } else {
-        body.to_string()
+        body
     };
 
     let mut url = [proto.to_string(), host.clone(), path.clone()].concat();
