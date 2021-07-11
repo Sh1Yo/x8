@@ -226,7 +226,7 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("http2")
                 .long("http2")
-                .help("Use http/2 instead of http/1.1")
+                .help("Prefer http/2 over http/1.1")
         );
 
     let args = app.clone().get_matches();

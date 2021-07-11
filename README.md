@@ -117,7 +117,7 @@ FLAGS:
         --force                          Ignore 'binary data detected', 'the page is too huge', 'param_template lacks
                                          variables' error messages
     -h, --help                           Prints help information
-        --http2                          Use http/2 instead of http/1.1
+        --http2                          Prefer http/2 over http/1.1
         --insecure                       Use http instead of https when the request file is used
         --is-json                        If the output is valid json and the content type does not contain 'json'
                                          keyword - specify this argument for a more accurate search
