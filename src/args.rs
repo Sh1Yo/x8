@@ -198,11 +198,6 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("disable-cachebuster")
                 .long("disable-cachebuster")
         )
-        /*.arg(
-            Arg::with_name("verify")
-                .long("verify")
-                .help("verify found params")
-        )*/
         .arg(
             Arg::with_name("value_size")
                 .long("value-size")
@@ -426,10 +421,12 @@ pub fn get_config() -> (Config, usize) {
     }
 
     if parameter_template.is_empty() {
-        if body_type.contains("urlencode") {
-            parameter_template = "%k=%v&";
-        } else if body_type.contains("json") {
+        if body_type.contains("json") && args.is_present("as_body") {
             parameter_template = "\"%k\":\"%v\", ";
+        } else if body_type.contains("urlencode") {
+            parameter_template = "%k=%v&";
+        } else {
+            parameter_template = "%k=%v&";
         }
     }
 
