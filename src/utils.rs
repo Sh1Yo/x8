@@ -50,10 +50,17 @@ pub fn compare(
         code = false
     }
 
-    for diff in check_diffs(
+    //just push every found diff to the vector of diffs
+    for diff in match diff(
         &initial_response.text,
         &response.text,
     ) {
+        Ok(val) => val,
+        Err(err) => {
+            writeln!(io::stderr(), "Unable to compare: {}", err).ok();
+            std::process::exit(1);
+        }
+    } {
         if !diffs.contains(&diff) {
             diffs.push(diff);
         } else {
@@ -267,20 +274,6 @@ pub fn make_hashmap(
     }
 
     hashmap
-}
-
-//use internal diff to compare responses
-pub fn check_diffs(
-    resp1: &str,
-    resp2: &str
-) -> Vec<String> {
-    match diff(resp1, resp2) {
-        Ok(val) => val,
-        Err(err) => {
-            writeln!(io::stderr(), "Unable to compare: {}", err).ok();
-            std::process::exit(1);
-        }
-    }
 }
 
 pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Config> {

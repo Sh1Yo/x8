@@ -361,15 +361,10 @@ pub fn get_config() -> (Config, usize) {
         headers.insert(String::from("User-Agent"), String::from("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36"));
     }
 
-    //let origin_cachebuster_value: String = "Origin:https://{{random}}.{{host}}".replace("{{host}}", host);
-
     if !args.is_present("disable-cachebuster") {
         if !headers.keys().any(|i| i.contains("Accept")) {
             headers.insert(String::from("Accept"), String::from("*/*, text/{{random}}"));
         }
-        /*if !headers.keys().any(|i| i.contains("Origin")) {
-            headers.push(&origin_cachebuster_value);
-        }*/
         if !headers.keys().any(|i| i.contains("Accept-Language")) {
             headers.insert(
                 String::from("Accept-Language"),
@@ -425,9 +420,9 @@ pub fn get_config() -> (Config, usize) {
             parameter_template = "\"%k\":\"%v\", ";
         } else if body_type.contains("urlencode") {
             parameter_template = "%k=%v&";
-        } else {
+        } /*else {
             parameter_template = "%k=%v&";
-        }
+        }*/
     }
 
 
@@ -505,7 +500,6 @@ pub fn get_config() -> (Config, usize) {
         test: args.is_present("test"),
         verbose,
         disable_cachebuster: args.is_present("disable-cachebuster"),
-        //verify: args.is_present("verify"),
         delay,
         value_size,
         learn_requests_count,

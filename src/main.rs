@@ -138,7 +138,6 @@ async fn run() {
         std::process::exit(1)
     }
 
-    //params.append(&mut heuristic(&initial_response.text));
     for param in heuristic(&initial_response.text) {
         if !params.contains(&param) {
             params.push(param)
@@ -155,6 +154,7 @@ async fn run() {
 
     initial_response.reflected_params = Vec::new();
 
+    //let reflections count = the number of reflections of the first parameter
     let reflections_count = initial_response
         .text
         .matches(&query.values().next().unwrap().replace("%random%_", "").as_str())
