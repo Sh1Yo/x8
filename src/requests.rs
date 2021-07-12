@@ -5,6 +5,7 @@ use crate::{
 use colored::*;
 use reqwest::Client;
 use std::{
+    error::Error,
     time::Duration,
     collections::{BTreeMap, HashMap},
     io::{self, Write},
@@ -190,6 +191,13 @@ pub async fn request(
                 Ok(val) => val,
                 Err(err) => {
                     writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
+                    match err.source() {
+                        Some(val) => if val.to_string() == "invalid HTTP version parsed" && !config.http2 {
+                             writeln!(io::stdout(), "[!] {}", "Try to use --http2 option".bright_red()).ok();
+                             std::process::exit(1);
+                        },
+                        None => ()
+                    };
                     writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
                     std::thread::sleep(Duration::from_secs(50));
                     match create_request(url, body.clone(), config, client).send().await {
