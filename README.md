@@ -118,7 +118,6 @@ FLAGS:
                                          variables' error messages
     -h, --help                           Prints help information
         --http2                          Prefer http/2 over http/1.1
-        --insecure                       Use http instead of https when the request file is used
         --is-json                        If the output is valid json and the content type does not contain 'json'
                                          keyword - specify this argument for a more accurate search
         --replay-once                    If replay proxy is specified, send all found parameters within one request
@@ -152,6 +151,7 @@ OPTIONS:
     -P, --param-template <parameter_template>
             %k - key, %v - value. Example: --param-template 'user[%k]=%v&'
 
+        --proto <proto>                                     Uses when the request file is present. (default is "https")
     -x, --proxy <proxy>
         --replay-proxy <replay-proxy>
             Request target with every found parameter via replay proxy at the end

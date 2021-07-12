@@ -26,7 +26,7 @@ pub fn get_config() -> (Config, usize) {
         )
         .arg(Arg::with_name("proto")
             .long("proto")
-            .help("Uses when the request file is present. https or http (default is \"https\")")
+            .help("Uses when the request file is present. (default is \"https\")")
             .takes_value(true)
             .requires("request")
             .conflicts_with("url")
