@@ -165,11 +165,7 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
 
     if !body.is_empty() {
         req.push('\n');
-        if config.encode {
-            req.push_str(&utf8_percent_encode(&body, &FRAGMENT).to_string())
-        } else {
-            req.push_str(&body);
-        }
+        req.push_str(&body);
         req.push('\n');
     }
 
@@ -234,13 +230,12 @@ pub fn make_body(config: &Config, query: &HashMap<String, String>) -> String {
         body.truncate(body.len().saturating_sub(2)) //remove the last ', '
     }
 
-    body = config.body.replace("%s", &body).replace("{{random}}", &random_line(config.value_size));
+    body = match config.encode {
+        true =>config.body.replace("%s", &utf8_percent_encode(&body, &FRAGMENT).to_string()).replace("{{random}}", &random_line(config.value_size)),
+        false => config.body.replace("%s", &body).replace("{{random}}", &random_line(config.value_size))
+    };
 
-    if config.encode {
-        utf8_percent_encode(&body, &FRAGMENT).to_string()
-    } else {
-        body
-    }
+    body
 }
 
 pub fn make_query(params: &HashMap<String, String>, config: &Config) -> String {
