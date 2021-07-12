@@ -139,7 +139,11 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
         req.push_str(&config.path.replace("%s", &query_string));
     }
 
-    req.push_str(" HTTP/1.1\n");
+    if config.http2 {
+        req.push_str(" HTTP/2\n");
+    } else {
+        req.push_str(" HTTP/1.1\n");
+    }
 
     if !config.headers.keys().any(|i| i.contains("Host")) {
         req.push_str(&("Host: ".to_owned() + &config.host));
