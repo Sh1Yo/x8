@@ -275,12 +275,11 @@ pub fn make_hashmap(
     hashmap
 }
 
-pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Config> {
+pub fn parse_request(proto: &str, request: &str, config: Config) -> Option<Config> {
     let mut lines = request.lines();
     let mut host = String::new();
     let mut content_type = String::new();
     let mut headers: HashMap<String, String> = config.headers.clone();
-    let proto = if insecure { "http://" } else { "https://" };
     let mut firstline = lines.next()?.split(' ');
     let method = firstline.next()?.to_string();
     let mut path = firstline.next()?.to_string();
@@ -343,7 +342,7 @@ pub fn parse_request(insecure: bool, request: &str, config: Config) -> Option<Co
         body
     };
 
-    let mut url = [proto.to_string(), host.clone(), path.clone()].concat();
+    let mut url = [proto,"://", &host, &path].concat();
     let initial_url = url.clone();
     if !config.as_body && url.contains('?') && url.contains('=') && !url.contains("%s") {
         url.push_str("&%s");

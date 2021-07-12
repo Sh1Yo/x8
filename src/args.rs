@@ -24,9 +24,10 @@ pub fn get_config() -> (Config, usize) {
             .takes_value(true)
             .conflicts_with("url")
         )
-        .arg(Arg::with_name("insecure")
-            .long("insecure")
-            .help("Use http instead of https when the request file is used")
+        .arg(Arg::with_name("proto")
+            .long("proto")
+            .help("Uses when the request file is present. https or http (default is \"https\")")
+            .takes_value(true)
             .requires("request")
             .conflicts_with("url")
         )
@@ -507,7 +508,7 @@ pub fn get_config() -> (Config, usize) {
     };
 
     config = if !request.is_empty() {
-        match parse_request(args.is_present("insecure"), &request, config) {
+        match parse_request(args.value_of("proto").unwrap_or("https"), &request, config) {
             Some(val) => val,
             None => {
                 writeln!(io::stderr(), "Unable to parse request file.").ok();
