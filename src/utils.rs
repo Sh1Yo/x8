@@ -93,7 +93,7 @@ pub fn heuristic(body: &str) -> Vec<String> {
         found.push(re_var.replace_all(&cap[0], "").to_string());
     }
 
-    let re_words_in_quotes = Regex::new(r#"("|')\w{3,20}('|")"#).unwrap();
+    let re_words_in_quotes = Regex::new(r#"("|')[a-zA-Z0-9]{3,20}('|")"#).unwrap();
     for cap in re_words_in_quotes.captures_iter(body) {
         found.push(re_special_chars.replace_all(&cap[0], "").to_string());
     }
