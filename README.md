@@ -182,11 +182,11 @@ It is possible to run parameter discovery in a few clicks using <a href="https:/
 
 Name - x8 query.
 
-Command - `/path/to/x8 -r %R -w wordlist.txt`. You can also add your frequently used arguments like `--output-format`,`--replay-proxy`, `-c`...
+Command - `/path/to/x8 -r %R -w wordlist.txt --proto %T`. You can also add your frequently used arguments like `--output-format`,`--replay-proxy`, `-c`...
 
 Then switch from Run in background to Run in terminal.
 
-![command](https://user-images.githubusercontent.com/54232788/124345616-18837d00-dbeb-11eb-9861-9fda256622e3.png)
+![command](https://user-images.githubusercontent.com/54232788/125414936-edf8872d-d3ba-4a7e-8bb1-3af0d7685e48.png)
 
 4. Repeat step 3 with Name - "x8 body" and add `--as-body` flag to the Command.
 
@@ -196,7 +196,7 @@ Now you can go to the proxy/repeater tab and send the request to the tool:
 
 In the next dialog, you can change the command and run it in a new terminal window.
 
-![dialog](https://user-images.githubusercontent.com/54232788/124345626-2c2ee380-dbeb-11eb-9dc5-315293a45cf9.png)
+![dialog](https://user-images.githubusercontent.com/54232788/125414941-9404ac7b-e1e0-4a33-ac1a-aaf2cad0c231.png)
 
 
 # Installation
