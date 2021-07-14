@@ -187,8 +187,31 @@ pub async fn request(
     let res = match create_request(url, body.clone(), config, client).send().await {
         Ok(val) => val,
         Err(_) => {
-            match create_request(url, body.clone(), config, client).send().await {
-                Ok(val) => val,
+            //Try to make a random request instead
+            let mut random_query: HashMap<String, String> = HashMap::with_capacity(query.len());
+            for (k, v) in make_hashmap(
+                &(0..query.len()).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
+                config.value_size,
+            ) {
+                random_query.insert(k.to_string(), v.replace("%random%_", ""));
+            }
+            let body: String = if config.as_body && !query.is_empty() {
+                make_body(&config, &random_query)
+            } else {
+                String::new()
+            };
+            let url: String = if config.url.contains("%s") {
+                config.url.replace("%s", &make_query(&random_query, config))
+            } else {
+                config.url.clone()
+            };
+
+            match create_request(&url, body.clone(), config, client).send().await {
+                Ok(_) => return ResponseData {
+                                    text: String::new(),
+                                    code: 0,
+                                    reflected_params: Vec::new(),
+                                },
                 Err(err) => {
                     writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
                     match err.source() {
@@ -200,8 +223,12 @@ pub async fn request(
                     };
                     writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
                     std::thread::sleep(Duration::from_secs(50));
-                    match create_request(url, body.clone(), config, client).send().await {
-                        Ok(val) => val,
+                    match create_request(&url, body.clone(), config, client).send().await {
+                        Ok(_) => return ResponseData {
+                            text: String::new(),
+                            code: 0,
+                            reflected_params: Vec::new(),
+                        },
                         Err(_) => {
                             writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
                             std::process::exit(1);
