@@ -322,6 +322,7 @@ pub fn parse_request(proto: &str, request: &str, config: Config) -> Option<Confi
     let mut body = lines.next().unwrap_or("").to_string();
     while let Some(part) = lines.next() {
         if !part.is_empty() {
+            body.push_str("\r\n");
             body.push_str(part);
         }
     }
