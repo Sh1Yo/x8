@@ -134,6 +134,13 @@ pub fn get_config() -> (Config, usize) {
                 .long("disable-progress-bar")
         )
         .arg(
+            Arg::with_name("keep-newlines")
+                .long("keep-newlines")
+                .help("--body 'a\\r\\nb' -> --body 'a{{new_line}}b'. Works with body only")
+                .conflicts_with("request")
+                .requires("body")
+        )
+        .arg(
             Arg::with_name("replay-once")
                 .long("replay-once")
                 .help("If replay proxy is specified, send all found parameters within one request")
@@ -341,7 +348,10 @@ pub fn get_config() -> (Config, usize) {
     let host = url.host_str().unwrap();
     let mut path = url[url::Position::BeforePath..].to_string();
 
-    let body = args.value_of("body").unwrap_or("");
+    let body = match args.is_present("keep-newlines") {
+        true => args.value_of("body").unwrap_or("")/*.replace("\\\\", "\\")*/.replace("\\n", "\n").replace("\\r", "\r"),
+        false => args.value_of("body").unwrap_or("").to_string()
+    };
 
     //check whether it is possible to automatically fix body type
     //- at the end means "specified automatically"
@@ -352,9 +362,9 @@ pub fn get_config() -> (Config, usize) {
     };
 
     let body = if !body.contains("%s") && args.is_present("as-body") {
-        adjust_body(body, &body_type)
+        adjust_body(&body, &body_type)
     } else {
-        body.to_string()
+        body
     };
 
     //set default headers if weren't specified by a user.
