@@ -175,7 +175,14 @@ The tool fails to send requests via <a href="https://portswigger.net/burp">burp 
 - try to use --http2 flag.
 
 # Burp Suite integrations
-It is possible to run parameter discovery in a few clicks using <a href="https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e">Custom Send To</a> extension.
+It is possible to run parameter discovery in a few clicks using burp suite extensions:
+
+## [x8-Burp](https://github.com/Impact-I/x8-Burp)
+![preview](https://user-images.githubusercontent.com/54232788/126073100-ed09e8b1-0ffa-4432-aa34-f0451586a992.png)
+
+## [Send To](https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e)
+
+### Setting up
 1. Open Burp Suite and go to the extender tab.
 2. Find and install the "Custom Send To" extension in BApp Store.
 3. Go to the "Send to" tab and click Add.
