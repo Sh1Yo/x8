@@ -286,9 +286,13 @@ pub fn parse_request(proto: &str, request: &str, config: Config) -> Option<Confi
 
     let http2: bool = firstline.next()?.to_string().contains("HTTP/2");
 
-    let mut parameter_template = match config.body_type == "json" {
-        true => String::from("\"%k\":\"%v\", "),
-        false => String::from("%k=%v&")
+    let mut parameter_template = if config.parameter_template.is_empty() {
+        match config.body_type == "json" {
+            true => String::from("\"%k\":\"%v\", "),
+            false => String::from("%k=%v&")
+        }
+    } else {
+        config.parameter_template.clone()
     };
 
     //read headers
@@ -328,7 +332,7 @@ pub fn parse_request(proto: &str, request: &str, config: Config) -> Option<Confi
     }
 
     //check whether the body type can be json
-    let body_type = if config.body_type.contains('-') && config.as_body
+    let body_type = if config.body_type.contains('-') && config.as_body && config.parameter_template.is_empty()
     && (content_type.contains("json") || (!body.is_empty() && body.starts_with('{'))) {
         parameter_template = String::from("\"%k\":\"%v\", ");
         String::from("json-")
