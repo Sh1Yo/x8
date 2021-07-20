@@ -275,7 +275,7 @@ pub fn make_hashmap(
     hashmap
 }
 
-pub fn parse_request(proto: &str, request: &str, config: Config) -> Option<Config> {
+pub fn parse_request(config: Config, proto: &str, request: &str, custom_value_template: bool) -> Option<Config> {
     let mut lines = request.lines();
     let mut host = String::new();
     let mut content_type = String::new();
@@ -286,7 +286,7 @@ pub fn parse_request(proto: &str, request: &str, config: Config) -> Option<Confi
 
     let http2: bool = firstline.next()?.to_string().contains("HTTP/2");
 
-    let mut parameter_template = if config.parameter_template.is_empty() {
+    let mut parameter_template = if !custom_value_template {
         match config.body_type == "json" {
             true => String::from("\"%k\":\"%v\", "),
             false => String::from("%k=%v&")
@@ -332,8 +332,10 @@ pub fn parse_request(proto: &str, request: &str, config: Config) -> Option<Confi
     }
 
     //check whether the body type can be json
-    let body_type = if config.body_type.contains('-') && config.as_body && config.parameter_template.is_empty()
-    && (content_type.contains("json") || (!body.is_empty() && body.starts_with('{'))) {
+    let body_type = if config.body_type.contains('-') && config.as_body && !custom_value_template
+    && (
+        content_type.contains("json") || (!body.is_empty() && body.starts_with('{') )
+    ) {
         parameter_template = String::from("\"%k\":\"%v\", ");
         String::from("json-")
     } else {

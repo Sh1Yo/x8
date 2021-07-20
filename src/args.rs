@@ -136,10 +136,8 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("keep-newlines")
                 .long("keep-newlines")
-                .help("--body 'a\\r\\nb' -> --body 'a{{new_line}}b'. Works with body only")
-                .conflicts_with("request")
-                .requires("body")
-        )
+                .help("--body 'a\\r\\nb' -> --body 'a{{new_line}}b'.\nWorks with body and parameter templates only")
+            )
         .arg(
             Arg::with_name("replay-once")
                 .long("replay-once")
@@ -418,7 +416,11 @@ pub fn get_config() -> (Config, usize) {
         path.push_str("?%s");
     }
 
-    let mut parameter_template = args.value_of("parameter_template").unwrap_or("");
+    let parameter_template = match args.is_present("keep-newlines") {
+        true => args.value_of("parameter_template").unwrap_or("").replace("\\n", "\n").replace("\\r", "\r"),
+        false => args.value_of("parameter_template").unwrap_or("").to_string()
+    };
+    let mut parameter_template = parameter_template.as_str();
 
     if !parameter_template.is_empty()
         && (!parameter_template.contains("%k") || !parameter_template.contains("%v"))
@@ -519,7 +521,7 @@ pub fn get_config() -> (Config, usize) {
     };
 
     config = if !request.is_empty() {
-        match parse_request(args.value_of("proto").unwrap_or("https"), &request, config) {
+        match parse_request(config, args.value_of("proto").unwrap_or("https"), &request, !args.value_of("parameter_template").unwrap_or("").is_empty()) {
             Some(val) => val,
             None => {
                 writeln!(io::stderr(), "Unable to parse request file.").ok();
