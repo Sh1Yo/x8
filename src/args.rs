@@ -354,7 +354,15 @@ pub fn get_config() -> (Config, usize) {
 
     //check whether it is possible to automatically fix body type
     //- at the end means "specified automatically"
-    let body_type = if args.value_of("body-type").is_none() && !body.is_empty() && body.starts_with('{') {
+    let body_type = if args.value_of("body-type").is_none()
+        && (
+            (
+                !body.is_empty() && body.starts_with('{')
+            )
+            || (
+                headers.contains_key("Content-Type") && headers["Content-Type"].contains("json")
+            )
+        ) {
         String::from("json-")
     } else {
         args.value_of("body-type").unwrap_or("urlencode-").to_string()
