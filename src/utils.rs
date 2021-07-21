@@ -109,35 +109,29 @@ pub fn heuristic(body: &str) -> Vec<String> {
 }
 
 pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>) -> String {
-    let mut query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
+    let mut hashmap_query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
     for (k, v) in initial_query.iter() {
-        query.insert(k.to_string(), v.replace("%random%_", ""));
+        hashmap_query.insert(k.to_string(), v.replace("%random%_", ""));
     }
+
+    let query: String = if !hashmap_query.is_empty() {
+        if config.as_body {
+            make_body(&config, &hashmap_query)
+        } else if config.headers_discovery {
+            make_header_value(&config, &hashmap_query)
+        } else {
+            make_query(&config, &hashmap_query)
+        }
+    } else {
+        String::new()
+    };
 
     let mut req: String = String::with_capacity(1024);
     req.push_str(&config.url);
     req.push('\n');
     req.push_str(&config.method);
     req.push(' ');
-
-    if !config.as_body {
-        let mut query_string = String::new();
-        for (k, v) in query.iter() {
-            query_string.push_str(k);
-            query_string.push('=');
-            query_string.push_str(v);
-            query_string.push('&');
-        }
-        query_string.pop(); //remove the last &
-
-        query_string = if config.encode {
-            utf8_percent_encode(&query_string, &FRAGMENT).to_string()
-        } else {
-            query_string
-        };
-
-        req.push_str(&config.path.replace("%s", &query_string));
-    }
+    req.push_str(&config.path.replace("%s", &query));
 
     if config.http2 {
         req.push_str(" HTTP/2\n");
@@ -153,19 +147,17 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
     for (key, value) in config.headers.iter() {
         req.push_str(key);
         req.push_str(": ");
-        req.push_str(&value.replace("{{random}}", &random_line(config.value_size)));
+        if value.contains("%s") && config.headers_discovery {
+            req.push_str(&value.replace("%s", &query).replace("{{random}}", &random_line(config.value_size)));
+        } else {
+            req.push_str(&value.replace("{{random}}", &random_line(config.value_size)));
+        }
         req.push('\n');
     }
 
-    let body: String = if config.as_body && !query.is_empty() {
-        make_body(&config, &query)
-    } else {
-        config.body.to_owned()
-    };
-
-    if !body.is_empty() {
+    if config.as_body && !query.is_empty() {
         req.push('\n');
-        req.push_str(&body);
+        req.push_str(&query);
         req.push('\n');
     }
 
@@ -215,6 +207,10 @@ pub fn adjust_body(body: &str, t: &str) -> String {
     }
 }
 
+pub fn make_header_value(config: &Config, query: &HashMap<String, String>) -> String {
+    make_query(config, query)
+}
+
 pub fn make_body(config: &Config, query: &HashMap<String, String>) -> String {
     let mut body: String = String::new();
 
@@ -238,8 +234,8 @@ pub fn make_body(config: &Config, query: &HashMap<String, String>) -> String {
     body
 }
 
-pub fn make_query(params: &HashMap<String, String>, config: &Config) -> String {
-    let mut query: String = String::from("");
+pub fn make_query(config: &Config, params: &HashMap<String, String>) -> String {
+    let mut query: String = String::new();
 
     for (k, v) in params {
         query = query + &config.parameter_template.replace("%k", k).replace("%v", v);
@@ -275,7 +271,7 @@ pub fn make_hashmap(
     hashmap
 }
 
-pub fn parse_request(config: Config, proto: &str, request: &str, custom_value_template: bool) -> Option<Config> {
+pub fn parse_request(config: Config, proto: &str, request: &str, custom_parameter_template: bool) -> Option<Config> {
     let mut lines = request.lines();
     let mut host = String::new();
     let mut content_type = String::new();
@@ -286,10 +282,14 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_value_te
 
     let http2: bool = firstline.next()?.to_string().contains("HTTP/2");
 
-    let mut parameter_template = if !custom_value_template {
-        match config.body_type == "json" {
-            true => String::from("\"%k\":\"%v\", "),
-            false => String::from("%k=%v&")
+    let mut parameter_template = if !custom_parameter_template {
+        if config.headers_discovery {
+            String::from("%k=%v; ")
+        } else {
+            match config.body_type == "json" {
+                true => String::from("\"%k\":\"%v\", "),
+                false => String::from("%k=%v&")
+            }
         }
     } else {
         config.parameter_template.clone()
@@ -332,7 +332,7 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_value_te
     }
 
     //check whether the body type can be json
-    let body_type = if config.body_type.contains('-') && config.as_body && !custom_value_template
+    let body_type = if config.body_type.contains('-') && config.as_body && !custom_parameter_template
     && (
         content_type.contains("json") || (!body.is_empty() && body.starts_with('{') )
     ) {

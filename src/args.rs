@@ -99,7 +99,6 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("headers")
                 .short("H")
-                .long("header")
                 .help("Example: -H 'one:one' 'two:two'")
                 .takes_value(true)
                 .min_values(1)
@@ -108,6 +107,12 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("as-body")
                 .long("as-body")
                 .help("Send parameters via body.\nBuilt in body types that can be detected automatically: json, urlencode")
+        )
+        .arg(
+            Arg::with_name("headers-discovery")
+                .long("headers")
+                .help("Switch to header discovery mode")
+                .conflicts_with("as-body")
         )
         .arg(
             Arg::with_name("force")
@@ -416,10 +421,10 @@ pub fn get_config() -> (Config, usize) {
         .unwrap_or("https://something.something")
         .to_string();
 
-    if !args.is_present("as-body") && url.contains('?') && url.contains('=') && !url.contains("%s") {
+    if !args.is_present("as-body") && !args.is_present("headers-discovery") && url.contains('?') && url.contains('=') && !url.contains("%s") {
         url.push_str("&%s");
         path.push_str("&%s");
-    } else if !args.is_present("as-body") && !url.contains("%s") {
+    } else if !args.is_present("as-body") && !args.is_present("headers-discovery") && !url.contains("%s") {
         url.push_str("?%s");
         path.push_str("?%s");
     }
@@ -440,6 +445,8 @@ pub fn get_config() -> (Config, usize) {
     if parameter_template.is_empty() {
         if body_type.contains("json") && args.is_present("as-body") {
             parameter_template = "\"%k\":\"%v\", ";
+        } else if args.is_present("headers-discovery") {
+            parameter_template = "%k=%v; ";
         } else {
             parameter_template = "%k=%v&";
         }
@@ -510,6 +517,7 @@ pub fn get_config() -> (Config, usize) {
         save_responses: args.value_of("save-responses").unwrap_or("").to_string(),
         output_format: args.value_of("output-format").unwrap_or("").to_string(),
         as_body: args.is_present("as-body"),
+        headers_discovery: args.is_present("headers-discovery"),
         force: args.is_present("force"),
         disable_response_correction: args.is_present("disable-response-correction"),
         disable_custom_parameters: args.is_present("disable-custom-parameters"),

@@ -1,6 +1,6 @@
 use crate::{
     structs::{Config, ResponseData, Stable},
-    utils::{compare, beautify_html, beautify_json, make_body, make_query, make_hashmap, random_line},
+    utils::{compare, beautify_html, beautify_json, make_body, make_query, make_header_value, make_hashmap, random_line},
 };
 use colored::*;
 use reqwest::Client;
@@ -105,19 +105,24 @@ pub async fn random_request(
 }
 
 fn create_request(
-    url: &str,
-    body: String,
     config: &Config,
+    query: String,
     client: &Client
 ) -> reqwest::RequestBuilder {
+    let url: String = if config.url.contains("%s") {
+        config.url.replace("%s", &query)
+    } else {
+        config.url.clone()
+    };
+
     let mut client = if config.as_body {
         match config.method.as_str() {
-            "GET" => client.get(url).body(body),
-            "POST" => client.post(url).body(body),
-            "PUT" => client.put(url).body(body),
-            "PATCH" => client.patch(url).body(body),
-            "DELETE" => client.delete(url).body(body),
-            "HEAD" => client.head(url).body(body),
+            "GET" => client.get(url).body(query.clone()),
+            "POST" => client.post(url).body(query.clone()),
+            "PUT" => client.put(url).body(query.clone()),
+            "PATCH" => client.patch(url).body(query.clone()),
+            "DELETE" => client.delete(url).body(query.clone()),
+            "HEAD" => client.head(url).body(query.clone()),
             _ => {
                 writeln!(io::stderr(), "Method is not supported").ok();
                 std::process::exit(1);
@@ -151,7 +156,11 @@ fn create_request(
     };
 
     for (key, value) in config.headers.iter() {
-        client = client.header(key, value.replace("{{random}}", &random_line(config.value_size)));
+        if value.contains("%s") && config.headers_discovery {
+            client = client.header(key, value.replace("%s", &query).replace("{{random}}", &random_line(config.value_size)));
+        } else {
+            client = client.header(key, value.replace("{{random}}", &random_line(config.value_size)));
+        };
     }
 
     client
@@ -163,50 +172,51 @@ pub async fn request(
     initial_query: &HashMap<String, String>,
     reflections: usize,
 ) -> ResponseData {
-    let mut query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
+    let mut hashmap_query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
     for (k, v) in initial_query.iter() {
-        query.insert(k.to_string(), v.replace("%random%_", ""));
+        hashmap_query.insert(k.to_string(), v.replace("%random%_", ""));
     }
 
-    let body: String = if config.as_body && !query.is_empty() {
-        make_body(&config, &query)
+    let query: String = if !hashmap_query.is_empty() {
+        if config.as_body {
+            make_body(&config, &hashmap_query)
+        } else if config.headers_discovery {
+            make_header_value(&config, &hashmap_query)
+        } else {
+            make_query(&config, &hashmap_query)
+        }
     } else {
         String::new()
     };
 
     std::thread::sleep(config.delay);
 
-    let url: String = if config.url.contains("%s") {
-        config.url.replace("%s", &make_query(&query, config))
-    } else {
-        config.url.clone()
-    };
+    let url: &str = &config.url;
 
-    let url: &str = &url;
-
-    let res = match create_request(url, body.clone(), config, client).send().await {
+    let res = match create_request(config, query, client).send().await {
         Ok(val) => val,
         Err(_) => {
             //Try to make a random request instead
-            let mut random_query: HashMap<String, String> = HashMap::with_capacity(query.len());
+            let mut random_query: HashMap<String, String> = HashMap::with_capacity(hashmap_query.len());
             for (k, v) in make_hashmap(
-                &(0..query.len()).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
+                &(0..hashmap_query.len()).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
                 config.value_size,
             ) {
                 random_query.insert(k.to_string(), v.replace("%random%_", ""));
             }
-            let body: String = if config.as_body && !query.is_empty() {
-                make_body(&config, &random_query)
+            let random_query: String = if !random_query.is_empty() {
+                if config.as_body {
+                    make_body(&config, &random_query)
+                } else if config.headers_discovery {
+                    make_header_value(&config, &random_query)
+                } else {
+                    make_query(&config, &random_query)
+                }
             } else {
                 String::new()
             };
-            let url: String = if config.url.contains("%s") {
-                config.url.replace("%s", &make_query(&random_query, config))
-            } else {
-                config.url.clone()
-            };
 
-            match create_request(&url, body.clone(), config, client).send().await {
+            match create_request(config, random_query.clone(), client).send().await {
                 Ok(_) => return ResponseData {
                                     text: String::new(),
                                     code: 0,
@@ -223,7 +233,7 @@ pub async fn request(
                     };
                     writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
                     std::thread::sleep(Duration::from_secs(50));
-                    match create_request(&url, body.clone(), config, client).send().await {
+                    match create_request(config, random_query, client).send().await {
                         Ok(_) => return ResponseData {
                             text: String::new(),
                             code: 0,
