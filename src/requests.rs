@@ -1,6 +1,6 @@
 use crate::{
     structs::{Config, ResponseData, Stable},
-    utils::{compare, beautify_html, beautify_json, make_body, make_query, make_header_value, make_hashmap, random_line},
+    utils::{compare, beautify_html, beautify_json, make_body, make_query, make_header_value, make_hashmap, fix_headers, random_line},
 };
 use colored::*;
 use reqwest::Client;
@@ -97,7 +97,7 @@ pub async fn random_request(
         &config,
         &client,
         &make_hashmap(
-            &(0..max).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
+            &(0..max).map(|_| random_line(config.value_size*2)).collect::<Vec<String>>(),
             config.value_size,
         ),
         reflections
@@ -107,6 +107,7 @@ pub async fn random_request(
 fn create_request(
     config: &Config,
     query: String,
+    hashmap_query: &HashMap<String, String>,
     client: &Client
 ) -> reqwest::RequestBuilder {
     let url: String = if config.url.contains("%s") {
@@ -156,11 +157,21 @@ fn create_request(
     };
 
     for (key, value) in config.headers.iter() {
-        if value.contains("%s") && config.headers_discovery {
+        if value.contains("%s") && config.within_headers {
             client = client.header(key, value.replace("%s", &query).replace("{{random}}", &random_line(config.value_size)));
         } else {
             client = client.header(key, value.replace("{{random}}", &random_line(config.value_size)));
         };
+    }
+
+    if config.headers_discovery && !config.within_headers {
+        for (key, value) in hashmap_query.iter() {
+
+            client = match fix_headers(key) {
+                Some(val) => client.header(&val, value.replace("{{random}}", &random_line(config.value_size))),
+                None => client.header(key, value.replace("{{random}}", &random_line(config.value_size)))
+            };
+        }
     }
 
     client
@@ -180,8 +191,10 @@ pub async fn request(
     let query: String = if !hashmap_query.is_empty() {
         if config.as_body {
             make_body(&config, &hashmap_query)
-        } else if config.headers_discovery {
+        } else if config.within_headers {
             make_header_value(&config, &hashmap_query)
+        } else if config.headers_discovery {
+            String::new()
         } else {
             make_query(&config, &hashmap_query)
         }
@@ -193,7 +206,7 @@ pub async fn request(
 
     let url: &str = &config.url;
 
-    let res = match create_request(config, query, client).send().await {
+    let res = match create_request(config, query, &hashmap_query, client).send().await {
         Ok(val) => val,
         Err(_) => {
             //Try to make a random request instead
@@ -216,7 +229,7 @@ pub async fn request(
                 String::new()
             };
 
-            match create_request(config, random_query.clone(), client).send().await {
+            match create_request(config, random_query.clone(), &hashmap_query, client).send().await {
                 Ok(_) => return ResponseData {
                                     text: String::new(),
                                     code: 0,
@@ -233,7 +246,7 @@ pub async fn request(
                     };
                     writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
                     std::thread::sleep(Duration::from_secs(50));
-                    match create_request(config, random_query, client).send().await {
+                    match create_request(config, random_query, &hashmap_query, client).send().await {
                         Ok(_) => return ResponseData {
                             text: String::new(),
                             code: 0,

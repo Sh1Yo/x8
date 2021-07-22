@@ -117,7 +117,7 @@ async fn run() {
 
     //generate random query for the first request
     let query = make_hashmap(
-        &(0..max).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
+        &(0..max).map(|_| random_line(config.value_size*2)).collect::<Vec<String>>(),
         config.value_size,
     );
 
@@ -138,9 +138,12 @@ async fn run() {
         std::process::exit(1)
     }
 
-    for param in heuristic(&initial_response.text) {
-        if !params.contains(&param) {
-            params.push(param)
+
+    if !config.headers_discovery {
+        for param in heuristic(&initial_response.text) {
+            if !params.contains(&param) {
+                params.push(param)
+            }
         }
     }
 

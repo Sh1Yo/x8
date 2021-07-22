@@ -108,6 +108,19 @@ pub fn heuristic(body: &str) -> Vec<String> {
     found
 }
 
+//remove forbidden characters from header name, otherwise reqwest throws errors
+pub fn fix_headers<'a>(header: &'a str) -> Option<String> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"[^!-'*+\-\.0-9a-zA-Z^-`|~]").unwrap();
+    }
+
+    if RE.is_match(header) {
+        Some(RE.replace_all(header, "").to_string())
+    } else {
+        None
+    }
+}
+
 pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>) -> String {
     let mut hashmap_query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
     for (k, v) in initial_query.iter() {
@@ -117,8 +130,10 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
     let query: String = if !hashmap_query.is_empty() {
         if config.as_body {
             make_body(&config, &hashmap_query)
-        } else if config.headers_discovery {
+        } else if config.within_headers {
             make_header_value(&config, &hashmap_query)
+        } else if config.headers_discovery {
+            String::new()
         } else {
             make_query(&config, &hashmap_query)
         }
@@ -126,7 +141,7 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
         String::new()
     };
 
-    let mut req: String = String::with_capacity(1024);
+    let mut req: String = String::with_capacity(4096);
     req.push_str(&config.url);
     req.push('\n');
     req.push_str(&config.method);
@@ -147,12 +162,21 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
     for (key, value) in config.headers.iter() {
         req.push_str(key);
         req.push_str(": ");
-        if value.contains("%s") && config.headers_discovery {
+        if value.contains("%s") && config.headers_discovery && config.within_headers {
             req.push_str(&value.replace("%s", &query).replace("{{random}}", &random_line(config.value_size)));
         } else {
             req.push_str(&value.replace("{{random}}", &random_line(config.value_size)));
         }
         req.push('\n');
+    }
+
+    if config.headers_discovery && !config.within_headers {
+        for (key, value) in hashmap_query.iter() {
+            req.push_str(key);
+            req.push_str(": ");
+            req.push_str(&value.replace("{{random}}", &random_line(config.value_size)));
+            req.push('\n');
+        }
     }
 
     if config.as_body && !query.is_empty() {
@@ -276,24 +300,12 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
     let mut host = String::new();
     let mut content_type = String::new();
     let mut headers: HashMap<String, String> = config.headers.clone();
+    let mut within_headers: bool = config.within_headers;
     let mut firstline = lines.next()?.split(' ');
     let method = firstline.next()?.to_string();
     let mut path = firstline.next()?.to_string();
 
     let http2: bool = firstline.next()?.to_string().contains("HTTP/2");
-
-    let mut parameter_template = if !custom_parameter_template {
-        if config.headers_discovery {
-            String::from("%k=%v; ")
-        } else {
-            match config.body_type == "json" {
-                true => String::from("\"%k\":\"%v\", "),
-                false => String::from("%k=%v&")
-            }
-        }
-    } else {
-        config.parameter_template.clone()
-    };
 
     //read headers
     while let Some(line) = lines.next() {
@@ -307,6 +319,10 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
             k_v.next()?.trim().to_owned(),
             k_v.map(|x| ":".to_owned() + x).collect(),
         ].concat();
+
+        if value.contains("%s") {
+            within_headers = true;
+        }
 
         match key.to_lowercase().as_str() {
             "content-type" => content_type = value.clone(),
@@ -322,6 +338,19 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
 
         headers.insert(key.to_string(), value);
     }
+
+    let mut parameter_template = if !custom_parameter_template {
+        if config.within_headers {
+            String::from("%k=%v; ")
+        } else {
+            match config.body_type == "json" {
+                true => String::from("\"%k\":\"%v\", "),
+                false => String::from("%k=%v&")
+            }
+        }
+    } else {
+        config.parameter_template.clone()
+    };
 
     let mut body = lines.next().unwrap_or("").to_string();
     while let Some(part) = lines.next() {
@@ -351,10 +380,11 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
 
     let mut url = [proto,"://", &host, &path].concat();
     let initial_url = url.clone();
-    if !config.as_body && url.contains('?') && url.contains('=') && !url.contains("%s") {
+
+    if !config.as_body && url.contains('?') && !within_headers && !config.headers_discovery && url.contains('=') && !url.contains("%s") {
         url.push_str("&%s");
         path.push_str("&%s");
-    } else if !config.as_body {
+    } else if !config.as_body && !within_headers && !config.headers_discovery {
         url.push_str("?%s");
         path.push_str("?%s");
     }
@@ -365,6 +395,7 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
         host,
         path,
         headers,
+        within_headers,
         body,
         body_type,
         parameter_template,

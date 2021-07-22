@@ -111,8 +111,9 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("headers-discovery")
                 .long("headers")
-                .help("Switch to header discovery mode")
+                .help("Switch to header discovery mode.\nForbidden chars would be automatically removed from headers' names")
                 .conflicts_with("as-body")
+                .conflicts_with("param-template")
         )
         .arg(
             Arg::with_name("force")
@@ -225,7 +226,7 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("max")
                 .short("m")
                 .long("max")
-                .help("Change the maximum number of parameters. (default is 128/192/256 for query and 512 for body)")
+                .help("Change the maximum number of parameters. (default is 128/192/256 for query/headers and 512 for body)")
                 .takes_value(true)
         )
         .arg(
@@ -311,6 +312,7 @@ pub fn get_config() -> (Config, usize) {
     };
 
     let mut headers: HashMap<String, String> = HashMap::new();
+    let mut within_headers: bool = false;
     if let Some(val) = args.values_of("headers") {
         for header in val {
             let mut k_v = header.split(':');
@@ -331,6 +333,10 @@ pub fn get_config() -> (Config, usize) {
                 },
                 k_v.map(|x| ":".to_owned() + x).collect(),
             ].concat();
+
+            if value.contains("%s") {
+                within_headers = true;
+            }
 
             headers.insert(key.to_string(), value);
         }
@@ -421,10 +427,10 @@ pub fn get_config() -> (Config, usize) {
         .unwrap_or("https://something.something")
         .to_string();
 
-    if !args.is_present("as-body") && !args.is_present("headers-discovery") && url.contains('?') && url.contains('=') && !url.contains("%s") {
+    if !args.is_present("as-body") && !within_headers && !args.is_present("headers-discovery") && url.contains('?') && url.contains('=') && !url.contains("%s") {
         url.push_str("&%s");
         path.push_str("&%s");
-    } else if !args.is_present("as-body") && !args.is_present("headers-discovery") && !url.contains("%s") {
+    } else if !args.is_present("as-body") && !within_headers &&!args.is_present("headers-discovery") && !url.contains("%s") {
         url.push_str("?%s");
         path.push_str("?%s");
     }
@@ -445,13 +451,12 @@ pub fn get_config() -> (Config, usize) {
     if parameter_template.is_empty() {
         if body_type.contains("json") && args.is_present("as-body") {
             parameter_template = "\"%k\":\"%v\", ";
-        } else if args.is_present("headers-discovery") {
+        } else if within_headers {
             parameter_template = "%k=%v; ";
         } else {
             parameter_template = "%k=%v&";
         }
     }
-
 
     let custom_keys: Vec<String> = match args.values_of("custom-parameters") {
         Some(val) => {
@@ -518,6 +523,7 @@ pub fn get_config() -> (Config, usize) {
         output_format: args.value_of("output-format").unwrap_or("").to_string(),
         as_body: args.is_present("as-body"),
         headers_discovery: args.is_present("headers-discovery"),
+        within_headers,
         force: args.is_present("force"),
         disable_response_correction: args.is_present("disable-response-correction"),
         disable_custom_parameters: args.is_present("disable-custom-parameters"),
