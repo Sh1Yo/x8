@@ -160,18 +160,20 @@ async fn run() {
         .matches(&query.values().next().unwrap().replace("%random%_", "").as_str())
         .count() as usize;
 
-    writeln!(
-        io::stdout(),
-        "|{} {}\n|{} {}\n|{} {}\n|{} {}\n",
-        &"Code".magenta(),
-        &initial_response.code.to_string().green(),
-        &"Response Len".magenta(),
-        &initial_response.text.len().to_string().green(),
-        &"Reflections".magenta(),
-        &reflections_count.to_string().green(),
-        &"Words".magenta(),
-        &params.len().to_string().green(),
-    ).ok();
+    if config.verbose > 0 {
+        writeln!(
+            io::stdout(),
+            "|{} {}\n|{} {}\n|{} {}\n|{} {}\n",
+            &"Code".magenta(),
+            &initial_response.code.to_string().green(),
+            &"Response Len".magenta(),
+            &initial_response.text.len().to_string().green(),
+            &"Reflections".magenta(),
+            &reflections_count.to_string().green(),
+            &"Words".magenta(),
+            &params.len().to_string().green(),
+        ).ok();
+    }
 
     //make a few requests and collect all persistent diffs, check for stability
     let (mut diffs, stable) = empty_reqs(
