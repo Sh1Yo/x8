@@ -345,19 +345,15 @@ async fn run() {
         }
     }
 
-    if !found_params.is_empty() {
-        let output = create_output(&config, found_params);
+    let output = create_output(&config, found_params);
 
-        if !config.output_file.is_empty() {
-            match std::fs::write(&config.output_file, &output) {
-                Ok(_) => (),
-                Err(err) => {
-                    writeln!(io::stderr(), "[!] {}", err).ok();
-                }
-            };
-        }
-        write!(io::stdout(), "\n{}", &output).ok();
-    } else {
-        writeln!(io::stdout(), "nothing found").ok();
+    if !config.output_file.is_empty() {
+        match std::fs::write(&config.output_file, &output) {
+            Ok(_) => (),
+            Err(err) => {
+                writeln!(io::stderr(), "[!] {}", err).ok();
+            }
+        };
     }
+    write!(io::stdout(), "\n{}", &output).ok();
 }
