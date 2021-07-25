@@ -150,8 +150,8 @@ async fn run() {
     if params.len() < max {
         max = params.len();
         if max == 0 {
-            writeln!(io::stderr(), "Parameter list is empty").ok();
-            std::process::exit(1)
+            params.push(String::from("something"));
+            max = 1;
         }
     }
 
@@ -163,18 +163,20 @@ async fn run() {
         .matches(&query.values().next().unwrap().replace("%random%_", "").as_str())
         .count() as usize;
 
-    writeln!(
-        io::stdout(),
-        "|{} {}\n|{} {}\n|{} {}\n|{} {}\n",
-        &"Code".magenta(),
-        &initial_response.code.to_string().green(),
-        &"Response Len".magenta(),
-        &initial_response.text.len().to_string().green(),
-        &"Reflections".magenta(),
-        &reflections_count.to_string().green(),
-        &"Words".magenta(),
-        &params.len().to_string().green(),
-    ).ok();
+    if config.verbose > 0 {
+        writeln!(
+            io::stdout(),
+            "|{} {}\n|{} {}\n|{} {}\n|{} {}\n",
+            &"Code".magenta(),
+            &initial_response.code.to_string().green(),
+            &"Response Len".magenta(),
+            &initial_response.text.len().to_string().green(),
+            &"Reflections".magenta(),
+            &reflections_count.to_string().green(),
+            &"Words".magenta(),
+            &params.len().to_string().green(),
+        ).ok();
+    }
 
     //make a few requests and collect all persistent diffs, check for stability
     let (mut diffs, stable) = empty_reqs(
@@ -310,8 +312,33 @@ async fn run() {
         remaining_params = Vec::new()
     }
 
+
     found_params.sort();
     found_params.dedup();
+
+    if config.verify {
+        let mut filtered_params = Vec::new();
+        for param in found_params {
+            let response = request(
+                &config, &client,
+                &make_hashmap(
+                    &[param.clone()], config.value_size
+                ),
+                reflections_count
+            ).await;
+            let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
+            let mut is_the_body_the_same = true;
+            for diff in new_diffs.iter() {
+                if !diffs.iter().any(|i| &i==&diff) {
+                    is_the_body_the_same = false;
+                }
+            }
+            if !response.reflected_params.is_empty() || !is_the_body_the_same || !is_code_the_same {
+                filtered_params.push(param);
+            }
+        }
+        found_params = filtered_params;
+    }
 
     if !config.replay_proxy.is_empty() {
         let temp_config = Config{
@@ -346,19 +373,15 @@ async fn run() {
         }
     }
 
-    if !found_params.is_empty() {
-        let output = create_output(&config, found_params);
+    let output = create_output(&config, found_params);
 
-        if !config.output_file.is_empty() {
-            match std::fs::write(&config.output_file, &output) {
-                Ok(_) => (),
-                Err(err) => {
-                    writeln!(io::stderr(), "[!] {}", err).ok();
-                }
-            };
-        }
-        write!(io::stdout(), "\n{}", &output).ok();
-    } else {
-        writeln!(io::stdout(), "nothing found").ok();
+    if !config.output_file.is_empty() {
+        match std::fs::write(&config.output_file, &output) {
+            Ok(_) => (),
+            Err(err) => {
+                writeln!(io::stderr(), "[!] {}", err).ok();
+            }
+        };
     }
+    write!(io::stdout(), "\n{}", &output).ok();
 }
