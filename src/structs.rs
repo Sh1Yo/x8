@@ -57,13 +57,13 @@ pub struct Config {
     pub verbose: u8,
     pub is_json: bool,
     pub disable_cachebuster: bool,
-    //pub verify: bool,
     pub delay: Duration,
     pub value_size: usize,
     pub learn_requests_count: usize,
     pub max: usize,
     pub concurrency: usize,
-    pub http2: bool
+    pub http2: bool,
+    pub verify: bool
 }
 
 #[derive(Debug)]

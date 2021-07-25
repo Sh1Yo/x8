@@ -309,8 +309,33 @@ async fn run() {
         remaining_params = Vec::new()
     }
 
+
     found_params.sort();
     found_params.dedup();
+
+    if config.verify {
+        let mut filtered_params = Vec::new();
+        for param in found_params {
+            let response = request(
+                &config, &client,
+                &make_hashmap(
+                    &[param.clone()], config.value_size
+                ),
+                reflections_count
+            ).await;
+            let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
+            let mut is_the_body_the_same = true;
+            for diff in new_diffs.iter() {
+                if !diffs.iter().any(|i| &i==&diff) {
+                    is_the_body_the_same = false;
+                }
+            }
+            if !response.reflected_params.is_empty() || !is_the_body_the_same || !is_code_the_same {
+                filtered_params.push(param);
+            }
+        }
+        found_params = filtered_params;
+    }
 
     if !config.replay_proxy.is_empty() {
         let temp_config = Config{
