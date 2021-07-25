@@ -147,8 +147,8 @@ async fn run() {
     if params.len() < max {
         max = params.len();
         if max == 0 {
-            writeln!(io::stderr(), "Parameter list is empty").ok();
-            std::process::exit(1)
+            params.push(String::from("something"));
+            max = 1;
         }
     }
 
