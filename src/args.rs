@@ -433,11 +433,21 @@ pub fn get_config() -> (Config, usize) {
         .to_string();
 
     if !args.is_present("as-body") && !within_headers && !args.is_present("headers-discovery") && url.contains('?') && url.contains('=') && !url.contains("%s") {
-        url.push_str("&%s");
-        path.push_str("&%s");
+        if args.is_present("encode") {
+            url.push_str("%26%s");
+            path.push_str("%26%s");
+        } else {
+            url.push_str("&%s");
+            path.push_str("&%s");
+        }
     } else if !args.is_present("as-body") && !within_headers &&!args.is_present("headers-discovery") && !url.contains("%s") {
-        url.push_str("?%s");
-        path.push_str("?%s");
+        if args.is_present("encode") {
+            url.push_str("%3f%s");
+            path.push_str("%3f%s");
+        } else {
+            url.push_str("?%s");
+            path.push_str("?%s");
+        }
     }
 
     let parameter_template = match args.is_present("keep-newlines") {
