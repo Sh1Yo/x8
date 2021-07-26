@@ -226,7 +226,7 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("max")
                 .short("m")
                 .long("max")
-                .help("Change the maximum number of parameters. (default is 128/192/256 for query/headers and 512 for body)")
+                .help("Change the maximum number of parameters.\n(default is 128/192/256 for query, 64/128/196 for headers and 512 for body)")
                 .takes_value(true)
         )
         .arg(
@@ -271,8 +271,10 @@ pub fn get_config() -> (Config, usize) {
         None => {
             if args.is_present("as-body") {
                 512
-            } else {
+            } else if !args.is_present("headers-discovery") {
                 128
+            } else {
+                64
             }
         }
     };

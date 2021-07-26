@@ -188,8 +188,8 @@ async fn run() {
         max,
     ).await;
 
-    //check whether it is possible to use 192 or 256 params in a single request instead of 128 default
-    if max == 128 {
+    //check whether it is possible to use 192(128) or 256(196) params in a single request instead of 128 default
+    if max == 128 || max == 64 {
         let response = random_request(&config, &client, reflections_count, max + 64).await;
 
         let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
