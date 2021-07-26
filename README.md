@@ -25,7 +25,7 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
     - [Variables](#variables)
     - [Percent encoding](#percent-encoding)
     - [Headers](#headers)
-    - [Header's values](#headers-values)
+    - [Header values](#header-values)
 - [Test](#test)
 - [Usage](#usage)
 - [Troubleshooting](#troubleshooting)
@@ -33,6 +33,7 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
 - [Installation](#installation)
 
 # Features
+
 - A lot of things to customize: key template, value template, encodings, and even injection points.
 - Supports 6 main methods: GET, POST, PUT, PATCH, DELETE, HEAD.
 - Has built in 2 main body types: json, urlencode.
@@ -41,7 +42,9 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
 - Adds to every request cachebuster by default.
 
 # Examples
+
 #### Send parameters via query
+
 ```bash
 x8 -u "https://example.com/" -w <wordlist>
 ```
@@ -54,6 +57,7 @@ x8 -u "https://example.com/?something=1" -w <wordlist>
 `/?something=1` equals to `/?something=1&%s`
 
 #### Send parameters via body
+
 ```bash
 x8 -u "https://example.com/" -X POST --as-body -w <wordlist>
 ```
@@ -65,6 +69,7 @@ x8 -u "https://example.com/" -X POST --as-body -b '{"x":{%s}}' -w <wordlist>
 `%s` will be replaced with different parameters like `{"x":{"a":"b3a1a", "b":"ce03a", ...}}`
 
 #### Custom template
+
 ```bash
 x8 -u "https://example.com/" --param-template "user[%k]=%v&" -w <wordlist>
 ```
@@ -78,12 +83,14 @@ x8 -u "https://example.com/" --as-body --param-template "<%k>%v</%k>" -H "Conten
 ```
 
 #### Variables
+
 In the next example, `something` will take on new values every request:
 ```bash
 x8 -u "https://example.com/?something={{random}}&%s" -w <wordlist>
 ```
 
 #### Percent encoding
+
 Sometimes parameters should be encoded. It is also possible:
 
 ```bash
@@ -103,7 +110,8 @@ With v3.0.0 it is possible to discover headers as well:
 x8 -u "https://example.com" --headers -w <wordlist>
 ```
 
-#### Header's values
+#### Header values
+
 You can also target single headers:
 
 ```bash
@@ -111,6 +119,7 @@ x8 -u "https://example.com" -H "Cookie: %s" -w <wordlist>
 ```
 
 # Test
+
 Feel free to check whether the tool works as expected and compare it with other tools at https://4rt.one/index.html.
 There are 2 reflected parameters, 4 parameters that change code/headers/body, and one extra parameter with a not random value.
 
@@ -190,6 +199,7 @@ OPTIONS:
 
 
 # Troubleshooting
+
 I chose the POST/PUT method and/or provided a body, but the tool sends parameters via query.
 - make sure you are adding --as-body flag.
 
@@ -197,6 +207,7 @@ The tool fails to send requests via <a href="https://portswigger.net/burp">burp 
 - try to use --http2 flag.
 
 # Burp Suite integrations
+
 It is possible to run parameter discovery in a few clicks using burp suite extensions:
 
 ## [x8-Burp](https://github.com/Impact-I/x8-Burp)
@@ -205,6 +216,7 @@ It is possible to run parameter discovery in a few clicks using burp suite exten
 ## [Send To](https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e)
 
 ### Setting up
+
 1. Open Burp Suite and go to the extender tab.
 2. Find and install the "Custom Send To" extension in BApp Store.
 3. Go to the "Send to" tab and click Add.
@@ -229,6 +241,7 @@ In the next dialog, you can change the command and run it in a new terminal wind
 
 
 # Installation
+
 - Linux
     - from releases
     - from source code (rust should be installed)
