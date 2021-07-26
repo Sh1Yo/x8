@@ -24,6 +24,8 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
     - [Custom template](#custom-template)
     - [Variables](#variables)
     - [Percent encoding](#percent-encoding)
+    - [Headers](#headers)
+    - [Header's values](#headers-values)
 - [Test](#test)
 - [Usage](#usage)
 - [Troubleshooting](#troubleshooting)
@@ -93,6 +95,21 @@ GET /?path=..%2faction.php%3fWTDa8%3Da7UOS%26rTIDA%3DexMFp...%23 HTTP/1.1
 Host: example.com
 ```
 
+#### Headers
+
+With v3.0.0 it is possible to discover headers as well:
+
+```bash
+x8 -u "https://example.com" --headers -w <wordlist>
+```
+
+#### Header's values
+You can also target single headers:
+
+```bash
+x8 -u "https://example.com" -H "Cookie: %s" -w <wordlist>
+```
+
 # Test
 Feel free to check whether the tool works as expected and compare it with other tools at https://4rt.one/index.html.
 There are 2 reflected parameters, 4 parameters that change code/headers/body, and one extra parameter with a not random value.
@@ -104,7 +121,7 @@ USAGE:
     x8 [FLAGS] [OPTIONS]
 
 FLAGS:
-        --as-body                        Send parameters via body.
+       --as-body                        Send parameters via body.
                                          Built in body types that can be detected automatically: json, urlencode
         --disable-cachebuster
         --disable-colors
@@ -117,12 +134,17 @@ FLAGS:
         --force                          Ignore 'binary data detected', 'the page is too huge', 'param_template lacks
                                          variables' error messages
     -h, --help                           Prints help information
+        --headers                        Switch to header discovery mode.
+                                         Forbidden chars would be automatically removed from headers' names
         --http2                          Prefer http/2 over http/1.1
         --is-json                        If the output is valid json and the content type does not contain 'json'
                                          keyword - specify this argument for a more accurate search
+        --keep-newlines                  --body 'a\r\nb' -> --body 'a{{new_line}}b'.
+                                         Works with body and parameter templates only
         --replay-once                    If replay proxy is specified, send all found parameters within one request
         --test                           Prints request and response
     -V, --version                        Prints version information
+        --verify                         Verify found parameters one more time
 
 OPTIONS:
     -b, --body <body>                                       Example: --body '{"x":{%s}}'
@@ -138,11 +160,11 @@ OPTIONS:
             Check custom parameters with these values (default is "1 0 false off null true yes no")
 
     -d, --delay <Delay between requests in milliseconds>
-    -H, --header <headers>                                  Example: -H 'one:one' 'two:two'
+    -H <headers>                                            Example: -H 'one:one' 'two:two'
         --learn-requests <learn_requests_count>             Set the custom number of learning requests. (default is 9)
     -m, --max <max>
-            Change the maximum number of parameters. (default is 128/192/256 for query and 512 for body)
-
+            Change the maximum number of parameters.
+            (default is 128/192/256 for query, 64/128/196 for headers and 512 for body)
     -X, --method <method>
             Available: GET, POST, PUT, PATCH, DELETE, HEAD. (default is "GET")
 
