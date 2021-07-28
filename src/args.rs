@@ -13,20 +13,20 @@ pub fn get_config() -> (Config, usize) {
         .arg(Arg::with_name("url")
             .short("u")
             .long("url")
-            .help("You can add a custom injection point with %s")
+            .help("You can add a custom injection point with %s.")
             .takes_value(true)
             .conflicts_with("request")
         )
         .arg(Arg::with_name("request")
             .short("r")
             .long("request")
-            .help("The file with raw http request")
+            .help("The file with the raw http request")
             .takes_value(true)
             .conflicts_with("url")
         )
         .arg(Arg::with_name("proto")
             .long("proto")
-            .help("Uses when the request file is present. (default is \"https\")")
+            .help("Protocol to use with request file (default is \"https\")")
             .takes_value(true)
             .requires("request")
             .conflicts_with("url")
@@ -111,7 +111,7 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("headers-discovery")
                 .long("headers")
-                .help("Switch to header discovery mode.\nForbidden chars would be automatically removed from headers' names")
+                .help("Switch to header discovery mode.\nForbidden chars would be automatically removed from headers names")
                 .conflicts_with("as-body")
                 .conflicts_with("param-template")
         )
@@ -142,19 +142,19 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("keep-newlines")
                 .long("keep-newlines")
-                .help("--body 'a\\r\\nb' -> --body 'a{{new_line}}b'.\nWorks with body and parameter templates only")
+                .help("--body 'a\\r\\nb' -> --body 'a{{new_line}}b'.\nWorks with body and parameter templates only.")
             )
         .arg(
             Arg::with_name("replay-once")
                 .long("replay-once")
-                .help("If replay proxy is specified, send all found parameters within one request")
+                .help("If replay proxy is specified, send all found parameters within one request.")
                 .requires("replay-proxy")
         )
         .arg(
             Arg::with_name("replay-proxy")
                 .takes_value(true)
                 .long("replay-proxy")
-                .help("Request target with every found parameter via replay proxy at the end")
+                .help("Request target with every found parameter via replay proxy at the end.")
         )
         .arg(
             Arg::with_name("custom-parameters")
@@ -244,7 +244,7 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("verify")
                 .long("verify")
-                .help("Verify found parameters one more time")
+                .help("Verify found parameters one more time.")
         );
 
     let args = app.clone().get_matches();

@@ -130,7 +130,7 @@ USAGE:
     x8 [FLAGS] [OPTIONS]
 
 FLAGS:
-       --as-body                        Send parameters via body.
+        --as-body                        Send parameters via body.
                                          Built in body types that can be detected automatically: json, urlencode
         --disable-cachebuster
         --disable-colors
@@ -144,16 +144,16 @@ FLAGS:
                                          variables' error messages
     -h, --help                           Prints help information
         --headers                        Switch to header discovery mode.
-                                         Forbidden chars would be automatically removed from headers' names
+                                         Forbidden chars would be automatically removed from headers names
         --http2                          Prefer http/2 over http/1.1
         --is-json                        If the output is valid json and the content type does not contain 'json'
                                          keyword - specify this argument for a more accurate search
         --keep-newlines                  --body 'a\r\nb' -> --body 'a{{new_line}}b'.
-                                         Works with body and parameter templates only
-        --replay-once                    If replay proxy is specified, send all found parameters within one request
+                                         Works with body and parameter templates only.
+        --replay-once                    If replay proxy is specified, send all found parameters within one request.
         --test                           Prints request and response
     -V, --version                        Prints version information
-        --verify                         Verify found parameters one more time
+        --verify                         Verify found parameters one more time.
 
 OPTIONS:
     -b, --body <body>                                       Example: --body '{"x":{%s}}'
@@ -182,14 +182,14 @@ OPTIONS:
     -P, --param-template <parameter_template>
             %k - key, %v - value. Example: --param-template 'user[%k]=%v&'
 
-        --proto <proto>                                     Uses when the request file is present. (default is "https")
+        --proto <proto>                                     Protocol to use with request file (default is "https")
     -x, --proxy <proxy>
         --replay-proxy <replay-proxy>
-            Request target with every found parameter via replay proxy at the end
+            Request target with every found parameter via replay proxy at the end.
 
-    -r, --request <request>                                 The file with raw http request
+    -r, --request <request>                                 The file with the raw http request
         --save-responses <save-responses>                   Save matched responses to a directory
-    -u, --url <url>                                         You can add a custom injection point with %s
+    -u, --url <url>                                         You can add a custom injection point with %s.
         --value-size <value_size>
             Custom value size. Affects {{random}} variables as well (default is 5)
 
