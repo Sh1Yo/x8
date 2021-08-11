@@ -475,6 +475,10 @@ pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
         },
         "request" => {
             generate_request(config, &make_hashmap(&found_params, config.value_size))
+                .lines()
+                .skip(1)
+                .collect::<Vec<&str>>()
+                .join("\n") + "\n"
         },
         _ => {
             let mut line = format!("{} {} % ", &config.method, &config.initial_url);
