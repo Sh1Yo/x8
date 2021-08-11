@@ -84,7 +84,7 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("output-format")
                 .short("O")
                 .long("output-format")
-                .help("standart, json, url (default is \"standart\")")
+                .help("standart, json, url, request (default is \"standart\")")
                 .takes_value(true)
         )
         .arg(

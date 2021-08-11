@@ -178,7 +178,7 @@ OPTIONS:
             Available: GET, POST, PUT, PATCH, DELETE, HEAD. (default is "GET")
 
     -o, --output <file>
-    -O, --output-format <output-format>                     standart, json, url (default is "standart")
+    -O, --output-format <output-format>                     standart, json, url, request (default is "standart")
     -P, --param-template <parameter_template>
             %k - key, %v - value. Example: --param-template 'user[%k]=%v&'
 
