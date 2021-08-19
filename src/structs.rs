@@ -65,7 +65,8 @@ pub struct Config {
     pub max: usize,
     pub concurrency: usize,
     pub http2: bool,
-    pub verify: bool
+    pub verify: bool,
+    pub reflected_only: bool
 }
 
 #[derive(Debug)]

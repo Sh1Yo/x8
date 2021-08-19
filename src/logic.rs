@@ -110,6 +110,10 @@ pub async fn cycles(
                 return futures_data
             }
 
+            if config.reflected_only {
+                return futures_data
+            }
+
             if initial_response.code == response.code {
                 if stable.body {
                     let (_, new_diffs) = compare(
