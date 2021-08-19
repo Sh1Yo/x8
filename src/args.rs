@@ -245,6 +245,11 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("verify")
                 .long("verify")
                 .help("Verify found parameters one more time.")
+        )
+        .arg(
+            Arg::with_name("reflected_only")
+                .long("reflected-only")
+                .help("Disable page comparison and search for reflected parameters only.")
         );
 
     let args = app.clone().get_matches();
@@ -557,7 +562,8 @@ pub fn get_config() -> (Config, usize) {
         max,
         concurrency,
         http2: args.is_present("http2"),
-        verify: args.is_present("verify")
+        verify: args.is_present("verify"),
+        reflected_only: args.is_present("reflected_only")
     };
 
     config = if !request.is_empty() {

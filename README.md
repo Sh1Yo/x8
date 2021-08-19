@@ -208,8 +208,8 @@ The tool fails to send requests via <a href="https://portswigger.net/burp">burp 
 - try to use --http2 flag.
 
 # Limitations
-- Currently, it is impossible to use some non-regular paths like `/sth1/../sth2`.
 
+- Currently, it is impossible to use some non-regular paths like `/sth1/../sth2`.
 
 # Burp Suite integrations
 

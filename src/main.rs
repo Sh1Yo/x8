@@ -188,6 +188,11 @@ async fn run() {
         max,
     ).await;
 
+    if config.reflected_only && !stable.reflections {
+        writeln!(io::stderr(), "{} Reflections are not stable", config.url).ok();
+        std::process::exit(1);
+    }
+
     //check whether it is possible to use 192(128) or 256(196) params in a single request instead of 128 default
     if max == 128 || max == 64 {
         let response = random_request(&config, &client, reflections_count, max + 64).await;
