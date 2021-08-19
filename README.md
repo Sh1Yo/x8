@@ -29,6 +29,7 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
 - [Test](#test)
 - [Usage](#usage)
 - [Troubleshooting](#troubleshooting)
+- [Limitations](#limitations)
 - [Burp Suite integrations](#burp-suite-integrations)
 - [Installation](#installation)
 
@@ -205,6 +206,10 @@ I chose the POST/PUT method and/or provided a body, but the tool sends parameter
 
 The tool fails to send requests via <a href="https://portswigger.net/burp">burp suite proxy</a>.
 - try to use --http2 flag.
+
+# Limitations
+- Currently, it is impossible to use some non-regular paths like `/sth1/../sth2`.
+
 
 # Burp Suite integrations
 
