@@ -30,6 +30,7 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
 - [Usage](#usage)
 - [Troubleshooting](#troubleshooting)
 - [Limitations](#limitations)
+- [Wordlists](#wordlists)
 - [Burp Suite integrations](#burp-suite-integrations)
 - [Installation](#installation)
 
@@ -210,6 +211,14 @@ The tool fails to send requests via <a href="https://portswigger.net/burp">burp 
 # Limitations
 
 - Currently, it is impossible to use some non-regular paths like `/sth1/../sth2`.
+
+# Wordlists
+Parameters:
+- [samlists](https://github.com/the-xentropy/samlists)
+- [arjun](https://github.com/s0md3v/Arjun/tree/master/arjun/db)
+
+Headers:
+- [Param Miner](https://github.com/danielmiessler/SecLists/tree/master/Discovery/Web-Content/BurpSuite-ParamMiner)
 
 # Burp Suite integrations
 
