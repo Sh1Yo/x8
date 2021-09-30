@@ -24,7 +24,7 @@ pub struct ResponseData {
 #[derive(Debug, Clone)]
 pub struct FuturesData {
     pub remaining_params: Vec<String>,
-    pub found_params: Vec<String>
+    pub found_params: HashMap<String, String>
 }
 
 #[derive(Debug, Clone)]
