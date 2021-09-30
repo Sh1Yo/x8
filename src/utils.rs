@@ -460,11 +460,7 @@ pub fn create_output(config: &Config, found_params: HashMap<String, String>) -> 
             if !found_params.is_empty() {
 
                 for (param, reason) in &found_params {
-                    if RE_JSON_WORDS_WITHOUT_QUOTES.is_match(param) {
-                        line.push_str(&format!("{{\"name\":{}, \"reason\":\"{}\"}}, ", param, reason));
-                    } else {
-                        line.push_str(&format!("{{\"name\":\"{}\", \"reason\":\"{}\"}}, ", param, reason));
-                    };
+                    line.push_str(&format!("{{\"name\":\"{}\", \"reason\":\"{}\"}}, ", param, reason));
                 }
 
                 line = line[..line.len() - 2].to_string();
