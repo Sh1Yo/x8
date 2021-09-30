@@ -228,7 +228,7 @@ async fn run() {
 
     let mut custom_parameters: HashMap<String, Vec<String>> = config.custom_parameters.clone();
     let mut remaining_params: Vec<Vec<String>> = Vec::new();
-    let mut found_params: Vec<String> = Vec::new();
+    let mut found_params: HashMap<String, String> = HashMap::new();
     let mut first: bool = true;
     let initial_size: usize = params.len() / max;
     let mut count: usize = 0;
@@ -271,7 +271,7 @@ async fn run() {
         let mut found: bool = false;
         for vector_params in &remaining_params {
             for param in vector_params {
-                for found_param in &found_params {
+                for (found_param, _) in &found_params {
                     //some strange logic in order to treat admin=1 and admin=something as the same parameters
                     let param_key = if param.matches('=').count() == 1 {
                         param.split('=').next().unwrap()
@@ -312,13 +312,9 @@ async fn run() {
         remaining_params = Vec::new()
     }
 
-
-    found_params.sort();
-    found_params.dedup();
-
     if config.verify {
-        let mut filtered_params = Vec::new();
-        for param in found_params {
+        let mut filtered_params = HashMap::with_capacity(found_params.len());
+        for (param, reason) in found_params {
             let response = request(
                 &config, &client,
                 &make_hashmap(
@@ -334,7 +330,7 @@ async fn run() {
                 }
             }
             if !response.reflected_params.is_empty() || !is_the_body_the_same || !is_code_the_same {
-                filtered_params.push(param);
+                filtered_params.insert(param, reason);
             }
         }
         found_params = filtered_params;
@@ -353,13 +349,13 @@ async fn run() {
                 &temp_config,
                 &replay_client,
                 &make_hashmap(
-                    &found_params,
+                    &found_params.keys().map(|x| x.to_owned()).collect::<Vec<String>>(),
                     config.value_size
                 ),
                 0
             ).await;
         } else {
-            for param in &found_params {
+            for (param, _) in &found_params {
                 request(
                     &temp_config,
                     &replay_client,
