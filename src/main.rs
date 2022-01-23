@@ -80,6 +80,7 @@ async fn run() {
 
     //build clients
     let mut client = Client::builder()
+        .resolve("localhost", "127.0.0.1".parse().unwrap())
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(60))
         .http1_title_case_headers()
