@@ -132,6 +132,7 @@ USAGE:
     x8 [FLAGS] [OPTIONS]
 
 FLAGS:
+        --append                         Append to the output file instead of overwriting it.
         --as-body                        Send parameters via body.
                                          Built in body types that can be detected automatically: json, urlencode
         --disable-cachebuster
@@ -152,6 +153,7 @@ FLAGS:
                                          keyword - specify this argument for a more accurate search
         --keep-newlines                  --body 'a\r\nb' -> --body 'a{{new_line}}b'.
                                          Works with body and parameter templates only.
+        --reflected-only                 Disable page comparison and search for reflected parameters only.
         --replay-once                    If replay proxy is specified, send all found parameters within one request.
         --test                           Prints request and response
     -V, --version                        Prints version information
@@ -193,7 +195,7 @@ OPTIONS:
         --save-responses <save-responses>                   Save matched responses to a directory
     -u, --url <url>                                         You can add a custom injection point with %s.
         --value-size <value_size>
-            Custom value size. Affects {{random}} variables as well (default is 5)
+            Custom value size. Affects {{random}} variables as well (default is 7)
 
     -v, --verbose <verbose>                                 Verbose level 0/1/2 (default is 1)
     -w, --wordlist <wordlist>                               The file with parameters

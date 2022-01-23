@@ -90,7 +90,7 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("append")
                 .long("append")
-                .help("Append to the output file instead of overwriting it")
+                .help("Append to the output file instead of overwriting it.")
         )
         .arg(
             Arg::with_name("method")
