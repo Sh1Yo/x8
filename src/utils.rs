@@ -408,7 +408,7 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
 }
 
 pub fn random_line(size: usize) -> String {
-        (0..size)
+    (0..size)
         .map(|_| {
             let idx = rand::thread_rng().gen_range(0,RANDOM_CHARSET.len());
             RANDOM_CHARSET[idx] as char
