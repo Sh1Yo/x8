@@ -260,6 +260,10 @@ In the next dialog, you can change the command and run it in a new terminal wind
 
 - Linux
     - from releases
+    - from blackarch repositories (repositories should be installed)
+        ```bash
+        # pacman -Sy x8
+        ```
     - from source code (rust should be installed)
         ```bash
         git clone https://github.com/Sh1Yo/x8
