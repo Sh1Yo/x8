@@ -88,6 +88,11 @@ pub fn get_config() -> (Config, usize) {
                 .takes_value(true)
         )
         .arg(
+            Arg::with_name("append")
+                .long("append")
+                .help("Append to the output file instead of overwriting it")
+        )
+        .arg(
             Arg::with_name("method")
                 .short("X")
                 .long("method")
@@ -543,6 +548,7 @@ pub fn get_config() -> (Config, usize) {
         output_file: args.value_of("output").unwrap_or("").to_string(),
         save_responses: args.value_of("save-responses").unwrap_or("").to_string(),
         output_format: args.value_of("output-format").unwrap_or("").to_string(),
+        append: args.is_present("append"),
         as_body: args.is_present("as-body"),
         headers_discovery: args.is_present("headers-discovery"),
         within_headers,

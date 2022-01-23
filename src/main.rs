@@ -3,7 +3,7 @@ use colored::*;
 use reqwest::Client;
 use std::{
     collections::HashMap,
-    fs,
+    fs::{self, OpenOptions},
     io::{self, Write},
     time::Duration,
 };
@@ -378,7 +378,27 @@ async fn run() {
     let output = create_output(&config, found_params);
 
     if !config.output_file.is_empty() {
-        match std::fs::write(&config.output_file, &output) {
+        let mut file = OpenOptions::new();
+
+        let file = if config.append {
+            file.write(true).append(true)
+        } else {
+            file.write(true)
+        };
+
+        let mut file = match file.open(&config.output_file) {
+            Ok(file) => file,
+            Err(_) => match fs::File::create(&config.output_file) {
+                Ok(file) => file,
+                Err(err) => {
+                    writeln!(io::stderr(), "[!] Unable to create file - {}", err).ok();
+                    write!(io::stdout(), "\n{}", &output).ok();
+                    std::process::exit(1);
+                }
+            }
+        };
+
+        match write!(file, "{}" , output) {
             Ok(_) => (),
             Err(err) => {
                 writeln!(io::stderr(), "[!] {}", err).ok();

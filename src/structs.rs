@@ -53,6 +53,7 @@ pub struct Config {
     pub follow_redirects: bool,
     pub encode: bool,
     pub test: bool,
+    pub append: bool,
     pub as_body: bool,
     pub headers_discovery: bool,
     pub within_headers: bool,
