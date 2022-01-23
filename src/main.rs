@@ -396,7 +396,7 @@ async fn run() {
         let file = if config.append {
             file.write(true).append(true)
         } else {
-            file.write(true)
+            file.write(true).truncate(true)
         };
 
         let mut file = match file.open(&config.output_file) {
