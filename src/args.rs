@@ -213,7 +213,7 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("value_size")
                 .long("value-size")
-                .help("Custom value size. Affects {{random}} variables as well (default is 5)")
+                .help("Custom value size. Affects {{random}} variables as well (default is 7)")
                 .takes_value(true)
         )
         .arg(
@@ -293,7 +293,7 @@ pub fn get_config() -> (Config, usize) {
             }
         },
         None => {
-            5
+            7
         }
     };
 

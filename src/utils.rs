@@ -35,6 +35,8 @@ lazy_static! {
         Regex::new(r#"(?P<first>"[\w\.-]*"):(?P<second>\d+),"#).unwrap();
     static ref RE_JSON_COMMA_AFTER_BOOL: Regex =
         Regex::new(r#"(?P<first>"[\w\.-]*"):(?P<second>(false|null|true)),"#).unwrap();
+
+    static ref RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 }
 
 //calls check_diffs & returns code and found diffs
@@ -406,10 +408,12 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
 }
 
 pub fn random_line(size: usize) -> String {
-    rand::thread_rng()
-        .sample_iter(&rand::distributions::Alphanumeric)
-        .take(size)
-        .collect::<String>()
+        (0..size)
+        .map(|_| {
+            let idx = rand::thread_rng().gen_range(0,RANDOM_CHARSET.len());
+            RANDOM_CHARSET[idx] as char
+        })
+        .collect()
 }
 
 pub fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>

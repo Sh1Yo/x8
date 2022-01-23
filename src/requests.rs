@@ -294,9 +294,8 @@ pub async fn request(
     let mut reflected_params: Vec<String> = Vec::new();
 
     for (key, value) in initial_query.iter() {
-        if value.contains("%random%_") && body.matches(&value.replace("%random%_", "").as_str()).count() as usize != reflections {
-
-            reflected_params.push(key.to_string())
+        if value.contains("%random%_") && body.to_ascii_lowercase().matches(&value.replace("%random%_", "").as_str()).count() as usize != reflections {
+            reflected_params.push(key.to_string());
         }
     }
 
