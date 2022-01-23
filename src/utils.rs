@@ -420,7 +420,7 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
-pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
+pub fn create_output(config: &Config, found_params: HashMap<String, String>) -> String {
     match config.output_format.as_str() {
         "url" => {
             let mut line = if !found_params.is_empty() {
@@ -434,7 +434,7 @@ pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
 
             if !found_params.is_empty() {
 
-                for param in &found_params {
+                for (param, _) in &found_params {
                     line.push_str(&param);
                     if !param.contains('=') {
                         line.push('=');
@@ -459,11 +459,8 @@ pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
 
             if !found_params.is_empty() {
 
-                for param in &found_params {
-                    line.push('\"');
-                    line.push_str(&param.replace("\"", "\\\""));
-                    line.push('\"');
-                    line.push_str(", ");
+                for (param, reason) in &found_params {
+                    line.push_str(&format!("{{\"name\":\"{}\", \"reason\":\"{}\"}}, ", param, reason));
                 }
 
                 line = line[..line.len() - 2].to_string();
@@ -474,7 +471,7 @@ pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
             line
         },
         "request" => {
-            generate_request(config, &make_hashmap(&found_params, config.value_size))
+            generate_request(config, &make_hashmap(&found_params.keys().map(|x| x.to_owned()).collect::<Vec<String>>(), config.value_size))
                 .lines()
                 .skip(1)
                 .collect::<Vec<&str>>()
@@ -485,7 +482,7 @@ pub fn create_output(config: &Config, found_params: Vec<String>) -> String {
 
             if !found_params.is_empty() {
 
-                for param in &found_params {
+                for (param, _) in &found_params {
                     line.push_str(&param);
                     line.push_str(", ")
                 }

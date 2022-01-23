@@ -27,7 +27,7 @@ pub async fn cycles(
     max: usize,
     green_lines: &mut HashMap<String, usize>,
     remaining_params: &mut Vec<Vec<String>>,
-    found_params: &mut Vec<String>,
+    found_params: &mut HashMap<String, String>,
 ) {
     let all = params.len() / max;
     let mut count: usize = 0;
@@ -38,10 +38,10 @@ pub async fn cycles(
         count += 1;
         let mut futures_data = FuturesData{
             remaining_params: Vec::new(),
-            found_params: Vec::new()
+            found_params: HashMap::new()
         };
 
-        let found_params: &Vec<String> = &found_params;
+        let found_params: &HashMap<String, String> = &found_params;
         let cloned_diffs = Arc::clone(&shared_diffs);
         let cloned_green_lines = Arc::clone(&shared_green_lines);
 
@@ -65,8 +65,8 @@ pub async fn cycles(
                 //try to find parameters with different number of reflections
             if stable.reflections && first && response.reflected_params.len() < 10 {
                 for param in response.reflected_params.iter() {
-                    if !found_params.contains(param) {
-                        futures_data.found_params.push(param.to_string());
+                    if !found_params.contains_key(param) {
+                        futures_data.found_params.insert(param.to_string(), String::from("Different amount of reflections"));
                         if config.verbose > 0 {
                             writeln!(
                                 io::stdout(),
@@ -99,11 +99,11 @@ pub async fn cycles(
                 }
 
                 if !not_reflected_one.is_empty() && chunk.len() >= 2 {
-                    futures_data.found_params.push(not_reflected_one.to_owned());
+                    futures_data.found_params.insert(not_reflected_one.to_owned(), String::from("Causes other parameters to reflect different times"));
                 }
 
                 if response.reflected_params.len() == 1 {
-                    futures_data.found_params.push(chunk[0].to_owned());
+                    futures_data.found_params.insert(chunk[0].to_owned(), String::from("Causes other parameters to reflect different times"));
                 } else {
                     futures_data.remaining_params.append(&mut chunk.to_vec());
                 }
@@ -197,7 +197,7 @@ pub async fn cycles(
                                 }
                             }
 
-                            if chunk.len() == 1 && !found_params.contains(&chunk[0]) && !futures_data.found_params.contains(&chunk[0]) {
+                            if chunk.len() == 1 && !found_params.contains_key(&chunk[0]) && !futures_data.found_params.contains_key(&chunk[0]) {
                                 if config.verbose > 0 {
                                     writeln!(
                                         io::stdout(),
@@ -208,7 +208,7 @@ pub async fn cycles(
                                         &diff
                                     ).ok();
                                 }
-                                futures_data.found_params.push(chunk[0].to_owned());
+                                futures_data.found_params.insert(chunk[0].to_owned(), format!("Changes page: {} -> {}", initial_response.text.len(), response.text.len()));
                                 break;
                             } else {
                                 futures_data.remaining_params.append(&mut chunk.to_vec());
@@ -217,7 +217,7 @@ pub async fn cycles(
                         }
                     }
                 }
-            } else if chunk.len() == 1 && !found_params.contains(&chunk[0]) && !futures_data.found_params.contains(&chunk[0]) {
+            } else if chunk.len() == 1 && !found_params.contains_key(&chunk[0]) && !futures_data.found_params.contains_key(&chunk[0]) {
                 if config.verbose > 0 {
                     writeln!(
                         io::stdout(),
@@ -227,7 +227,7 @@ pub async fn cycles(
                         &response.code.to_string().bright_yellow()
                     ).ok();
                 }
-                futures_data.found_params.push(chunk[0].to_owned());
+                futures_data.found_params.insert(chunk[0].to_owned(), format!("Changes response code: {} -> {}", initial_response.code, response.code));
             } else {
                 if !config.save_responses.is_empty() {
                     let filename = random_line(10);
@@ -315,8 +315,8 @@ pub async fn cycles(
     .await;
 
     for instance in futures_data {
-        for param in instance.found_params {
-            found_params.push(param)
+        for (k, v) in instance.found_params {
+            found_params.insert(k, v);
         }
         remaining_params.push(instance.remaining_params)
     }
