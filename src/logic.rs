@@ -1,6 +1,6 @@
 use crate::{
     requests::{random_request, request},
-    structs::{Config, ResponseData, Stable, FuturesData},
+    structs::{Config, ResponseData, Stable, FuturesData, Statistic},
     utils::{compare, make_hashmap, random_line, generate_request},
 };
 use colored::*;
@@ -15,9 +15,10 @@ use std::{
 };
 
 //check parameters in a loop chunk by chunk
-pub async fn cycles(
+pub async fn check_parameters(
     first: bool,
     config: &Config,
+    stats: &mut Statistic,
     initial_response: &ResponseData,
     diffs: &mut Vec<String>,
     params: &[String],
@@ -38,7 +39,8 @@ pub async fn cycles(
         count += 1;
         let mut futures_data = FuturesData{
             remaining_params: Vec::new(),
-            found_params: HashMap::new()
+            found_params: HashMap::new(),
+            stats: Statistic{amount_of_requests: 0}
         };
 
         let found_params: &HashMap<String, String> = &found_params;
@@ -48,7 +50,7 @@ pub async fn cycles(
         async move {
 
             let query = &make_hashmap(&chunk, config.value_size);
-            let response = request(config, client, query, reflections_count).await;
+            let response = request(config, &mut futures_data.stats, client, query, reflections_count).await;
 
             //progress bar
             if config.verbose > 0 && !config.disable_progress_bar {
@@ -130,7 +132,7 @@ pub async fn cycles(
                         drop(diffs);
 
                         let tmp_resp =
-                            random_request(&config, &client, reflections_count, max).await;
+                            random_request(&config, &mut futures_data.stats, &client, reflections_count, max).await;
 
                         //lock it again
                         diffs = cloned_diffs.lock();
@@ -287,7 +289,7 @@ pub async fn cycles(
                                 config.value_size,
                             );
 
-                            let check_response = request(config, client, &query, 0).await;
+                            let check_response = request(config, &mut futures_data.stats, client, &query, 0).await;
 
                             if check_response.code != initial_response.code {
                                 writeln!(
@@ -318,6 +320,7 @@ pub async fn cycles(
         for (k, v) in instance.found_params {
             found_params.insert(k, v);
         }
-        remaining_params.push(instance.remaining_params)
+        remaining_params.push(instance.remaining_params);
+        stats.merge(instance.stats);
     }
 }

@@ -24,7 +24,8 @@ pub struct ResponseData {
 #[derive(Debug, Clone)]
 pub struct FuturesData {
     pub remaining_params: Vec<String>,
-    pub found_params: HashMap<String, String>
+    pub found_params: HashMap<String, String>,
+    pub stats: Statistic
 }
 
 #[derive(Debug, Clone)]
@@ -74,4 +75,15 @@ pub struct Config {
 pub struct Stable {
     pub body: bool,
     pub reflections: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct Statistic {
+    pub amount_of_requests: usize
+}
+
+impl Statistic {
+    pub fn merge(&mut self, stats: Statistic) {
+        self.amount_of_requests += stats.amount_of_requests;
+    }
 }

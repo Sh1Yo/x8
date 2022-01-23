@@ -9,9 +9,9 @@ use std::{
 };
 use x8::{
     args::get_config,
-    logic::cycles,
+    logic::check_parameters,
     requests::{empty_reqs, random_request, request},
-    structs::Config,
+    structs::{Config, Statistic},
     utils::{compare, generate_data, heuristic, make_hashmap, random_line, read_lines, create_output},
 };
 
@@ -30,6 +30,8 @@ async fn main() {
 
 async fn run() {
     //colored::control::set_override(true);
+
+    let mut stats = Statistic{amount_of_requests: 0};
 
     //saves false-positive diffs
     let mut green_lines: HashMap<String, usize> = HashMap::new();
@@ -123,16 +125,16 @@ async fn run() {
     );
 
     //get cookies
-    request(&config, &client, &HashMap::new(), 0).await;
+    request(&config, &mut stats, &client, &HashMap::new(), 0).await;
 
     // if opened in the test mode - generate request/response and quit
     if config.test {
-        generate_data(&config, &client, &query).await;
+        generate_data(&config, &mut stats, &client, &query).await;
         std::process::exit(0)
     }
 
     // make first request and collect some information like code, reflections, possible parameters
-    let mut initial_response = request(&config, &client, &query, 0).await;
+    let mut initial_response = request(&config, &mut stats, &client, &query, 0).await;
 
     if initial_response.code == 0 {
         writeln!(io::stderr(), "Unable to reach - {} ", &config.url).ok();
@@ -161,6 +163,7 @@ async fn run() {
     //let reflections count = the number of reflections of the first parameter
     let reflections_count = initial_response
         .text
+        .to_ascii_lowercase()
         .matches(&query.values().next().unwrap().replace("%random%_", "").as_str())
         .count() as usize;
 
@@ -182,6 +185,7 @@ async fn run() {
     //make a few requests and collect all persistent diffs, check for stability
     let (mut diffs, stable) = empty_reqs(
         &config,
+        &mut stats,
         &initial_response,
         reflections_count,
         config.learn_requests_count,
@@ -196,7 +200,7 @@ async fn run() {
 
     //check whether it is possible to use 192(128) or 256(196) params in a single request instead of 128 default
     if max == 128 || max == 64 {
-        let response = random_request(&config, &client, reflections_count, max + 64).await;
+        let response = random_request(&config, &mut stats, &client, reflections_count, max + 64).await;
 
         let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
         let mut is_the_body_the_same = true;
@@ -208,7 +212,7 @@ async fn run() {
         }
 
         if is_code_the_same && (!stable.body || is_the_body_the_same) {
-            let response = random_request(&config, &client, reflections_count, max + 128).await;
+            let response = random_request(&config, &mut stats, &client, reflections_count, max + 128).await;
             let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
 
             for diff in new_diffs {
@@ -240,9 +244,10 @@ async fn run() {
     let mut count: usize = 0;
 
     loop {
-        cycles(
+        check_parameters(
             first,
             &config,
+            &mut stats,
             &initial_response,
             &mut diffs,
             &params,
@@ -322,7 +327,9 @@ async fn run() {
         let mut filtered_params = HashMap::with_capacity(found_params.len());
         for (param, reason) in found_params {
             let response = request(
-                &config, &client,
+                &config,
+                &mut stats,
+                 &client,
                 &make_hashmap(
                     &[param.clone()], config.value_size
                 ),
@@ -348,11 +355,12 @@ async fn run() {
             ..config.clone()
         };
 
-        request(&temp_config, &replay_client, &HashMap::new(), 0).await;
+        request(&temp_config, &mut stats, &replay_client, &HashMap::new(), 0).await;
 
         if config.replay_once {
             request(
                 &temp_config,
+                &mut stats,
                 &replay_client,
                 &make_hashmap(
                     &found_params.keys().map(|x| x.to_owned()).collect::<Vec<String>>(),
@@ -364,6 +372,7 @@ async fn run() {
             for (param, _) in &found_params {
                 request(
                     &temp_config,
+                    &mut stats,
                     &replay_client,
                     &make_hashmap(
                         &[param.to_owned()],
@@ -375,7 +384,11 @@ async fn run() {
         }
     }
 
-    let output = create_output(&config, found_params);
+    if config.verbose > 0 {
+        writeln!(io::stdout(),"\n{}: {}", &"Amount of requests".magenta(), stats.amount_of_requests).ok();
+    }
+
+    let output = create_output(&config, &stats, found_params);
 
     if !config.output_file.is_empty() {
         let mut file = OpenOptions::new();

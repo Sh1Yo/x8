@@ -1,5 +1,5 @@
 use crate::requests::request;
-use crate::structs::{Config, ResponseData};
+use crate::structs::{Config, ResponseData, Statistic};
 use crate::diff::diff;
 
 use lazy_static::lazy_static;
@@ -191,12 +191,12 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
 }
 
 //prints request and response
-pub async fn generate_data(config: &Config, client: &Client, query: &HashMap<String, String>) {
+pub async fn generate_data(config: &Config, stats: &mut Statistic, client: &Client, query: &HashMap<String, String>) {
     let req = generate_request(config, query);
 
     writeln!(io::stdout(), "Request:\n{}", req).ok();
 
-    let response = request(config, client, &query, 0).await;
+    let response = request(config, stats, client, &query, 0).await;
 
     writeln!(
         io::stdout(),
@@ -424,7 +424,7 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
-pub fn create_output(config: &Config, found_params: HashMap<String, String>) -> String {
+pub fn create_output(config: &Config, stats: &Statistic, found_params: HashMap<String, String>) -> String {
     match config.output_format.as_str() {
         "url" => {
             let mut line = if !found_params.is_empty() {
@@ -470,7 +470,7 @@ pub fn create_output(config: &Config, found_params: HashMap<String, String>) -> 
                 line = line[..line.len() - 2].to_string();
             }
 
-            line.push_str("]}\n");
+            line.push_str(&format!("], \"amount_of_requests\":{}}}\n", stats.amount_of_requests));
 
             line
         },

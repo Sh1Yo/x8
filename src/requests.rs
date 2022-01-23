@@ -1,5 +1,5 @@
 use crate::{
-    structs::{Config, ResponseData, Stable},
+    structs::{Config, ResponseData, Stable, Statistic},
     utils::{compare, beautify_html, beautify_json, make_body, make_query, make_header_value, make_hashmap, fix_headers, random_line},
 };
 use colored::*;
@@ -14,6 +14,7 @@ use std::{
 //makes first requests and checks page behavior
 pub async fn empty_reqs(
     config: &Config,
+    stats: &mut Statistic,
     initial_response: &ResponseData,
     reflections_count: usize,
     count: usize,
@@ -27,7 +28,7 @@ pub async fn empty_reqs(
     let mut diffs: Vec<String> = Vec::new();
 
     for i in 0..count {
-        let response = random_request(config, client, reflections_count, max).await;
+        let response = random_request(config, stats, client, reflections_count, max).await;
 
         //progress bar
         if config.verbose > 0 && !config.disable_progress_bar {
@@ -68,7 +69,7 @@ pub async fn empty_reqs(
         }
     }
 
-    let response = random_request(config, client, reflections_count, max).await;
+    let response = random_request(config, stats, client, reflections_count, max).await;
 
     for diff in compare(initial_response, &response).1 {
         if !diffs.iter().any(|i| i == &diff) {
@@ -89,12 +90,14 @@ pub async fn empty_reqs(
 //calls request() with random parameters
 pub async fn random_request(
     config: &Config,
+    stats: &mut Statistic,
     client: &Client,
     reflections: usize,
     max: usize,
 ) -> ResponseData {
     request(
         &config,
+        stats,
         &client,
         &make_hashmap(
             &(0..max).map(|_| random_line(config.value_size*2)).collect::<Vec<String>>(),
@@ -179,6 +182,7 @@ fn create_request(
 
 pub async fn request(
     config: &Config,
+    stats: &mut Statistic,
     client: &Client,
     initial_query: &HashMap<String, String>,
     reflections: usize,
@@ -206,6 +210,7 @@ pub async fn request(
 
     let url: &str = &config.url;
 
+    stats.amount_of_requests += 1;
     let res = match create_request(config, query, &hashmap_query, client).send().await {
         Ok(val) => val,
         Err(_) => {
@@ -229,6 +234,7 @@ pub async fn request(
                 String::new()
             };
 
+            stats.amount_of_requests += 1;
             match create_request(config, random_query.clone(), &hashmap_query, client).send().await {
                 Ok(_) => return ResponseData {
                                     text: String::new(),
