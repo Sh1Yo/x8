@@ -297,14 +297,6 @@ pub async fn request(
         Err(_) => String::new(),
     };
 
-    let mut reflected_params: Vec<String> = Vec::new();
-
-    for (key, value) in initial_query.iter() {
-        if value.contains("%random%_") && body.to_ascii_lowercase().matches(&value.replace("%random%_", "").as_str()).count() as usize != reflections {
-            reflected_params.push(key.to_string());
-        }
-    }
-
     let mut text = String::new();
     for (key, value) in headers.iter() {
         text.push_str(&key);
@@ -314,6 +306,14 @@ pub async fn request(
     }
     text.push_str(&"\n\n");
     text.push_str(&body);
+
+    let mut reflected_params: Vec<String> = Vec::new();
+
+    for (key, value) in initial_query.iter() {
+        if value.contains("%random%_") && text.to_ascii_lowercase().matches(&value.replace("%random%_", "").as_str()).count() as usize != reflections {
+            reflected_params.push(key.to_string());
+        }
+    }
 
     ResponseData {
         text,
