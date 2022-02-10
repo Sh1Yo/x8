@@ -229,6 +229,9 @@ It is possible to run parameter discovery in a few clicks using burp suite exten
 ## [x8-Burp](https://github.com/Impact-I/x8-Burp)
 ![preview](https://user-images.githubusercontent.com/54232788/126073100-ed09e8b1-0ffa-4432-aa34-f0451586a992.png)
 
+### NOTE
+Currently the extension supports only v2.5.0.
+
 ## [Send To](https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e)
 
 ### Setting up
