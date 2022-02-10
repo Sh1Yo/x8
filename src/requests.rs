@@ -1,5 +1,5 @@
 use crate::{
-    structs::{Config, ResponseData, Stable, Statistic},
+    structs::{Config, ResponseData, Stable, Statistic, DefaultResponse},
     utils::{compare, beautify_html, beautify_json, make_body, make_query, make_header_value, make_hashmap, fix_headers, random_line},
 };
 use colored::*;
@@ -10,6 +10,8 @@ use std::{
     collections::{BTreeMap, HashMap},
     io::{self, Write},
 };
+
+const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
 
 //makes first requests and checks page behavior
 pub async fn empty_reqs(
@@ -28,7 +30,10 @@ pub async fn empty_reqs(
     let mut diffs: Vec<String> = Vec::new();
 
     for i in 0..count {
-        let response = random_request(config, stats, client, reflections_count, max).await;
+        let response =
+            random_request(config, stats, client, reflections_count, max)
+                .await
+                .unwrap_or(ResponseData::default());
 
         //progress bar
         if config.verbose > 0 && !config.disable_progress_bar {
@@ -42,8 +47,8 @@ pub async fn empty_reqs(
             io::stdout().flush().unwrap_or(());
         }
 
-        if response.text.len() > 25 * 1024 * 1024 && !config.force {
-            writeln!(io::stderr(), "[!] {} the page is too huge", &config.url).ok();
+        if response.text.len() > MAX_PAGE_SIZE && !config.force {
+            writeln!(io::stderr(), "[!] {} the page is too huge", &config.url).ok(); //TODO return error
             std::process::exit(1)
         }
 
@@ -69,7 +74,10 @@ pub async fn empty_reqs(
         }
     }
 
-    let response = random_request(config, stats, client, reflections_count, max).await;
+    let response =
+        random_request(config, stats, client, reflections_count, max)
+            .await
+            .unwrap_or(ResponseData::default());//TODO replace with
 
     for diff in compare(initial_response, &response).1 {
         if !diffs.iter().any(|i| i == &diff) {
@@ -94,7 +102,7 @@ pub async fn random_request(
     client: &Client,
     reflections: usize,
     max: usize,
-) -> ResponseData {
+) -> Option<ResponseData> {
     request(
         &config,
         stats,
@@ -129,7 +137,7 @@ fn create_request(
             "HEAD" => client.head(url).body(query.clone()),
             _ => {
                 writeln!(io::stderr(), "Method is not supported").ok();
-                std::process::exit(1);
+                std::process::exit(1); //TODO return error
             },
         }
     } else {
@@ -186,7 +194,7 @@ pub async fn request(
     client: &Client,
     initial_query: &HashMap<String, String>,
     reflections: usize,
-) -> ResponseData {
+) -> Option<ResponseData> {
     let mut hashmap_query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
     for (k, v) in initial_query.iter() {
         hashmap_query.insert(k.to_string(), v.replace("%random%_", ""));
@@ -236,33 +244,22 @@ pub async fn request(
 
             stats.amount_of_requests += 1;
             match create_request(config, random_query.clone(), &hashmap_query, client).send().await {
-                Ok(_) => return ResponseData {
-                                    text: String::new(),
-                                    code: 0,
-                                    reflected_params: Vec::new(),
-                                },
+                Ok(_) => return None,
                 Err(err) => {
                     writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
                     match err.source() {
                         Some(val) => if val.to_string() == "invalid HTTP version parsed" && !config.http2 {
                              writeln!(io::stdout(), "[!] {}", "Try to use --http2 option".bright_red()).ok();
-                             std::process::exit(1);
+                             return None
                         },
                         None => ()
                     };
                     writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
                     std::thread::sleep(Duration::from_secs(50));
-                    match create_request(config, random_query, &hashmap_query, client).send().await {
-                        Ok(_) => return ResponseData {
-                            text: String::new(),
-                            code: 0,
-                            reflected_params: Vec::new(),
-                        },
-                        Err(_) => {
-                            writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
-                            std::process::exit(1);
-                        }
-                    }
+                    create_request(config, random_query, &hashmap_query, client)
+                        .send()
+                        .await
+                        .expect("Unable to connect to the server") //TODO return error instead
                 }
             }
         }
@@ -315,9 +312,9 @@ pub async fn request(
         }
     }
 
-    ResponseData {
+    Some(ResponseData {
         text,
         code,
         reflected_params,
-    }
+    })
 }
