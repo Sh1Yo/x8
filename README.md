@@ -1,7 +1,5 @@
 [![Twitter](https://img.shields.io/twitter/follow/sh1yo_.svg?logo=twitter)](https://twitter.com/sh1yo_)
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B0B858X5E)
-
 ![crates.io](https://img.shields.io/crates/v/x8.svg)
 ![stars](https://img.shields.io/github/stars/Sh1Yo/x8)
 ![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust)
@@ -292,3 +290,7 @@ In the next dialog, you can change the command and run it in a new terminal wind
 
 - Windows
     - from releases
+
+--
+btc - bc1qje9f85652r5a0anfxcs8yzu97nes740qxg3mxt4um30myj5sc7mss0v3yw
+xmr - 46pni5AY9Ra399sivBykVucaK6KdU3rYiSqFsZinfaEgd3qUkeZvRxjEdhPPmsmZQwTDPBSrvSpkaj4LsHqLH6GG7zMmgiW
