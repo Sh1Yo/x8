@@ -118,6 +118,10 @@ pub fn fix_headers<'a>(header: &'a str) -> Option<String> {
 
     if RE.is_match(header) {
         Some(RE.replace_all(header, "").to_string())
+
+    // hyper throws an error in case the Content-Length header contains random value with http2
+    } else if header.to_ascii_lowercase() == "content-length" {
+        Some(String::from("disabled"))
     } else {
         None
     }
