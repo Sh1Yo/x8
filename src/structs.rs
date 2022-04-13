@@ -58,7 +58,7 @@ pub struct Config {
     pub as_body: bool,
     pub headers_discovery: bool,
     pub within_headers: bool,
-    pub verbose: u8,
+    pub verbose: usize,
     pub is_json: bool,
     pub disable_cachebuster: bool,
     pub delay: Duration,

@@ -1,6 +1,7 @@
 use crate::{structs::Config, utils::{parse_request, adjust_body}};
 use clap::{crate_version, App, AppSettings, Arg};
 use std::{collections::HashMap, fs, time::Duration};
+use log;
 use url::Url;
 
 pub fn get_config() -> (Config, usize) {
@@ -43,6 +44,7 @@ pub fn get_config() -> (Config, usize) {
                 .short("P")
                 .long("param-template")
                 .help("%k - key, %v - value. Example: --param-template 'user[%k]=%v&'")
+                .default_value("")
                 .takes_value(true),
         )
         .arg(
@@ -57,7 +59,8 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("body-type")
                 .short("t")
                 .long("body-type")
-                .help("Available: urlencode, json. (default is \"urlencode\")\nCan be detected automatically if --body is specified")
+                .help("Available: urlencode, json\nCan be detected automatically if --body is specified")
+                .default_value("urlencode")
                 .value_name("body type")
         )
         .arg(
@@ -71,6 +74,7 @@ pub fn get_config() -> (Config, usize) {
                 .short("d")
                 .long("delay")
                 .value_name("Delay between requests in milliseconds")
+                .default_value("0")
                 .takes_value(true)
         )
         .arg(
@@ -84,7 +88,8 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("output-format")
                 .short("O")
                 .long("output-format")
-                .help("standart, json, url, request (default is \"standart\")")
+                .help("standart, json, url, request")
+                .default_value("standart")
                 .takes_value(true)
         )
         .arg(
@@ -97,7 +102,8 @@ pub fn get_config() -> (Config, usize) {
                 .short("X")
                 .long("method")
                 .value_name("method")
-                .help("Available: GET, POST, PUT, PATCH, DELETE, HEAD. (default is \"GET\")")
+                .help("Available: GET, POST, PUT, PATCH, DELETE, HEAD.")
+                .default_value("GET")
                 .takes_value(true)
                 .conflicts_with("request")
         )
@@ -202,7 +208,8 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("verbose")
                 .long("verbose")
                 .short("v")
-                .help("Verbose level 0/1/2 (default is 1)")
+                .help("Verbose level 0/1/2")
+                .default_value("1")
                 .takes_value(true)
         )
         .arg(
@@ -218,13 +225,15 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("value_size")
                 .long("value-size")
-                .help("Custom value size. Affects {{random}} variables as well (default is 7)")
+                .help("Custom value size. Affects {{random}} variables as well")
+                .default_value("7")
                 .takes_value(true)
         )
         .arg(
             Arg::with_name("learn_requests_count")
                 .long("learn-requests")
-                .help("Set the custom number of learning requests. (default is 9)")
+                .help("Set the custom number of learning requests.")
+                .default_value("9")
                 .takes_value(true)
         )
         .arg(
@@ -237,7 +246,8 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("concurrency")
                 .short("c")
-                .help("The number of concurrent requests (default is 1)")
+                .help("The number of concurrent requests")
+                .default_value("1")
                 .takes_value(true)
         )
         .arg(
@@ -259,30 +269,24 @@ pub fn get_config() -> (Config, usize) {
 
     let args = app.clone().get_matches();
 
-    let delay = Duration::from_millis(
-        args.value_of("delay").unwrap_or("0").parse().expect("Unable to parse 'delay' value")
-    );
+    let delay = Duration::from_millis(parse_int(&args, "delay") as u64);
 
-    let max: usize = match args.value_of("max") {
-        Some(val) => val.parse().expect("Unable to parse 'max' value"),
-        None => {
-            if args.is_present("as-body") {
-                512
-            } else if !args.is_present("headers-discovery") {
-                128
-            } else {
-                64
-            }
+    let max: usize = if args.is_present("max") {
+        parse_int(&args, "max")
+    } else {
+        if args.is_present("as-body") {
+            512
+        } else if !args.is_present("headers-discovery") {
+            128
+        } else {
+            64
         }
     };
 
-    let value_size: usize = args.value_of("value_size").unwrap_or("7")
-        .parse().expect("Unable to parse 'value_size' value");
-
-    let learn_requests_count: usize = args.value_of("learn_requests_count").unwrap_or("9")
-        .parse().expect("Unable to parse 'learn_requests_count' value");
-
-    let concurrency: usize = args.value_of("concurrency").unwrap_or("1").parse().expect( "Unable to parse 'concurrency' value");
+    let value_size = parse_int(&args, "value_size");
+    let learn_requests_count = parse_int(&args, "learn_requests_count");
+    let concurrency = parse_int(&args, "concurrency");
+    let verbose = parse_int(&args, "verbose");
 
     let mut headers: HashMap<String, String> = HashMap::new();
     let mut within_headers: bool = false;
@@ -303,21 +307,26 @@ pub fn get_config() -> (Config, usize) {
         }
     };
 
-    let verbose: u8 = args.value_of("verbose").unwrap_or("1").parse().expect("incorrect verbose");
-
-    let url = Url::parse(args.value_of("url").unwrap()).expect("Unable to parse target url");
+    //default value is used only in case a request file is used. Then it gets overwrited in parse_request()
+    let url = match Url::parse(args.value_of("url").unwrap_or("https://4rt.one")) {
+        Ok(val) => val,
+        Err(err) => {
+            log::error!("Unable to parse target url: {}", err);
+            std::process::exit(1);
+        }
+    };
 
     let host = url.host_str().unwrap();
     let mut path = url[url::Position::BeforePath..].to_string();
 
     let body = match args.is_present("keep-newlines") {
-        true => args.value_of("body").unwrap_or("")/*.replace("\\\\", "\\")*/.replace("\\n", "\n").replace("\\r", "\r"),
+        true => args.value_of("body").unwrap_or("").replace("\\n", "\n").replace("\\r", "\r"),
         false => args.value_of("body").unwrap_or("").to_string()
     };
 
     //check whether it is possible to automatically fix body type
     //- at the end means "specified automatically"
-    let body_type = if args.value_of("body-type").is_none() && args.value_of("parameter_template").unwrap_or("").is_empty()
+    let body_type = if args.value_of("body-type").is_none() && args.value_of("parameter_template").unwrap().is_empty()
         && (
             (
                 !body.is_empty() && body.starts_with('{')
@@ -374,10 +383,7 @@ pub fn get_config() -> (Config, usize) {
         }
     }
 
-    let mut url = args
-        .value_of("url")
-        .unwrap()
-        .to_string();
+    let mut url = url.to_string();
 
     if !args.is_present("as-body") && !within_headers && !args.is_present("headers-discovery") && url.contains('?') && url.contains('=') && !url.contains("%s") {
         if args.is_present("encode") {
@@ -454,7 +460,7 @@ pub fn get_config() -> (Config, usize) {
     }
 
     let mut config = Config {
-        method: args.value_of("method").unwrap_or("GET").to_string(),
+        method: args.value_of("method").unwrap().to_string(),
         initial_url: args.value_of("url").unwrap_or("").to_string(),
         url,
         host: host.to_string(),
@@ -507,4 +513,14 @@ pub fn get_config() -> (Config, usize) {
     };
 
     (config, max)
+}
+
+fn parse_int(args: &clap::ArgMatches, value: &str) -> usize {
+    match args.value_of(value).unwrap().parse() {
+        Ok(val) => val,
+        Err(err) => {
+            log::error!("Unable to parse '{}' value: {}", value, err);
+            std::process::exit(1);
+        }
+    }
 }
