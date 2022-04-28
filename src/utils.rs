@@ -154,11 +154,8 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
     req.push(' ');
     req.push_str(&config.path.replace("%s", &query));
 
-    if config.http2 {
-        req.push_str(" HTTP/2\n");
-    } else {
-        req.push_str(" HTTP/1.1\n");
-    }
+
+    req.push_str(" HTTP/1.1\n");
 
     if !config.headers.keys().any(|i| i.contains("Host")) {
         req.push_str(&("Host: ".to_owned() + &config.host));
@@ -405,7 +402,6 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
         body,
         body_type,
         parameter_template,
-        http2,
         initial_url,
         ..config
     })

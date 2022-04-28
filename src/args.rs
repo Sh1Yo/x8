@@ -241,12 +241,6 @@ pub fn get_config() -> (Config, usize) {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("http2")
-                .long("http2")
-                .help("Prefer http/2 over http/1.1")
-                .conflicts_with("request")
-        )
-        .arg(
             Arg::with_name("verify")
                 .long("verify")
                 .help("Verify found parameters one more time.")
@@ -567,7 +561,6 @@ pub fn get_config() -> (Config, usize) {
         learn_requests_count,
         max,
         concurrency,
-        http2: args.is_present("http2"),
         verify: args.is_present("verify"),
         reflected_only: args.is_present("reflected_only")
     };

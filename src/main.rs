@@ -86,11 +86,9 @@ async fn run() {
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(60))
         .http1_title_case_headers()
-        .cookie_store(true);
+        .cookie_store(true)
+        .use_rustls_tls();
 
-    if config.http2 {
-        client = client.use_rustls_tls();
-    }
     if !config.proxy.is_empty() {
         client = client.proxy(reqwest::Proxy::all(&config.proxy).unwrap());
     }
@@ -104,11 +102,9 @@ async fn run() {
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(60))
         .http1_title_case_headers()
-        .cookie_store(true);
+        .cookie_store(true)
+        .use_rustls_tls();
 
-    if config.http2 {
-        replay_client = replay_client.use_rustls_tls();
-    }
     if !config.replay_proxy.is_empty() {
         replay_client = replay_client.proxy(reqwest::Proxy::all(&config.replay_proxy).unwrap());
     }

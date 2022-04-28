@@ -66,7 +66,6 @@ pub struct Config {
     pub learn_requests_count: usize,
     pub max: usize,
     pub concurrency: usize,
-    pub http2: bool,
     pub verify: bool,
     pub reflected_only: bool
 }
