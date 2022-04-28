@@ -1,8 +1,8 @@
 use std::{collections::HashMap, time::Duration};
 
-/*pub trait DefaultResponse {
+pub trait DefaultResponse {
     fn default() -> ResponseData;
-}*/
+}
 
 #[derive(Debug)]
 pub struct ResponseData {
@@ -11,7 +11,7 @@ pub struct ResponseData {
     pub reflected_params: HashMap<String, usize>,
 }
 
-/*impl DefaultResponse for ResponseData {
+impl DefaultResponse for ResponseData {
     fn default() -> ResponseData {
         ResponseData {
             text: String::new(),
@@ -19,7 +19,7 @@ pub struct ResponseData {
             reflected_params: vec![],
         }
     }
-}*/
+}
 
 #[derive(Debug, Clone)]
 pub struct FuturesData {
@@ -58,7 +58,7 @@ pub struct Config {
     pub as_body: bool,
     pub headers_discovery: bool,
     pub within_headers: bool,
-    pub verbose: u8,
+    pub verbose: usize,
     pub is_json: bool,
     pub disable_cachebuster: bool,
     pub delay: Duration,

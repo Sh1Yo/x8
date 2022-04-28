@@ -1,7 +1,5 @@
 [![Twitter](https://img.shields.io/twitter/follow/sh1yo_.svg?logo=twitter)](https://twitter.com/sh1yo_)
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B0B858X5E)
-
 ![crates.io](https://img.shields.io/crates/v/x8.svg)
 ![stars](https://img.shields.io/github/stars/Sh1Yo/x8)
 ![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust)
@@ -132,6 +130,7 @@ USAGE:
     x8 [FLAGS] [OPTIONS]
 
 FLAGS:
+        --append                         Append to the output file instead of overwriting it.
         --as-body                        Send parameters via body.
                                          Built in body types that can be detected automatically: json, urlencode
         --disable-cachebuster
@@ -152,6 +151,7 @@ FLAGS:
                                          keyword - specify this argument for a more accurate search
         --keep-newlines                  --body 'a\r\nb' -> --body 'a{{new_line}}b'.
                                          Works with body and parameter templates only.
+        --reflected-only                 Disable page comparison and search for reflected parameters only.
         --replay-once                    If replay proxy is specified, send all found parameters within one request.
         --test                           Prints request and response
     -V, --version                        Prints version information
@@ -193,7 +193,7 @@ OPTIONS:
         --save-responses <save-responses>                   Save matched responses to a directory
     -u, --url <url>                                         You can add a custom injection point with %s.
         --value-size <value_size>
-            Custom value size. Affects {{random}} variables as well (default is 5)
+            Custom value size. Affects {{random}} variables as well (default is 7)
 
     -v, --verbose <verbose>                                 Verbose level 0/1/2 (default is 1)
     -w, --wordlist <wordlist>                               The file with parameters
@@ -227,6 +227,9 @@ It is possible to run parameter discovery in a few clicks using burp suite exten
 ## [x8-Burp](https://github.com/Impact-I/x8-Burp)
 ![preview](https://user-images.githubusercontent.com/54232788/126073100-ed09e8b1-0ffa-4432-aa34-f0451586a992.png)
 
+### NOTE
+Currently the extension supports only v2.5.0.
+
 ## [Send To](https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e)
 
 ### Setting up
@@ -258,6 +261,10 @@ In the next dialog, you can change the command and run it in a new terminal wind
 
 - Linux
     - from releases
+    - from blackarch repositories (repositories should be installed)
+        ```bash
+        # pacman -Sy x8
+        ```
     - from source code (rust should be installed)
         ```bash
         git clone https://github.com/Sh1Yo/x8
@@ -283,3 +290,7 @@ In the next dialog, you can change the command and run it in a new terminal wind
 
 - Windows
     - from releases
+
+--
+btc - bc1qje9f85652r5a0anfxcs8yzu97nes740qxg3mxt4um30myj5sc7mss0v3yw
+xmr - 46pni5AY9Ra399sivBykVucaK6KdU3rYiSqFsZinfaEgd3qUkeZvRxjEdhPPmsmZQwTDPBSrvSpkaj4LsHqLH6GG7zMmgiW

@@ -59,7 +59,7 @@ pub fn compare(
     ) {
         Ok(val) => val,
         Err(err) => {
-            writeln!(io::stderr(), "Unable to compare: {}", err).ok();
+            writeln!(io::stderr(), "Unable to compare: {}", err).ok(); //TODO return error instead
             std::process::exit(1);
         }
     } {
@@ -197,7 +197,10 @@ pub async fn generate_data(config: &Config, stats: &mut Statistic, client: &Clie
 
     writeln!(io::stdout(), "Request:\n{}", req).ok();
 
-    let response = request(config, stats, client, &query, 0).await;
+    let response =
+        request(config, stats, client, &query, 0)
+            .await
+            .expect("Unable to connect to the server");
 
     writeln!(
         io::stdout(),

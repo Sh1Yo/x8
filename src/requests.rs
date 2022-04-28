@@ -1,5 +1,5 @@
 use crate::{
-    structs::{Config, ResponseData, Stable, Statistic},
+    structs::{Config, ResponseData, Stable, Statistic, DefaultResponse},
     utils::{compare, beautify_html, beautify_json, make_body, make_query, make_header_value, make_hashmap, fix_headers, random_line},
 };
 use colored::*;
@@ -9,6 +9,8 @@ use std::{
     collections::{BTreeMap, HashMap},
     io::{self, Write},
 };
+
+const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
 
 //makes first requests and checks page behavior
 pub async fn empty_reqs(
@@ -27,7 +29,10 @@ pub async fn empty_reqs(
     let mut diffs: Vec<String> = Vec::new();
 
     for i in 0..count {
-        let response = random_request(config, stats, client, reflections_count, max).await;
+        let response =
+            random_request(config, stats, client, reflections_count, max)
+                .await
+                .unwrap_or(ResponseData::default());
 
         //progress bar
         if config.verbose > 0 && !config.disable_progress_bar {
@@ -41,8 +46,8 @@ pub async fn empty_reqs(
             io::stdout().flush().unwrap_or(());
         }
 
-        if response.text.len() > 25 * 1024 * 1024 && !config.force {
-            writeln!(io::stderr(), "[!] {} the page is too huge", &config.url).ok();
+        if response.text.len() > MAX_PAGE_SIZE && !config.force {
+            writeln!(io::stderr(), "[!] {} the page is too huge", &config.url).ok(); //TODO return error
             std::process::exit(1)
         }
 
@@ -68,7 +73,10 @@ pub async fn empty_reqs(
         }
     }
 
-    let response = random_request(config, stats, client, reflections_count, max).await;
+    let response =
+        random_request(config, stats, client, reflections_count, max)
+            .await
+            .unwrap_or(ResponseData::default());//TODO replace with
 
     for diff in compare(initial_response, &response).1 {
         if !diffs.iter().any(|i| i == &diff) {
@@ -93,7 +101,7 @@ pub async fn random_request(
     client: &Client,
     reflections: usize,
     max: usize,
-) -> ResponseData {
+) -> Option<ResponseData> {
     request(
         &config,
         stats,
@@ -128,7 +136,7 @@ fn create_request(
             "HEAD" => client.head(url).body(query.clone()),
             _ => {
                 writeln!(io::stderr(), "Method is not supported").ok();
-                std::process::exit(1);
+                std::process::exit(1); //TODO return error
             },
         }
     } else {
@@ -185,7 +193,7 @@ pub async fn request(
     client: &Client,
     initial_query: &HashMap<String, String>,
     reflections: usize,
-) -> ResponseData {
+) -> Option<ResponseData> {
     let mut hashmap_query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
     for (k, v) in initial_query.iter() {
         hashmap_query.insert(k.to_string(), v.replace("%random%_", ""));
@@ -308,9 +316,17 @@ pub async fn request(
     text.push_str(&"\n\n");
     text.push_str(&body);
 
-    ResponseData {
+    let mut reflected_params: Vec<String> = Vec::new();
+
+    for (key, value) in initial_query.iter() {
+        if value.contains("%random%_") && text.to_ascii_lowercase().matches(&value.replace("%random%_", "").as_str()).count() as usize != reflections {
+            reflected_params.push(key.to_string());
+        }
+    }
+
+    Some(ResponseData {
         text,
         code,
         reflected_params,
-    }
+    })
 }

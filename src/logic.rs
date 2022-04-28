@@ -1,6 +1,6 @@
 use crate::{
     requests::{random_request, request},
-    structs::{Config, ResponseData, Stable, FuturesData, Statistic},
+    structs::{Config, ResponseData, DefaultResponse, Stable, FuturesData, Statistic},
     utils::{compare, make_hashmap, random_line, generate_request},
 };
 use colored::*;
@@ -50,10 +50,13 @@ pub async fn check_parameters(
         async move {
 
             let query = &make_hashmap(&chunk, config.value_size);
-            let response = request(config, &mut futures_data.stats, client, query, reflections_count).await;
+            let response =
+                request(config, &mut futures_data.stats, client, query, reflections_count)
+                    .await
+                    .unwrap_or(ResponseData::default());
 
             //progress bar
-            if config.verbose > 0 && !config.disable_progress_bar {
+            if config.verbose > 0 && !config.disable_progress_bar { //TODO maybe use external library
                 write!(
                     io::stdout(),
                     "{} {}/{}       \r",
@@ -152,7 +155,9 @@ pub async fn check_parameters(
                         drop(diffs);
 
                         let tmp_resp =
-                            random_request(&config, &mut futures_data.stats, &client, reflections_count, max).await;
+                            random_request(&config, &mut futures_data.stats, &client, reflections_count, max)
+                            .await
+                            .unwrap_or(ResponseData::default());
 
                         //lock it again
                         diffs = cloned_diffs.lock();
@@ -309,7 +314,10 @@ pub async fn check_parameters(
                                 config.value_size,
                             );
 
-                            let check_response = request(config, &mut futures_data.stats, client, &query, 0).await;
+                            let check_response =
+                                request(config, &mut futures_data.stats, client, &query, 0)
+                                    .await
+                                    .unwrap_or(ResponseData::default());
 
                             if check_response.code != initial_response.code {
                                 writeln!(
@@ -317,7 +325,7 @@ pub async fn check_parameters(
                                     "[!] {} the page became unstable (code)",
                                     &config.url
                                 ).ok();
-                                std::process::exit(1)
+                                std::process::exit(1) //TODO return error instead
                             } else {
                                 let mut green_lines = cloned_green_lines.lock();
                                 green_lines.insert(response.code.to_string(), 0);

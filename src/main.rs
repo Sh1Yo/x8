@@ -11,7 +11,7 @@ use x8::{
     args::get_config,
     logic::check_parameters,
     requests::{empty_reqs, random_request, request},
-    structs::{Config, Statistic},
+    structs::{Config, Statistic, ResponseData, DefaultResponse},
     utils::{compare, generate_data, heuristic, make_hashmap, random_line, read_lines, create_output},
 };
 
@@ -56,18 +56,7 @@ async fn run() {
     }
 
     if !config.save_responses.is_empty() {
-        match fs::create_dir(&config.save_responses) {
-            Ok(_) => (),
-            Err(err) => {
-                writeln!(
-                    io::stderr(),
-                    "Unable to create a directory '{}' due to {}",
-                    &config.save_responses,
-                    err
-                ).unwrap_or(());
-                std::process::exit(1);
-            }
-        };
+        fs::create_dir(&config.save_responses).expect("Unable to create a directory");
     }
 
     let mut params: Vec<String> = Vec::new();
@@ -126,17 +115,14 @@ async fn run() {
     // if opened in the test mode - generate request/response and quit
     if config.test {
         generate_data(&config, &mut stats, &client, &query).await;
-        std::process::exit(0)
+        return
     }
 
     // make first request and collect some information like code, reflections, possible parameters
-    let mut initial_response = request(&config, &mut stats, &client, &query, 0).await;
-
-    if initial_response.code == 0 {
-        writeln!(io::stderr(), "Unable to reach - {} ", &config.url).ok();
-        std::process::exit(1)
-    }
-
+    let mut initial_response =
+        request(&config, &mut stats, &client, &query, 0)
+            .await
+            .expect("Unable to connect to the server");
 
     if !config.headers_discovery {
         for param in heuristic(&initial_response.text) {
@@ -191,12 +177,15 @@ async fn run() {
 
     if config.reflected_only && !stable.reflections {
         writeln!(io::stderr(), "{} Reflections are not stable", config.url).ok();
-        std::process::exit(1);
+        return
     }
 
     //check whether it is possible to use 192(128) or 256(196) params in a single request instead of 128 default
     if max == 128 || max == 64 {
-        let response = random_request(&config, &mut stats, &client, reflections_count, max + 64).await;
+        let response =
+            random_request(&config, &mut stats, &client, reflections_count, max + 64)
+                .await
+                .expect("The page is not stable");
 
         let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
         let mut is_the_body_the_same = true;
@@ -208,7 +197,11 @@ async fn run() {
         }
 
         if is_code_the_same && (!stable.body || is_the_body_the_same) {
-            let response = random_request(&config, &mut stats, &client, reflections_count, max + 128).await;
+            let response =
+                random_request(&config, &mut stats, &client, reflections_count, max + 128)
+                    .await
+                    .expect("The page is not stable");
+
             let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
 
             for diff in new_diffs {
@@ -264,7 +257,7 @@ async fn run() {
             || (count > 1 && remaining_params.len() > (initial_size * 2 + 10))
         {
             writeln!(io::stderr(), "{} Infinity loop detected", config.url).ok();
-            std::process::exit(1);
+            return
         }
 
         params = Vec::with_capacity(remaining_params.len() * max);
@@ -322,6 +315,7 @@ async fn run() {
     if config.verify {
         let mut filtered_params = HashMap::with_capacity(found_params.len());
         for (param, reason) in found_params {
+
             let response = request(
                 &config,
                 &mut stats,
@@ -330,14 +324,17 @@ async fn run() {
                     &[param.clone()], config.value_size
                 ),
                 reflections_count
-            ).await;
+            ).await.unwrap_or(ResponseData::default());
+
             let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
             let mut is_the_body_the_same = true;
+
             for diff in new_diffs.iter() {
                 if !diffs.iter().any(|i| &i==&diff) {
                     is_the_body_the_same = false;
                 }
             }
+
             if !response.reflected_params.is_empty() || !is_the_body_the_same || !is_code_the_same {
                 filtered_params.insert(param, reason);
             }
@@ -402,7 +399,7 @@ async fn run() {
                 Err(err) => {
                     writeln!(io::stderr(), "[!] Unable to create file - {}", err).ok();
                     write!(io::stdout(), "\n{}", &output).ok();
-                    std::process::exit(1);
+                    return
                 }
             }
         };

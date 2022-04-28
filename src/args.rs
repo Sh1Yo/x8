@@ -1,6 +1,7 @@
 use crate::{structs::Config, utils::{parse_request, adjust_body}};
 use clap::{crate_version, App, AppSettings, Arg};
-use std::{collections::HashMap, fs, time::Duration, io::{self, Write}};
+use std::{collections::HashMap, fs, time::Duration};
+use log;
 use url::Url;
 
 pub fn get_config() -> (Config, usize) {
@@ -43,6 +44,7 @@ pub fn get_config() -> (Config, usize) {
                 .short("P")
                 .long("param-template")
                 .help("%k - key, %v - value. Example: --param-template 'user[%k]=%v&'")
+                .default_value("")
                 .takes_value(true),
         )
         .arg(
@@ -57,7 +59,8 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("body-type")
                 .short("t")
                 .long("body-type")
-                .help("Available: urlencode, json. (default is \"urlencode\")\nCan be detected automatically if --body is specified")
+                .help("Available: urlencode, json\nCan be detected automatically if --body is specified")
+                .default_value("urlencode")
                 .value_name("body type")
         )
         .arg(
@@ -71,6 +74,7 @@ pub fn get_config() -> (Config, usize) {
                 .short("d")
                 .long("delay")
                 .value_name("Delay between requests in milliseconds")
+                .default_value("0")
                 .takes_value(true)
         )
         .arg(
@@ -84,20 +88,22 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("output-format")
                 .short("O")
                 .long("output-format")
-                .help("standart, json, url, request (default is \"standart\")")
+                .help("standart, json, url, request")
+                .default_value("standart")
                 .takes_value(true)
         )
         .arg(
             Arg::with_name("append")
                 .long("append")
-                .help("Append to the output file instead of overwriting it")
+                .help("Append to the output file instead of overwriting it.")
         )
         .arg(
             Arg::with_name("method")
                 .short("X")
                 .long("method")
                 .value_name("method")
-                .help("Available: GET, POST, PUT, PATCH, DELETE, HEAD. (default is \"GET\")")
+                .help("Available: GET, POST, PUT, PATCH, DELETE, HEAD.")
+                .default_value("GET")
                 .takes_value(true)
                 .conflicts_with("request")
         )
@@ -202,7 +208,8 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("verbose")
                 .long("verbose")
                 .short("v")
-                .help("Verbose level 0/1/2 (default is 1)")
+                .help("Verbose level 0/1/2")
+                .default_value("1")
                 .takes_value(true)
         )
         .arg(
@@ -218,13 +225,15 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("value_size")
                 .long("value-size")
-                .help("Custom value size. Affects {{random}} variables as well (default is 7)")
+                .help("Custom value size. Affects {{random}} variables as well")
+                .default_value("7")
                 .takes_value(true)
         )
         .arg(
             Arg::with_name("learn_requests_count")
                 .long("learn-requests")
-                .help("Set the custom number of learning requests. (default is 9)")
+                .help("Set the custom number of learning requests.")
+                .default_value("9")
                 .takes_value(true)
         )
         .arg(
@@ -237,7 +246,8 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("concurrency")
                 .short("c")
-                .help("The number of concurrent requests (default is 1)")
+                .help("The number of concurrent requests")
+                .default_value("1")
                 .takes_value(true)
         )
         .arg(
@@ -253,95 +263,33 @@ pub fn get_config() -> (Config, usize) {
 
     let args = app.clone().get_matches();
 
-    let delay = match args.value_of("delay") {
-        Some(val) => match val.parse() {
-            Ok(val) => Duration::from_millis(val),
-            Err(_) => {
-                writeln!(io::stderr(), "Unable to parse 'delay' value").ok();
-                std::process::exit(1);
-            }
-        },
-        None => Duration::from_millis(0),
-    };
+    let delay = Duration::from_millis(parse_int(&args, "delay") as u64);
 
-    let max: usize = match args.value_of("max") {
-        Some(val) => match val.parse() {
-            Ok(val) => val,
-            Err(_) => {
-                writeln!(io::stderr(), "Unable to parse 'max' value").ok();
-                std::process::exit(1);
-            }
-        },
-        None => {
-            if args.is_present("as-body") {
-                512
-            } else if !args.is_present("headers-discovery") {
-                128
-            } else {
-                64
-            }
+    let max: usize = if args.is_present("max") {
+        parse_int(&args, "max")
+    } else {
+        if args.is_present("as-body") {
+            512
+        } else if !args.is_present("headers-discovery") {
+            128
+        } else {
+            64
         }
     };
 
-    let value_size: usize = match args.value_of("value_size") {
-        Some(val) => match val.parse() {
-            Ok(val) => val,
-            Err(_) => {
-                writeln!(io::stderr(), "Unable to parse 'value_size' value").ok();
-                std::process::exit(1);
-            }
-        },
-        None => {
-            7
-        }
-    };
-
-    let learn_requests_count: usize = match args.value_of("learn_requests_count") {
-        Some(val) => match val.parse() {
-            Ok(val) => val,
-            Err(_) => {
-                writeln!(io::stderr(), "Unable to parse 'learn_requests_count' value").ok();
-                std::process::exit(1);
-            }
-        },
-        None => {
-            9
-        }
-    };
-
-    let concurrency: usize = match args.value_of("concurrency") {
-        Some(val) => match val.parse() {
-            Ok(val) => val,
-            Err(_) => {
-                writeln!(io::stderr(), "Unable to parse 'concurrency' value").ok();
-                std::process::exit(1);
-            }
-        },
-        None => {
-            1
-        }
-    };
+    let value_size = parse_int(&args, "value_size");
+    let learn_requests_count = parse_int(&args, "learn_requests_count");
+    let concurrency = parse_int(&args, "concurrency");
+    let verbose = parse_int(&args, "verbose");
 
     let mut headers: HashMap<String, String> = HashMap::new();
     let mut within_headers: bool = false;
     if let Some(val) = args.values_of("headers") {
         for header in val {
             let mut k_v = header.split(':');
-            let key = match k_v.next() {
-                Some(val) => val,
-                None => {
-                    writeln!(io::stderr(), "Unable to parse headers").ok();
-                    std::process::exit(1);
-                }
-            };
+            let key = k_v.next().expect("Unable to parse headers");
             let value: String = [
-                match k_v.next() {
-                    Some(val) => val.trim().to_owned(),
-                    None => {
-                        writeln!(io::stderr(), "Unable to parse headers").ok();
-                        std::process::exit(1);
-                    }
-                },
+                k_v.next().expect("Unable to parse headers").trim().to_owned(),
                 k_v.map(|x| ":".to_owned() + x).collect(),
             ].concat();
 
@@ -353,30 +301,26 @@ pub fn get_config() -> (Config, usize) {
         }
     };
 
-    let verbose: u8 = match args.value_of("verbose") {
-        Some(val) => val.parse().expect("incorrect verbose"),
-        None => 1,
-    };
-
-    let url = match Url::parse(args.value_of("url").unwrap_or("https://example.com")) {
+    //default value is used only in case a request file is used. Then it gets overwrited in parse_request()
+    let url = match Url::parse(args.value_of("url").unwrap_or("https://4rt.one")) {
         Ok(val) => val,
         Err(err) => {
-            writeln!(io::stderr(), "Unable to parse target url: {}", err).ok();
+            log::error!("Unable to parse target url: {}", err);
             std::process::exit(1);
-        },
+        }
     };
 
     let host = url.host_str().unwrap();
     let mut path = url[url::Position::BeforePath..].to_string();
 
     let body = match args.is_present("keep-newlines") {
-        true => args.value_of("body").unwrap_or("")/*.replace("\\\\", "\\")*/.replace("\\n", "\n").replace("\\r", "\r"),
+        true => args.value_of("body").unwrap_or("").replace("\\n", "\n").replace("\\r", "\r"),
         false => args.value_of("body").unwrap_or("").to_string()
     };
 
     //check whether it is possible to automatically fix body type
     //- at the end means "specified automatically"
-    let body_type = if args.value_of("body-type").is_none() && args.value_of("parameter_template").unwrap_or("").is_empty()
+    let body_type = if args.value_of("body-type").is_none() && args.value_of("parameter_template").unwrap().is_empty()
         && (
             (
                 !body.is_empty() && body.starts_with('{')
@@ -433,10 +377,7 @@ pub fn get_config() -> (Config, usize) {
         }
     }
 
-    let mut url = args
-        .value_of("url")
-        .unwrap_or("https://something.something")
-        .to_string();
+    let mut url = url.to_string();
 
     if !args.is_present("as-body") && !within_headers && !args.is_present("headers-discovery") && url.contains('?') && url.contains('=') && !url.contains("%s") {
         if args.is_present("encode") {
@@ -461,13 +402,6 @@ pub fn get_config() -> (Config, usize) {
         false => args.value_of("parameter_template").unwrap_or("").to_string()
     };
     let mut parameter_template = parameter_template.as_str();
-
-    if !parameter_template.is_empty()
-        && (!parameter_template.contains("%k") || !parameter_template.contains("%v"))
-        && !args.is_present("force") {
-            writeln!(io::stderr(), "param_template lacks important variables like %k or %v").ok();
-            std::process::exit(1);
-    }
 
     if parameter_template.is_empty() {
         if body_type.contains("json") && args.is_present("as-body") {
@@ -509,15 +443,10 @@ pub fn get_config() -> (Config, usize) {
     }
 
 
-    let request = match args.value_of("request") {
-        Some(val) => match fs::read_to_string(val) {
-            Ok(val) => val,
-            Err(err) => {
-                writeln!(io::stderr(), "Unable to open request file: {}", err).ok();
-                std::process::exit(1);
-            }
-        },
-        None => String::new(),
+    let request = if args.value_of("request").is_some() {
+        fs::read_to_string(args.value_of("request").unwrap()).expect("Unable to open request file")
+    } else {
+        String::new()
     };
 
     if args.is_present("disable-colors") {
@@ -525,7 +454,7 @@ pub fn get_config() -> (Config, usize) {
     }
 
     let mut config = Config {
-        method: args.value_of("method").unwrap_or("GET").to_string(),
+        method: args.value_of("method").unwrap().to_string(),
         initial_url: args.value_of("url").unwrap_or("").to_string(),
         url,
         host: host.to_string(),
@@ -566,16 +495,25 @@ pub fn get_config() -> (Config, usize) {
     };
 
     config = if !request.is_empty() {
-        match parse_request(config, args.value_of("proto").unwrap_or("https"), &request, !args.value_of("parameter_template").unwrap_or("").is_empty()) {
-            Some(val) => val,
-            None => {
-                writeln!(io::stderr(), "Unable to parse request file.").ok();
-                std::process::exit(1);
-            }
-        }
+        parse_request(
+            config,
+            args.value_of("proto").unwrap_or("https"),
+            &request,
+            !args.value_of("parameter_template").unwrap_or("").is_empty()
+        ).expect("Unable to parse request file")
     } else {
         config
     };
 
     (config, max)
+}
+
+fn parse_int(args: &clap::ArgMatches, value: &str) -> usize {
+    match args.value_of(value).unwrap().parse() {
+        Ok(val) => val,
+        Err(err) => {
+            log::error!("Unable to parse '{}' value: {}", value, err);
+            std::process::exit(1);
+        }
+    }
 }
