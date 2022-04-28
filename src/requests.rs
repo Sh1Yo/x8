@@ -243,21 +243,21 @@ pub async fn request(
 
             stats.amount_of_requests += 1;
             match create_request(config, random_query.clone(), &hashmap_query, client).send().await {
-                Ok(_) => return ResponseData {
+                Ok(_) => return Some(ResponseData {
                                     text: String::new(),
                                     code: 0,
                                     reflected_params: HashMap::new(),
-                                },
+                                }),
                 Err(err) => {
                     writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
                     writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
                     std::thread::sleep(Duration::from_secs(50));
                     match create_request(config, random_query, &hashmap_query, client).send().await {
-                        Ok(_) => return ResponseData {
+                        Ok(_) => return Some(ResponseData {
                             text: String::new(),
                             code: 0,
                             reflected_params: HashMap::new(),
-                        },
+                        }),
                         Err(_) => {
                             writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
                             std::process::exit(1);
@@ -315,14 +315,6 @@ pub async fn request(
     }
     text.push_str(&"\n\n");
     text.push_str(&body);
-
-    let mut reflected_params: Vec<String> = Vec::new();
-
-    for (key, value) in initial_query.iter() {
-        if value.contains("%random%_") && text.to_ascii_lowercase().matches(&value.replace("%random%_", "").as_str()).count() as usize != reflections {
-            reflected_params.push(key.to_string());
-        }
-    }
 
     Some(ResponseData {
         text,

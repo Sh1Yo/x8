@@ -367,6 +367,7 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
     }
 
     //check whether the body type can be json
+     //TODO check whether can be combined with the same check in args.rs
     let body_type = if config.body_type.contains('-') && config.as_body && !custom_parameter_template
     && (
         content_type.contains("json") || (!body.is_empty() && body.starts_with('{') )

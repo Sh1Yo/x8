@@ -59,8 +59,7 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("body-type")
                 .short("t")
                 .long("body-type")
-                .help("Available: urlencode, json\nCan be detected automatically if --body is specified")
-                .default_value("urlencode")
+                .help("Available: urlencode, json\nCan be detected automatically if --body is specified (default is \"urlencode\")")
                 .value_name("body type")
         )
         .arg(
@@ -105,7 +104,6 @@ pub fn get_config() -> (Config, usize) {
                 .help("Available: GET, POST, PUT, PATCH, DELETE, HEAD.")
                 .default_value("GET")
                 .takes_value(true)
-                .conflicts_with("request")
         )
         .arg(
             Arg::with_name("headers")

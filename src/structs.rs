@@ -16,7 +16,7 @@ impl DefaultResponse for ResponseData {
         ResponseData {
             text: String::new(),
             code: 0u16,
-            reflected_params: vec![],
+            reflected_params: HashMap::new(),
         }
     }
 }
