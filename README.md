@@ -146,7 +146,6 @@ FLAGS:
     -h, --help                           Prints help information
         --headers                        Switch to header discovery mode.
                                          Forbidden chars would be automatically removed from headers names
-        --http2                          Prefer http/2 over http/1.1
         --is-json                        If the output is valid json and the content type does not contain 'json'
                                          keyword - specify this argument for a more accurate search
         --keep-newlines                  --body 'a\r\nb' -> --body 'a{{new_line}}b'.
@@ -161,28 +160,28 @@ OPTIONS:
     -b, --body <body>                                       Example: --body '{"x":{%s}}'
                                                             Available variables: {{random}}
     -t, --body-type <body type>
-            Available: urlencode, json. (default is "urlencode")
-            Can be detected automatically if --body is specified
-    -c <concurrency>                                        The number of concurrent requests (default is 1)
+            Available: urlencode, json
+            Can be detected automatically if --body is specified (default is "urlencode")
+    -c <concurrency>                                        The number of concurrent requests [default: 1]
         --custom-parameters <custom-parameters>
             Check these parameters with non-random values like true/false yes/no
             (default is "admin bot captcha debug disable encryption env show sso test waf")
         --custom-values <custom-values>
             Check custom parameters with these values (default is "1 0 false off null true yes no")
 
-    -d, --delay <Delay between requests in milliseconds>
+    -d, --delay <Delay between requests in milliseconds>     [default: 0]
     -H <headers>                                            Example: -H 'one:one' 'two:two'
-        --learn-requests <learn_requests_count>             Set the custom number of learning requests. (default is 9)
+        --learn-requests <learn_requests_count>             Set the custom number of learning requests. [default: 9]
     -m, --max <max>
             Change the maximum number of parameters.
             (default is 128/192/256 for query, 64/128/196 for headers and 512 for body)
     -X, --method <method>
-            Available: GET, POST, PUT, PATCH, DELETE, HEAD. (default is "GET")
+            Available: GET, POST, PUT, PATCH, DELETE, HEAD. [default: GET]
 
     -o, --output <file>
-    -O, --output-format <output-format>                     standart, json, url, request (default is "standart")
+    -O, --output-format <output-format>                     standart, json, url, request [default: standart]
     -P, --param-template <parameter_template>
-            %k - key, %v - value. Example: --param-template 'user[%k]=%v&'
+            %k - key, %v - value. Example: --param-template 'user[%k]=%v&' [default: ]
 
         --proto <proto>                                     Protocol to use with request file (default is "https")
     -x, --proxy <proxy>
@@ -193,9 +192,9 @@ OPTIONS:
         --save-responses <save-responses>                   Save matched responses to a directory
     -u, --url <url>                                         You can add a custom injection point with %s.
         --value-size <value_size>
-            Custom value size. Affects {{random}} variables as well (default is 7)
+            Custom value size. Affects {{random}} variables as well [default: 7]
 
-    -v, --verbose <verbose>                                 Verbose level 0/1/2 (default is 1)
+    -v, --verbose <verbose>                                 Verbose level 0/1/2 [default: 1]
     -w, --wordlist <wordlist>                               The file with parameters
 ```
 
