@@ -8,7 +8,7 @@ use std::{collections::HashMap, time::Duration};
 pub struct ResponseData {
     pub text: String,
     pub code: u16,
-    pub reflected_params: Vec<String>,
+    pub reflected_params: HashMap<String, usize>,
 }
 
 /*impl DefaultResponse for ResponseData {

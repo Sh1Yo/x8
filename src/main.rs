@@ -158,7 +158,7 @@ async fn run() {
         }
     }
 
-    initial_response.reflected_params = Vec::new();
+    initial_response.reflected_params = HashMap::new();
 
     //let reflections count = the number of reflections of the first parameter
     let reflections_count = initial_response

@@ -239,7 +239,7 @@ pub async fn request(
                 Ok(_) => return ResponseData {
                                     text: String::new(),
                                     code: 0,
-                                    reflected_params: Vec::new(),
+                                    reflected_params: HashMap::new(),
                                 },
                 Err(err) => {
                     writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
@@ -256,7 +256,7 @@ pub async fn request(
                         Ok(_) => return ResponseData {
                             text: String::new(),
                             code: 0,
-                            reflected_params: Vec::new(),
+                            reflected_params: HashMap::new(),
                         },
                         Err(_) => {
                             writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
@@ -297,11 +297,12 @@ pub async fn request(
         Err(_) => String::new(),
     };
 
-    let mut reflected_params: Vec<String> = Vec::new();
+    let mut reflected_params: HashMap<String, usize> = HashMap::new();
 
     for (key, value) in initial_query.iter() {
-        if value.contains("%random%_") && body.to_ascii_lowercase().matches(&value.replace("%random%_", "").as_str()).count() as usize != reflections {
-            reflected_params.push(key.to_string());
+        let number_of_reflections = body.to_ascii_lowercase().matches(&value.replace("%random%_", "").as_str()).count();
+        if value.contains("%random%_") && number_of_reflections as usize != reflections {
+            reflected_params.insert(key.to_string(), number_of_reflections);
         }
     }
 

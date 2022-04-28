@@ -64,9 +64,10 @@ pub async fn check_parameters(
 
                 io::stdout().flush().ok();
             }
-                //try to find parameters with different number of reflections
-            if stable.reflections && first && response.reflected_params.len() < 10 {
-                for param in response.reflected_params.iter() {
+
+            //try to find parameters with different number of reflections
+            if stable.reflections && response.reflected_params.len() < 10 && response.reflected_params.len() != chunk.len() {
+                for param in response.reflected_params.keys() {
                     if !found_params.contains_key(param) {
                         futures_data.found_params.insert(param.to_string(), String::from("Different amount of reflections"));
                         if config.verbose > 0 {
@@ -79,33 +80,52 @@ pub async fn check_parameters(
                         }
                     }
                 }
+            //if the amount of reflected parameters == the amount of send parameters - that means that sth went wrong
+            //so we are trying to find a parameter that caused that
             } else if stable.reflections && !response.reflected_params.is_empty() {
-                //check whether there is one not reflected parameter between reflected ones
                 let mut not_reflected_one: &str = &"";
 
-                if chunk.len() - response.reflected_params.len() == 1 {
-                    for el in chunk.iter() {
-                        if !response.reflected_params.contains(el) {
-                            not_reflected_one = el;
-                            if config.verbose > 0 {
-                                writeln!(
-                                    io::stdout(),
-                                    "{}: {}",
-                                    &"not reflected one".bright_cyan(),
-                                    &not_reflected_one
-                                )
-                                .ok();
-                            }
-                        }
+                //saves the number of occurencies for each number of reflections
+                //key: the number of reflections
+                let mut amount_of_reflections: HashMap<usize, usize> = HashMap::new();
+
+                for (_, v) in &response.reflected_params {
+                    if amount_of_reflections.contains_key(&v) {
+                        amount_of_reflections.insert(*v, amount_of_reflections[v] + 1);
+                    } else {
+                        amount_of_reflections.insert(*v, 1);
                     }
                 }
 
-                if !not_reflected_one.is_empty() && chunk.len() >= 2 {
-                    futures_data.found_params.insert(not_reflected_one.to_owned(), String::from("Causes other parameters to reflect different times"));
+                //tries to find the unique parameter - the parameter with the unique number of reflections
+                //example:
+                // <input name="sth1&sth2&sth3" value="sth1&sth2&sth3" type="sth4"> -> sth4 is the unique reflection
+                // <div data="sth1">sth1&sth2&sth3</div> -> sth1 is the unique reflection
+
+                let unique_ones = amount_of_reflections.iter().filter(|x| x.1 == &1).collect::<HashMap<&usize, &usize>>();
+                if unique_ones.len() == 1 {
+                    not_reflected_one = response
+                        .reflected_params
+                        .iter()
+                        .find(|(_, reflections)| reflections == unique_ones.iter().next().unwrap().0)
+                        .unwrap()
+                        .0;
+
+                    if config.verbose > 0 {
+                        writeln!(
+                            io::stdout(),
+                            "{}: {}",
+                            &"not reflected one".bright_cyan(),
+                            &not_reflected_one
+                        )
+                        .ok();
+                    }
                 }
 
-                if response.reflected_params.len() == 1 {
-                    futures_data.found_params.insert(chunk[0].to_owned(), String::from("Causes other parameters to reflect different times"));
+                //if we found that parameter that caused others to reflect differently:
+                if !not_reflected_one.is_empty() {
+                    futures_data.found_params.insert(not_reflected_one.to_owned(), String::from("Causes other parameters to reflect different times"));
+                //in case we didn't find the unique parameter - check parameters till we find it or there is only one left
                 } else {
                     futures_data.remaining_params.append(&mut chunk.to_vec());
                 }
