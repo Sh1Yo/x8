@@ -1,7 +1,6 @@
 use crate::{structs::Config, utils::{parse_request, adjust_body}};
 use clap::{crate_version, App, AppSettings, Arg};
-use std::{collections::HashMap, fs, time::Duration};
-use log;
+use std::{collections::HashMap, fs, time::Duration, io::{self, Write}};
 use url::Url;
 
 pub fn get_config() -> (Config, usize) {
@@ -303,7 +302,7 @@ pub fn get_config() -> (Config, usize) {
     let url = match Url::parse(args.value_of("url").unwrap_or("https://4rt.one")) {
         Ok(val) => val,
         Err(err) => {
-            log::error!("Unable to parse target url: {}", err);
+            writeln!(io::stderr(), "Unable to parse target url: {}", err).ok();
             std::process::exit(1);
         }
     };
@@ -510,7 +509,7 @@ fn parse_int(args: &clap::ArgMatches, value: &str) -> usize {
     match args.value_of(value).unwrap().parse() {
         Ok(val) => val,
         Err(err) => {
-            log::error!("Unable to parse '{}' value: {}", value, err);
+            writeln!(io::stderr(), "Unable to parse '{}' value: {}", value, err).ok();
             std::process::exit(1);
         }
     }
