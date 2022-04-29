@@ -56,7 +56,18 @@ async fn run() {
     }
 
     if !config.save_responses.is_empty() {
-        fs::create_dir(&config.save_responses).expect("Unable to create a directory");
+        match fs::create_dir(&config.save_responses) {
+            Ok(_) => (),
+            Err(err) => {
+                writeln!(
+                    io::stderr(),
+                    "Unable to create a directory '{}' due to {}",
+                    &config.save_responses,
+                    err
+                ).unwrap_or(());
+                std::process::exit(1);
+            }
+        };
     }
 
     let mut params: Vec<String> = Vec::new();
@@ -114,15 +125,25 @@ async fn run() {
 
     // if opened in the test mode - generate request/response and quit
     if config.test {
-        generate_data(&config, &mut stats, &client, &query).await;
+        match generate_data(&config, &mut stats, &client, &query).await {
+            Some(()) => (),
+            None => {
+                writeln!(io::stderr(), "Unable to connect to the server").ok();
+            }
+        };
         return
     }
 
     // make first request and collect some information like code, reflections, possible parameters
     let mut initial_response =
-        request(&config, &mut stats, &client, &query, 0)
-            .await
-            .expect("Unable to connect to the server");
+        match request(&config, &mut stats, &client, &query, 0)
+            .await {
+                Some(val) => val,
+                None => {
+                    writeln!(io::stderr(), "Unable to connect to the server").ok();
+                    return
+                }
+    };
 
     if !config.headers_discovery {
         for param in heuristic(&initial_response.text) {
@@ -183,9 +204,14 @@ async fn run() {
     //check whether it is possible to use 192(128) or 256(196) params in a single request instead of 128 default
     if max == 128 || max == 64 {
         let response =
-            random_request(&config, &mut stats, &client, reflections_count, max + 64)
-                .await
-                .expect("The page is not stable");
+            match random_request(&config, &mut stats, &client, reflections_count, max + 64)
+                .await {
+                    Some(val) => val,
+                    None => {
+                        writeln!(io::stderr(), "The server is not stable").ok();
+                        return
+                    }
+        };
 
         let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
         let mut is_the_body_the_same = true;
@@ -198,9 +224,14 @@ async fn run() {
 
         if is_code_the_same && (!stable.body || is_the_body_the_same) {
             let response =
-                random_request(&config, &mut stats, &client, reflections_count, max + 128)
-                    .await
-                    .expect("The page is not stable");
+                match random_request(&config, &mut stats, &client, reflections_count, max + 128)
+                    .await {
+                        Some(val) => val,
+                        None => {
+                            writeln!(io::stderr(), "The server is not stable").ok();
+                            return
+                        }
+            };
 
             let (is_code_the_same, new_diffs) = compare(&initial_response, &response);
 

@@ -1,6 +1,6 @@
 [package]
 name = "x8"
-version = "3.3.0"
+version = "3.3.1"
 authors = ["Alexander Mironov <sh1yo@tuta.io>"]
 edition = "2018"
 license = "GPL-3.0-or-later"

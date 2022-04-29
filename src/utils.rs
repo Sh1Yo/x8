@@ -192,15 +192,14 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
 }
 
 //prints request and response
-pub async fn generate_data(config: &Config, stats: &mut Statistic, client: &Client, query: &HashMap<String, String>) {
+pub async fn generate_data(config: &Config, stats: &mut Statistic, client: &Client, query: &HashMap<String, String>) -> Option<()> {
     let req = generate_request(config, query);
 
     writeln!(io::stdout(), "Request:\n{}", req).ok();
 
     let response =
         request(config, stats, client, &query, 0)
-            .await
-            .expect("Unable to connect to the server");
+            .await?;
 
     writeln!(
         io::stdout(),
@@ -214,6 +213,8 @@ pub async fn generate_data(config: &Config, stats: &mut Statistic, client: &Clie
         "Possible parameters: {}",
         heuristic(&response.text).join(", ")
     ).ok();
+
+    Some(())
 }
 
 //Add %s if it is absent in the body

@@ -289,9 +289,21 @@ pub fn get_config() -> (Config, usize) {
     if let Some(val) = args.values_of("headers") {
         for header in val {
             let mut k_v = header.split(':');
-            let key = k_v.next().expect("Unable to parse headers");
+            let key = match k_v.next() {
+                Some(val) => val,
+                None => {
+                    writeln!(io::stderr(), "Unable to parse headers").ok();
+                    std::process::exit(1);
+                }
+            };
             let value: String = [
-                k_v.next().expect("Unable to parse headers").trim().to_owned(),
+                match k_v.next() {
+                    Some(val) => val.trim().to_owned(),
+                    None => {
+                        writeln!(io::stderr(), "Unable to parse headers").ok();
+                        std::process::exit(1);
+                    }
+                },
                 k_v.map(|x| ":".to_owned() + x).collect(),
             ].concat();
 
@@ -445,10 +457,15 @@ pub fn get_config() -> (Config, usize) {
     }
 
 
-    let request = if args.value_of("request").is_some() {
-        fs::read_to_string(args.value_of("request").unwrap()).expect("Unable to open request file")
-    } else {
-        String::new()
+    let request = match args.value_of("request") {
+        Some(val) => match fs::read_to_string(val) {
+            Ok(val) => val,
+            Err(err) => {
+                writeln!(io::stderr(), "Unable to open request file: {}", err).ok();
+                std::process::exit(1);
+            }
+        },
+        None => String::new(),
     };
 
     if args.is_present("disable-colors") {
@@ -497,12 +514,17 @@ pub fn get_config() -> (Config, usize) {
     };
 
     config = if !request.is_empty() {
-        parse_request(
+        match parse_request(
             config,
-            args.value_of("proto").unwrap_or("https"),
-            &request,
-            !args.value_of("parameter_template").unwrap_or("").is_empty()
-        ).expect("Unable to parse request file")
+             args.value_of("proto").unwrap_or("https"),
+              &request, !args.value_of("parameter_template").unwrap_or("").is_empty()
+        ) {
+            Some(val) => val,
+            None => {
+                writeln!(io::stderr(), "Unable to parse request file.").ok();
+                std::process::exit(1);
+            }
+        }
     } else {
         config
     };
