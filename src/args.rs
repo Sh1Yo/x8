@@ -260,6 +260,11 @@ pub fn get_config() -> (Config, usize) {
 
     let args = app.clone().get_matches();
 
+    if args.value_of("url").is_none() && args.value_of("request").is_none() {
+        writeln!(io::stderr(), "A target was not provided").ok();
+        std::process::exit(1);
+    }
+
     let delay = Duration::from_millis(parse_int(&args, "delay") as u64);
 
     let max: usize = if args.is_present("max") {
