@@ -121,7 +121,7 @@ x8 -u "https://example.com" -H "Cookie: %s" -w <wordlist>
 # Test
 
 Feel free to check whether the tool works as expected and compare it with other tools at https://4rt.one/index.html.
-There are 2 reflected parameters, 4 parameters that change code/headers/body, and one extra parameter with a not random value.
+There are total 8 parameteres and 2 headers to be found!
 
 # Usage
 
