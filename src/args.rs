@@ -35,7 +35,8 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("wordlist")
                 .short("w")
                 .long("wordlist")
-                .help("The file with parameters")
+                .help("The file with parameters (leave empty to read from stdin)")
+                .default_value("")
                 .takes_value(true),
         )
         .arg(

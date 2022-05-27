@@ -1,6 +1,7 @@
 extern crate x8;
 use colored::*;
 use reqwest::Client;
+use atty::Stream;
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
@@ -12,7 +13,7 @@ use x8::{
     logic::check_parameters,
     requests::{empty_reqs, random_request, request},
     structs::{Config, Statistic, ResponseData, DefaultResponse},
-    utils::{compare, generate_data, heuristic, make_hashmap, random_line, read_lines, create_output},
+    utils::{compare, generate_data, heuristic, make_hashmap, random_line, read_lines, read_stdin_lines, create_output},
 };
 
 #[cfg(windows)]
@@ -72,12 +73,17 @@ async fn run() {
 
     let mut params: Vec<String> = Vec::new();
 
-    //read parameters from a file
-    if let Ok(lines) = read_lines(&config.wordlist) {
-        for line in lines.flatten() {
-            let val = line;
-            params.push(val);
+    if !config.wordlist.is_empty() {
+        //read parameters from a file
+        if let Ok(lines) = read_lines(&config.wordlist) {
+            for line in lines.flatten() {
+                params.push(line);
+            }
         }
+    //just accept piped stdin
+    } else if !atty::is(Stream::Stdin) {
+        //read parameters from stdin
+        params = read_stdin_lines();
     }
 
     //build clients

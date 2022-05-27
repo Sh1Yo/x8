@@ -429,6 +429,11 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+pub fn read_stdin_lines() -> Vec<String> {
+    let stdin = io::stdin();
+    stdin.lock().lines().filter_map(|x| x.ok()).collect()
+}
+
 pub fn create_output(config: &Config, stats: &Statistic, found_params: HashMap<String, String>) -> String {
     match config.output_format.as_str() {
         "url" => {
