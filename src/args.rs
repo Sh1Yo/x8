@@ -43,8 +43,7 @@ pub fn get_config() -> (Config, usize) {
             Arg::with_name("parameter_template")
                 .short("P")
                 .long("param-template")
-                .help("%k - key, %v - value. Example: --param-template 'user[%k]=%v&'")
-                .default_value("")
+                .help("%k - key, %v - value. Example: --param-template 'user[%k]=%v&'\nDefault: urlencoded - <%k=%v&>, json - <\"%k\":\"%v\", >, headers - <%k=%v; >")
                 .takes_value(true),
         )
         .arg(
