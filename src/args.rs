@@ -334,7 +334,7 @@ pub fn get_config() -> (Config, usize) {
 
     //check whether it is possible to automatically fix body type
     //- at the end means "specified automatically"
-    let body_type = if args.value_of("body-type").is_none() && args.value_of("parameter_template").unwrap().is_empty()
+    let body_type = if args.value_of("body-type").is_none() && args.value_of("parameter_template").unwrap_or("").is_empty()
         && (
             (
                 !body.is_empty() && body.starts_with('{')
