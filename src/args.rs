@@ -212,7 +212,7 @@ pub fn get_config() -> (Config, usize) {
         .arg(
             Arg::with_name("save-responses")
                 .long("save-responses")
-                .help("Save matched responses to a directory")
+                .help("Save request and response to a directory in case the parameter is found")
                 .takes_value(true)
         )
         .arg(

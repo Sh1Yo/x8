@@ -1,7 +1,7 @@
 use crate::{
     requests::{random_request, request},
     structs::{Config, ResponseData, DefaultResponse, Stable, FuturesData, Statistic},
-    utils::{compare, make_hashmap, random_line, generate_request},
+    utils::{compare, make_hashmap, random_line, save_request},
 };
 use colored::*;
 use futures::stream::StreamExt;
@@ -73,13 +73,21 @@ pub async fn check_parameters(
                 for param in response.reflected_params.keys() {
                     if !found_params.contains_key(param) {
                         futures_data.found_params.insert(param.to_string(), String::from("Different amount of reflections"));
+
                         if config.verbose > 0 {
-                            writeln!(
-                                io::stdout(),
+                            let mut output_message = format!(
                                 "{}: {}",
                                 &"reflects".bright_blue(),
                                 param
-                            ).ok();
+                            );
+
+                            if !config.save_responses.is_empty() {
+                                output_message += &format!(" [saved to {}]", save_request(config, &query, &response, param));
+                            }
+
+                            writeln!(io::stdout(), "{}", output_message).ok();
+                        } else if !config.save_responses.is_empty() {
+                            save_request(config, &query, &response, param);
                         }
                     }
                 }
@@ -115,13 +123,19 @@ pub async fn check_parameters(
                         .0;
 
                     if config.verbose > 0 {
-                        writeln!(
-                            io::stdout(),
+                        let mut output_message = format!(
                             "{}: {}",
                             &"not reflected one".bright_cyan(),
                             &not_reflected_one
-                        )
-                        .ok();
+                        );
+
+                        if !config.save_responses.is_empty() {
+                            output_message += &format!(" [saved to {}]", save_request(config, &query, &response, not_reflected_one));
+                        }
+
+                        writeln!(io::stdout(), "{}", output_message).ok();
+                    } else if !config.save_responses.is_empty() {
+                        save_request(config, &query, &response, not_reflected_one);
                     }
                 }
 
@@ -178,25 +192,6 @@ pub async fn check_parameters(
 
                     for diff in new_diffs {
                         if !diffs.contains(&diff) {
-                            if !config.save_responses.is_empty() {
-                                let mut output = generate_request(config, query);
-                                output += &("\n\n--- response ---\n\n".to_owned() + &response.text);
-
-                                match std::fs::write(
-                                    &(config.save_responses.clone() + "/" + &random_line(10)),
-                                    output,
-                                ) {
-                                    Ok(_) => (),
-                                    Err(err) => {
-                                        writeln!(
-                                            io::stdout(),
-                                            "Unable to write to {}/random_values due to {}",
-                                            config.save_responses,
-                                            err
-                                        ).ok();
-                                    }
-                                }
-                            }
 
                             if config.verbose > 1 {
                                 writeln!(
@@ -225,16 +220,25 @@ pub async fn check_parameters(
                             }
 
                             if chunk.len() == 1 && !found_params.contains_key(&chunk[0]) && !futures_data.found_params.contains_key(&chunk[0]) {
+
                                 if config.verbose > 0 {
-                                    writeln!(
-                                        io::stdout(),
+                                    let mut output_message = format!(
                                         "{}: page {} -> {} ({})",
-                                        chunk[0],
+                                        &chunk[0],
                                         initial_response.text.len(),
                                         &response.text.len().to_string().bright_yellow(),
                                         &diff
-                                    ).ok();
+                                    );
+
+                                    if !config.save_responses.is_empty() {
+                                        output_message += &format!(" [saved to {}]", save_request(config, query, &response, &chunk[0]));
+                                    }
+
+                                    writeln!(io::stdout(), "{}", output_message).ok();
+                                } else if !config.save_responses.is_empty() {
+                                    save_request(config, query, &response, &chunk[0]);
                                 }
+
                                 futures_data.found_params.insert(chunk[0].to_owned(), format!("Changes page: {} -> {}", initial_response.text.len(), response.text.len()));
                                 break;
                             } else {
@@ -245,44 +249,27 @@ pub async fn check_parameters(
                     }
                 }
             } else if chunk.len() == 1 && !found_params.contains_key(&chunk[0]) && !futures_data.found_params.contains_key(&chunk[0]) {
+
                 if config.verbose > 0 {
-                    writeln!(
-                        io::stdout(),
+                    let mut output_message = format!(
                         "{}: code {} -> {}",
-                        chunk[0],
+                        &chunk[0],
                         initial_response.code,
                         &response.code.to_string().bright_yellow()
-                    ).ok();
+                    );
+
+                    if !config.save_responses.is_empty() {
+                        output_message += &format!(" [saved to {}]", save_request(config, query, &response, &chunk[0]));
+                    }
+
+                    writeln!(io::stdout(), "{}", output_message).ok();
+                } else if !config.save_responses.is_empty() {
+                    save_request(config, query, &response, &chunk[0]);
                 }
+
                 futures_data.found_params.insert(chunk[0].to_owned(), format!("Changes response code: {} -> {}", initial_response.code, response.code));
             } else {
-                if !config.save_responses.is_empty() {
-                    let filename = random_line(10);
-                    let mut output = generate_request(config, query);
-                    output += &("\n\n--- response ---\n\n".to_owned() + &response.text);
-
-                    match std::fs::write(&(config.save_responses.clone() + "/" + &filename), output) {
-                        Ok(_) => (),
-                        Err(err) => {
-                            writeln!(
-                                io::stdout(),
-                                "Unable to write to {}/random_values due to {}",
-                                config.save_responses,
-                                err
-                            ).ok();
-                        }
-                    }
-
-                    if config.verbose > 1 {
-                        writeln!(
-                            io::stdout(),
-                            "{} {} and was saved as {}",
-                            &response.code.to_string().bright_yellow(),
-                            response.text.len(),
-                            &filename
-                        ).ok();
-                    }
-                } else if config.verbose > 1 {
+               if config.verbose > 1 {
                     writeln!(
                         io::stdout(),
                         "{} {}      ",

@@ -510,6 +510,37 @@ pub fn create_output(config: &Config, stats: &Statistic, found_params: HashMap<S
     }
 }
 
+//writes request and response to a file
+//return file location
+pub fn save_request(config: &Config, query: &HashMap<String, String>, response: &ResponseData, param_key: &str) -> String {
+    let output = format!(
+        "{}\n\n--- response ---\nCode: {}\n{}",
+        generate_request(config, query),
+        &response.code,
+        &response.text
+    );
+
+    let filename = format!(
+        "{}/{}-{}-{}-{}", &config.save_responses, config.host, config.method.to_lowercase(), param_key, random_line(3)
+    );
+
+    match std::fs::write(
+        &filename,
+        output,
+    ) {
+        Ok(_) => (),
+        Err(err) => {
+            writeln!(
+                io::stderr(),
+                "Unable to save request - {}",
+                err
+            ).ok();
+        }
+    }
+
+    return filename
+}
+
 //beautify json before comparing responses
 pub fn beautify_json(json: &str) -> String {
     let json = json.replace("\\\"", "'");

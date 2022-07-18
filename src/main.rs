@@ -57,7 +57,7 @@ async fn run() {
     }
 
     if !config.save_responses.is_empty() {
-        match fs::create_dir(&config.save_responses) {
+        match fs::create_dir_all(&config.save_responses) {
             Ok(_) => (),
             Err(err) => {
                 writeln!(
