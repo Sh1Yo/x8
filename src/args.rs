@@ -418,7 +418,7 @@ pub fn get_config() -> (Config, usize) {
     let mut parameter_template = parameter_template.as_str();
 
     if parameter_template.is_empty() {
-        if body_type.contains("json") && args.is_present("as-body") {
+        if body_type.contains("json") {
             parameter_template = "\"%k\":\"%v\", ";
         } else if within_headers {
             parameter_template = "%k=%v; ";

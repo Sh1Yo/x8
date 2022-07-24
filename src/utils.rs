@@ -272,6 +272,9 @@ pub fn make_query(config: &Config, params: &HashMap<String, String>) -> String {
         query = query + &config.parameter_template.replace("%k", k).replace("%v", v);
     }
     query.pop();
+    if config.body_type.contains("json") {
+        query.pop(); //remove the last ','
+    }
 
     if config.encode {
         utf8_percent_encode(&query, &FRAGMENT).to_string()

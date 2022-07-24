@@ -2,3 +2,4 @@
 Cargo.lock
 /tests
 *workspace*
+.vscode
