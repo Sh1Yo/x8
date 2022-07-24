@@ -111,7 +111,7 @@ pub fn heuristic(body: &str) -> Vec<String> {
 }
 
 //remove forbidden characters from header name, otherwise reqwest throws errors
-pub fn fix_headers<'a>(header: &'a str) -> Option<String> {
+pub fn fix_headers(header: &str) -> Option<String> {
     lazy_static! {
         static ref RE: Regex = Regex::new(r"[^!-'*+\-\.0-9a-zA-Z^-`|~]").unwrap();
     }
@@ -135,13 +135,13 @@ pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>
 
     let query: String = if !hashmap_query.is_empty() {
         if config.as_body {
-            make_body(&config, &hashmap_query)
+            make_body(config, &hashmap_query)
         } else if config.within_headers {
-            make_header_value(&config, &hashmap_query)
+            make_header_value(config, &hashmap_query)
         } else if config.headers_discovery {
             String::new()
         } else {
-            make_query(&config, &hashmap_query)
+            make_query(config, &hashmap_query)
         }
     } else {
         String::new()
@@ -198,7 +198,7 @@ pub async fn generate_data(config: &Config, stats: &mut Statistic, client: &Clie
     writeln!(io::stdout(), "Request:\n{}", req).ok();
 
     let response =
-        request(config, stats, client, &query, 0)
+        request(config, stats, client, query, 0)
             .await?;
 
     writeln!(
@@ -451,8 +451,8 @@ pub fn create_output(config: &Config, stats: &Statistic, found_params: HashMap<S
 
             if !found_params.is_empty() {
 
-                for (param, _) in &found_params {
-                    line.push_str(&param);
+                for param in found_params.keys() {
+                    line.push_str(param);
                     if !param.contains('=') {
                         line.push('=');
                         line.push_str(&random_line(config.value_size));
@@ -499,8 +499,8 @@ pub fn create_output(config: &Config, stats: &Statistic, found_params: HashMap<S
 
             if !found_params.is_empty() {
 
-                for (param, _) in &found_params {
-                    line.push_str(&param);
+                for param in found_params.keys() {
+                    line.push_str(param);
                     line.push_str(", ")
                 }
 
@@ -541,7 +541,7 @@ pub fn save_request(config: &Config, query: &HashMap<String, String>, response: 
         }
     }
 
-    return filename
+    filename
 }
 
 //beautify json before comparing responses
@@ -556,5 +556,5 @@ pub fn beautify_json(json: &str) -> String {
 
 //same with html
 pub fn beautify_html(html: &str) -> String {
-    html.replace(">", ">\n")
+    html.replace('>', ">\n")
 }

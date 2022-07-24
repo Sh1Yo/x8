@@ -308,7 +308,7 @@ async fn run() {
         let mut found: bool = false;
         for vector_params in &remaining_params {
             for param in vector_params {
-                for (found_param, _) in &found_params {
+                for found_param in found_params.keys() {
                     //some strange logic in order to treat admin=1 and admin=something as the same parameters
                     let param_key = if param.matches('=').count() == 1 {
                         param.split('=').next().unwrap()
@@ -334,7 +334,7 @@ async fn run() {
             max = config.max;
             for (k, v) in custom_parameters.iter_mut() {
                 if !v.is_empty() {
-                    params.push([k.as_str(), "=", &v.pop().unwrap().as_str()].concat());
+                    params.push([k.as_str(), "=", v.pop().unwrap().as_str()].concat());
                 }
             }
             if max > params.len() {
@@ -367,7 +367,7 @@ async fn run() {
             let mut is_the_body_the_same = true;
 
             for diff in new_diffs.iter() {
-                if !diffs.iter().any(|i| &i==&diff) {
+                if !diffs.iter().any(|i| i==diff) {
                     is_the_body_the_same = false;
                 }
             }
@@ -399,7 +399,7 @@ async fn run() {
                 0
             ).await;
         } else {
-            for (param, _) in &found_params {
+            for param  in found_params.keys() {
                 request(
                     &temp_config,
                     &mut stats,

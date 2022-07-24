@@ -103,7 +103,7 @@ pub async fn random_request(
     max: usize,
 ) -> Option<ResponseData> {
     request(
-        &config,
+        config,
         stats,
         &client,
         &make_hashmap(
@@ -201,13 +201,13 @@ pub async fn request(
 
     let query: String = if !hashmap_query.is_empty() {
         if config.as_body {
-            make_body(&config, &hashmap_query)
+            make_body(config, &hashmap_query)
         } else if config.within_headers {
-            make_header_value(&config, &hashmap_query)
+            make_header_value(config, &hashmap_query)
         } else if config.headers_discovery {
             String::new()
         } else {
-            make_query(&config, &hashmap_query)
+            make_query(config, &hashmap_query)
         }
     } else {
         String::new()
@@ -231,11 +231,11 @@ pub async fn request(
             }
             let random_query: String = if !random_query.is_empty() {
                 if config.as_body {
-                    make_body(&config, &random_query)
+                    make_body(config, &random_query)
                 } else if config.headers_discovery {
-                    make_header_value(&config, &random_query)
+                    make_header_value(config, &random_query)
                 } else {
-                    make_query(&config, &random_query)
+                    make_query(config, &random_query)
                 }
             } else {
                 String::new()
@@ -308,10 +308,10 @@ pub async fn request(
 
     let mut text = String::new();
     for (key, value) in headers.iter() {
-        text.push_str(&key);
-        text.push_str(&": ");
-        text.push_str(&value);
-        text.push_str(&"\n");
+        text.push_str(key);
+        text.push_str(": ");
+        text.push_str(value);
+        text.push_str("\n");
     }
     text.push_str(&"\n\n");
     text.push_str(&body);

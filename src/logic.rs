@@ -43,13 +43,13 @@ pub async fn check_parameters(
             stats: Statistic{amount_of_requests: 0}
         };
 
-        let found_params: &HashMap<String, String> = &found_params;
+        let found_params: &HashMap<String, String> = found_params;
         let cloned_diffs = Arc::clone(&shared_diffs);
         let cloned_green_lines = Arc::clone(&shared_green_lines);
 
         async move {
 
-            let query = &make_hashmap(&chunk, config.value_size);
+            let query = &make_hashmap(chunk, config.value_size);
             let response =
                 request(config, &mut futures_data.stats, client, query, reflections_count)
                     .await
@@ -82,25 +82,25 @@ pub async fn check_parameters(
                             );
 
                             if !config.save_responses.is_empty() {
-                                output_message += &format!(" [saved to {}]", save_request(config, &query, &response, param));
+                                output_message += &format!(" [saved to {}]", save_request(config, query, &response, param));
                             }
 
                             writeln!(io::stdout(), "{}", output_message).ok();
                         } else if !config.save_responses.is_empty() {
-                            save_request(config, &query, &response, param);
+                            save_request(config, query, &response, param);
                         }
                     }
                 }
             //if the amount of reflected parameters == the amount of send parameters - that means that sth went wrong
             //so we are trying to find a parameter that caused that
             } else if stable.reflections && !response.reflected_params.is_empty() {
-                let mut not_reflected_one: &str = &"";
+                let mut not_reflected_one: &str = "";
 
                 //saves the number of occurencies for each number of reflections
                 //key: the number of reflections
                 let mut amount_of_reflections: HashMap<usize, usize> = HashMap::new();
 
-                for (_, v) in &response.reflected_params {
+                for v in response.reflected_params.values() {
                     if amount_of_reflections.contains_key(&v) {
                         amount_of_reflections.insert(*v, amount_of_reflections[v] + 1);
                     } else {
@@ -130,12 +130,12 @@ pub async fn check_parameters(
                         );
 
                         if !config.save_responses.is_empty() {
-                            output_message += &format!(" [saved to {}]", save_request(config, &query, &response, not_reflected_one));
+                            output_message += &format!(" [saved to {}]", save_request(config, query, &response, not_reflected_one));
                         }
 
                         writeln!(io::stdout(), "{}", output_message).ok();
                     } else if !config.save_responses.is_empty() {
-                        save_request(config, &query, &response, not_reflected_one);
+                        save_request(config, query, &response, not_reflected_one);
                     }
                 }
 
@@ -169,7 +169,7 @@ pub async fn check_parameters(
                         drop(diffs);
 
                         let tmp_resp =
-                            random_request(&config, &mut futures_data.stats, &client, reflections_count, max)
+                            random_request(config, &mut futures_data.stats, client, reflections_count, max)
                             .await
                             .unwrap_or(ResponseData::default());
 
