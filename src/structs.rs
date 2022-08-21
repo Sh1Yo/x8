@@ -635,6 +635,8 @@ impl<'a> Response<'a> {
             }
         }
 
+        diffs.sort();
+
         Ok((is_code_diff, diffs))
     }
 
@@ -784,7 +786,7 @@ impl<'a> Response<'a> {
 #[derive(Debug, Clone)]
 pub struct FuturesData {
     pub remaining_params: Vec<String>,
-    pub found_params: HashMap<String, String>,
+    pub found_params: Vec<FoundParameter>,
 }
 
 #[derive(Debug, Clone)]
@@ -811,6 +813,10 @@ pub struct Config {
 
     //ignore errors like 'Page is too huge'
     pub force: bool,
+
+    //only report parameteres with different "diffs"
+    //in case a few parameters change the same part of a page - only one of them will be saved
+    pub strict: bool,
 
     //custom parameters to check like <admin, [true, 1, false, ..]>
     pub custom_parameters: HashMap<String, Vec<String>>,
@@ -856,4 +862,21 @@ pub struct Config {
 pub struct Stable {
     pub body: bool,
     pub reflections: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct FoundParameter {
+    pub name: String,
+    pub diffs: String,
+    pub reason: String,
+}
+
+impl FoundParameter {
+    pub fn new<S: Into<String>>(name: S, diffs: &Vec<String>, reason: S) -> Self {
+        Self {
+            name: name.into(),
+            diffs: diffs.join("|"),
+            reason: reason.into()
+        }
+    }
 }

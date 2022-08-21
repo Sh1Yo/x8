@@ -1,10 +1,10 @@
 use crate::{
-    structs::{Config, Stable, RequestDefaults, Request},
+    structs::{Config, Stable, RequestDefaults, Request, FoundParameter},
 };
 use colored::*;
 use reqwest::Client;
 use std::{
-    io::{self, Write}, error::Error, collections::HashMap,
+    io::{self, Write}, error::Error,
 };
 
 const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
@@ -79,13 +79,22 @@ pub async fn empty_reqs<'a>(
 }
 
 pub async fn verify<'a>(
-    request_defaults: &RequestDefaults<'a>, found_params: &HashMap<String, String>, diffs: &Vec<String>, stable: &Stable
-) -> Result<HashMap<String,String>, Box<dyn Error>> {
-    let mut filtered_params = HashMap::with_capacity(found_params.len());
+    request_defaults: &RequestDefaults<'a>, found_params: &Vec<FoundParameter>, diffs: &Vec<String>, stable: &Stable
+) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
+    //TODO maybe implement sth like similar patters? At least for reflected parameters
+    //struct Pattern {kind: PatterKind, pattern: String}
+    //
+    //let mut similar_patters: HashMap<Pattern, Vec<String>> = HashMap::new();
+    //
+    //it would allow to fold parameters like '_anything1', '_anything2' (all that starts with _)
+    //to just one parameter in case they have the same diffs
+    //sth like a light version of --strict
 
-    for (param, reason) in found_params {
+    let mut filtered_params = Vec::with_capacity(found_params.len());
 
-        let mut response = Request::new(&request_defaults, vec![param.clone()])
+    for param in found_params {
+
+        let mut response = Request::new(&request_defaults, vec![param.name.clone()])
                                     .send()
                                     .await?;
 
@@ -99,7 +108,7 @@ pub async fn verify<'a>(
         response.fill_reflected_parameters();
 
         if !is_code_the_same || !(!stable.body || is_the_body_the_same) || !response.reflected_parameters.is_empty() {
-            filtered_params.insert(param.to_owned(), reason.to_owned());
+            filtered_params.push(param.clone());
         }
     }
 
@@ -107,7 +116,7 @@ pub async fn verify<'a>(
 }
 
 pub async fn replay<'a>(
-    config: &Config, request_defaults: &RequestDefaults<'a>, replay_client: &Client, found_params: &HashMap<String, String>
+    config: &Config, request_defaults: &RequestDefaults<'a>, replay_client: &Client, found_params: &Vec<FoundParameter>
 ) -> Result<(), Box<dyn Error>> {
      //get cookies
     Request::new(request_defaults, vec![])
@@ -115,12 +124,12 @@ pub async fn replay<'a>(
         .await?;
 
     if config.replay_once {
-        Request::new(request_defaults, found_params.keys().map(|x| x.to_owned()).collect::<Vec<String>>())
+        Request::new(request_defaults, found_params.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>())
             .send_by(replay_client)
             .await?;
     } else {
-        for param  in found_params.keys() {
-            Request::new(request_defaults, vec![param.to_string()])
+        for param in found_params {
+            Request::new(request_defaults, vec![param.name.to_string()])
                 .send_by(replay_client)
                 .await?;
         }

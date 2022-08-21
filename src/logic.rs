@@ -1,5 +1,5 @@
 use crate::{
-    structs::{Config, Stable, FuturesData, Request, RequestDefaults},
+    structs::{Config, Stable, FuturesData, Request, RequestDefaults, FoundParameter},
     utils::save_request,
 };
 use colored::*;
@@ -23,7 +23,7 @@ pub async fn check_parameters<'a>(
     max: usize,
     green_lines: &mut HashMap<String, usize>,
     remaining_params: &mut Vec<Vec<String>>,
-    found_params: &mut HashMap<String, String>,
+    found_params: &mut Vec<FoundParameter>,
 ) -> Result<(), Box<dyn Error>> {
     //the amount of requests needed for process all the parameters
     let all = params.len() / max;
@@ -38,10 +38,10 @@ pub async fn check_parameters<'a>(
 
         let mut futures_data = FuturesData{
             remaining_params: Vec::new(),
-            found_params: HashMap::new(),
+            found_params: Vec::new(),
         };
 
-        let found_params: &HashMap<String, String> = found_params;
+        let found_params: &Vec<FoundParameter> = found_params;
         let cloned_diffs = Arc::clone(&shared_diffs);
         let cloned_green_lines = Arc::clone(&shared_green_lines);
 
@@ -81,8 +81,10 @@ pub async fn check_parameters<'a>(
                 if reflected_parameter.is_some() {
                     let reflected_parameter = reflected_parameter.unwrap();
 
-                    if !found_params.contains_key(reflected_parameter) {
-                        futures_data.found_params.insert(reflected_parameter.to_string(), String::from("Different amount of reflections"));
+                    if !found_params.iter().any(|x| x.name == reflected_parameter) {
+                        futures_data.found_params.push(
+                            FoundParameter::new(reflected_parameter, &vec!["reflected".to_string()], "Different amount of reflections")
+                        );
 
                         let mut msg = "reflects";
                         // explained in response.proceed_reflected_parameters() method
@@ -188,7 +190,7 @@ pub async fn check_parameters<'a>(
 
                 let mut green_lines = cloned_green_lines.lock();
 
-                for diff in new_diffs {
+                for diff in new_diffs.iter() {
                     if !diffs.contains(&diff) {
 
                         if config.verbose > 1 {
@@ -202,7 +204,7 @@ pub async fn check_parameters<'a>(
                         }
 
                         //catch some often false-positive diffs within the FIRST cycle
-                        match green_lines.get(&diff) {
+                        match green_lines.get(diff) {
                             Some(val) => {
                                 let n_val = *val;
                                 //if there is one diff through 10 responses - it is a false positive one
@@ -218,7 +220,21 @@ pub async fn check_parameters<'a>(
                             }
                         }
 
-                        if chunk.len() == 1 && !found_params.contains_key(&chunk[0]) && !futures_data.found_params.contains_key(&chunk[0]) {
+                        if chunk.len() == 1
+                        && !found_params.iter().any(|x| x.name == chunk[0])
+                        && !futures_data.found_params.iter().any(|x| x.name == chunk[0])  {
+
+                            if config.strict {
+                                if !found_params.iter().any(|x| x.diffs == new_diffs.join("|"))
+                                || !futures_data.found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
+
+                                    if config.verbose > 0 {
+                                        writeln!(io::stdout(), "Removed: {}", chunk[0].bright_black()).ok();
+                                    }
+
+                                    break;
+                                }
+                            }
 
                             if config.verbose > 0 {
                                 let mut output_message = format!(
@@ -238,9 +254,12 @@ pub async fn check_parameters<'a>(
                                 save_request(config, &response, &chunk[0])?;
                             }
 
-                            futures_data.found_params.insert(
-                                chunk[0].to_owned(),
-                                format!("Changes page: {} -> {}", request_defaults.initial_response.as_ref().unwrap().body.len(), response.body.len())
+                            futures_data.found_params.push(
+                                FoundParameter::new(
+                                    &chunk[0],
+                                    &new_diffs,
+                                    &format!("Changes page: {} -> {}", request_defaults.initial_response.as_ref().unwrap().body.len(), response.body.len())
+                                )
                             );
                             break;
                         } else {
@@ -258,10 +277,8 @@ pub async fn check_parameters<'a>(
     .await;
 
     for instance in futures_data {
-        let instance = instance?;
-        for (k, v) in instance.found_params {
-            found_params.insert(k, v);
-        }
+        let mut instance = instance?;
+        found_params.append(&mut instance.found_params);
         remaining_params.push(instance.remaining_params.iter().map(|x| x.to_string()).collect());
     }
 

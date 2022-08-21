@@ -11,7 +11,7 @@ use x8::{
     args::get_config,
     logic::check_parameters,
     requests::{empty_reqs, verify, replay},
-    structs::{Config, RequestDefaults, Request, InjectionPlace},
+    structs::{Config, RequestDefaults, Request, InjectionPlace, FoundParameter},
     utils::{write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output},
 };
 
@@ -175,7 +175,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
     let mut custom_parameters: HashMap<String, Vec<String>> = config.custom_parameters.clone();
     let mut remaining_params: Vec<Vec<String>> = Vec::new();
-    let mut found_params: HashMap<String, String> = HashMap::new();
+    let mut found_params: Vec<FoundParameter> = Vec::new();
     let mut first: bool = true;
     let initial_size: usize = params.len() / max;
     let mut count: usize = 0;
@@ -215,25 +215,25 @@ async fn run() -> Result<(), Box<dyn Error>> {
         //if there is a parameter in remaining_params that also exists in found_params - ignore it.
         //TODO rewrite coz it looks a bit difficult
         let mut found: bool = false;
-        for vector_params in &remaining_params {
-            for param in vector_params {
-                for found_param in found_params.keys() {
+        for vector_remainig_params in remaining_params.iter() {
+            for remaining_param in vector_remainig_params {
+                for found_param in found_params.iter() {
                     //some strange logic in order to treat admin=1 and admin=something as the same parameters
-                    let param_key = if param.matches('=').count() == 1 {
-                        param.split('=').next().unwrap()
+                    let param_key = if remaining_param.matches('=').count() == 1 {
+                        remaining_param.split('=').next().unwrap()
                     } else {
-                        param
+                        remaining_param
                     };
 
-                    if found_param == param_key
-                        || found_param.matches('=').count() == 1
-                        && found_param.split('=').next().unwrap() == param_key {
+                    if found_param.name == param_key
+                        || found_param.name.matches('=').count() == 1
+                        && found_param.name.split('=').next().unwrap() == param_key {
                         found = true;
                         break;
                     }
                 }
                 if !found {
-                    params.push(param.to_string());
+                    params.push(remaining_param.to_string());
                 }
                 found = false;
             }

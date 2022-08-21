@@ -1,4 +1,4 @@
-use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults, Request, Stable};
+use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults, Request, Stable, FoundParameter};
 
 use rand::Rng;
 use colored::*;
@@ -180,10 +180,10 @@ pub fn read_stdin_lines() -> Vec<String> {
     stdin.lock().lines().filter_map(|x| x.ok()).collect()
 }
 
-pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_params: HashMap<String, String>) -> String {
+pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_params: Vec<FoundParameter>) -> String {
 
     //for internal methods like .url()
-    let mut req = Request::new(request_defaults, found_params.keys().map(|x| x.to_owned()).collect());
+    let mut req = Request::new(request_defaults, found_params.iter().map(|x| x.name.to_owned()).collect());
 
     match config.output_format.as_str() {
         "url" => {
@@ -211,7 +211,7 @@ pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_
                 &config.url,
                 found_params
                     .iter()
-                    .map(|(name, reason)| format!(r#""name": "{}", "reason": "{}""#, name.replace("\"", "\\\""), reason))
+                    .map(|x| format!(r#""name": "{}", "reason": "{}""#, x.name.replace("\"", "\\\""), x.reason))
                     .collect::<Vec<String>>()
                     .join(", ")
             )
@@ -226,7 +226,7 @@ pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_
                 "{} {} % {}\n",
                 &request_defaults.method,
                 &config.url,
-                found_params.keys().map(|x| x.as_str()).collect::<Vec<&str>>().join(", ")
+                found_params.iter().map(|x| x.name.as_str()).collect::<Vec<&str>>().join(", ")
             )
         },
     }

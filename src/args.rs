@@ -195,6 +195,11 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
                 .help("Encodes query or body before a request, i.e & -> %26, = -> %3D\nList of chars to encode: \", `, , <, >, &, #, ;, /, =, %")
         )
         .arg(
+            Arg::with_name("strict")
+                .long("strict")
+                .help("Only report parameters that've changed the different parts of a page")
+        )
+        .arg(
             Arg::with_name("test")
                 .long("test")
                 .help("Prints request and response")
@@ -451,6 +456,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         output_format: args.value_of("output-format").unwrap_or("").to_string(),
         append: args.is_present("append"),
         force: args.is_present("force"),
+        strict: args.is_present("strict"),
         disable_custom_parameters: args.is_present("disable-custom-parameters"),
         disable_progress_bar: args.is_present("disable-progress-bar"),
         follow_redirects: args.is_present("follow-redirects"),
