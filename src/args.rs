@@ -229,13 +229,6 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
                 .long("disable-cachebuster")
         )
         .arg(
-            Arg::with_name("value_size")
-                .long("value-size")
-                .help("Custom value size. Affects {{random}} variables as well")
-                .default_value("7")
-                .takes_value(true)
-        )
-        .arg(
             Arg::with_name("learn_requests_count")
                 .long("learn-requests")
                 .help("Set the custom number of learning requests.")
@@ -478,7 +471,6 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         follow_redirects: args.is_present("follow-redirects"),
         test: args.is_present("test"),
         verbose,
-        value_size,
         learn_requests_count,
         concurrency,
         verify: args.is_present("verify"),

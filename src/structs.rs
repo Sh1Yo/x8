@@ -211,8 +211,9 @@ pub struct Request<'a> {
     pub method: String,
 
     headers: HashMap<String, String>,
-    parameters: Box<Vec<String>>,
-    prepared_parameters: HashMap<String, String>,
+    parameters: Box<Vec<String>>, //vector of supplied parameters
+    prepared_parameters: HashMap<String, String>, //parsed parameters
+    non_random_parameters: HashMap<String, String>, //parameters with not random values (in order to remove false positive reflections)
     body: String,
     delay: Duration,
     prepared: bool
@@ -239,6 +240,7 @@ impl <'a>Request<'a> {
             body: String::new(),
             parameters: Box::new(parameters),
             prepared_parameters: HashMap::new(),
+            non_random_parameters: HashMap::new(),
             delay: l.delay,
             prepared: false
         }
@@ -277,18 +279,36 @@ impl <'a>Request<'a> {
     /// replace injection points with parameters
     /// replace templates ({{random}}) with random values
     /// additional param is for reflection counting
+    ///
+    /// in case self.parameters contains parameter with "%=%"
+    /// it gets splitted by %=%  and the default random value gets replaced with the right part:
+    /// admin%=%true -> (admin, true) vs admin -> (admin, df32w)
     fn prepare(&mut self, additional_param: Option<&String>) {
         if self.prepared {
             return
         }
         self.prepared = true;
 
+        self.non_random_parameters = HashMap::from_iter(
+            self.parameters
+                .iter()
+                .filter(|x| x.contains("%=%"))
+                .map(|x| x.split("%=%"))
+                .map(|mut x| (x.next().unwrap().to_owned(), x.next().unwrap_or("").to_owned()))
+        );
+
         self.prepared_parameters = HashMap::from_iter(
             self.parameters
                 .iter()
                 .chain([additional_param.unwrap_or(&String::new())])
-                .filter(|x| !x.is_empty())
+                .filter(|x| !x.is_empty() && !x.contains("%=%"))
                 .map(|x| (x.to_owned(), random_line(5)))
+                //append parameters with not random values
+                .chain(
+                    self.non_random_parameters
+                        .iter()
+                        .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                )
         );
 
         if self.defaults.injection_place != InjectionPlace::HeaderValue {
@@ -349,7 +369,6 @@ impl <'a>Request<'a> {
         self.send_by(dc).await
     }
 
-    //TODO just not search for debug=1 reflections in case the value isn't random
     async fn request(mut self, client: &Client) -> Result<Response<'a>, reqwest::Error> {
 
         let additional_parameter = random_line(7);
@@ -594,10 +613,23 @@ impl<'a> Response<'a> {
     pub fn fill_reflected_parameters(&mut self) {
         //let base_count = self.count(&self.request.prepared_parameters[additional_param]);
 
-        for (k, v) in self.request.prepared_parameters.iter() {
+        //remove non random parameters from prepared parameters because they would cause false positives in this check
+        let prepated_parameters: HashMap<&String, &String> = if !self.request.non_random_parameters.is_empty() {
+            HashMap::from_iter(
+                self.request.prepared_parameters
+                    .iter()
+                    .filter(|x| !self.request.non_random_parameters.contains_key(x.0))
+            )
+        } else {
+            HashMap::from_iter(
+                self.request.prepared_parameters.iter()
+            )
+        };
+
+        for (k, v) in prepated_parameters.iter() {
             let new_count = self.count(v);
             if self.request.defaults.amount_of_reflections != new_count {
-                self.reflected_parameters.insert(k.to_owned(), new_count);
+                self.reflected_parameters.insert(k.to_string(), new_count);
             }
         }
     }
@@ -628,8 +660,6 @@ impl<'a> Response<'a> {
         }
 
         //try to find a parameter with different amount of reflections between all of them
-        let mut parameter_to_return: &str;
-
         if parameters_by_reflections.len() == 2 {
             for (k, v) in parameters_by_reflections.iter() {
                 if v.len() == 1 {
@@ -701,28 +731,70 @@ pub struct FuturesData {
 
 #[derive(Debug, Clone)]
 pub struct Config {
+    //default url without any changes (except from when used from request file, maybe change this logic TODO)
     pub url: String,
+
+    //user supplied wordlist file
     pub wordlist: String,
+
+    //proxy server with schema or http:// by default.
     pub proxy: String,
+
+    //file to output
     pub output_file: String,
-    pub output_format: String,
-    pub save_responses: String,
-    pub force: bool,
-    pub custom_parameters: HashMap<String, Vec<String>>,
-    pub disable_response_correction: bool,
-    pub disable_custom_parameters: bool,
-    pub disable_progress_bar: bool,
-    pub replay_once: bool,
-    pub replay_proxy: String,
-    pub follow_redirects: bool,
-    pub test: bool,
+    //whether to append to the output file or overwrite
     pub append: bool,
+
+    //output format for file & stdout outputs
+    pub output_format: String,
+
+    //a directory for saving request & responses with found parameters
+    pub save_responses: String,
+
+    //ignore errors like 'Page is too huge'
+    pub force: bool,
+
+    //custom parameters to check like <admin, [true, 1, false, ..]>
+    pub custom_parameters: HashMap<String, Vec<String>>,
+    pub disable_custom_parameters: bool,
+
+    //do not beautify responses before comparing
+    pub disable_response_correction: bool,
+
+    //disable progress bar for high verbosity
+    pub disable_progress_bar: bool,
+
+    //proxy to resend requests with found parameter
+    pub replay_proxy: String,
+    //whether to resend the request once with all parameters or once per every parameter
+    pub replay_once: bool,
+
+    //print request & response and exit.
+    //Can be useful for checking whether the program parsed the input parameters successfully
+    pub test: bool,
+
+    //0 - print only critical errors and output
+    //1 - print intermediate results and progress bar
+    //2 - print all response changes
     pub verbose: usize,
-    pub value_size: usize,
+
+    //determines how much learning requests should be made on the start
+    //doesn't include first two requests made for cookies and initial response
     pub learn_requests_count: usize,
+
+    //amount of concurrent requests
     pub concurrency: usize,
+
+    //whether the verify found parameters one time more.
+    //in future - check for _false_potives like when every parameter that starts with _ is found
     pub verify: bool,
-    pub reflected_only: bool
+
+    //check only for reflected parameters in order to decrease the amount of requests
+    //usually makes 2+learn_request_count+words/max requests
+    //but in rare cases its number may be higher
+    pub reflected_only: bool,
+
+    pub follow_redirects: bool,
 }
 
 #[derive(Debug)]

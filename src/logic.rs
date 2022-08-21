@@ -103,7 +103,7 @@ pub async fn check_parameters<'a>(
 
                             writeln!(io::stdout(), "{}", output_message).ok();
                         } else if !config.save_responses.is_empty() {
-                            save_request(config, &response, reflected_parameter);
+                            save_request(config, &response, reflected_parameter)?;
                         }
                     }
                 }
