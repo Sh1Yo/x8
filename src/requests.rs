@@ -1,27 +1,21 @@
 use crate::{
-    structs::{Config, ResponseData, Stable, Statistic, DefaultResponse},
-    utils::{compare, beautify_html, beautify_json, make_body, make_query, make_header_value, make_hashmap, fix_headers, random_line},
+    structs::{Config, Stable, RequestDefaults, Request},
 };
 use colored::*;
 use reqwest::Client;
 use std::{
-    time::Duration,
-    collections::{BTreeMap, HashMap},
-    io::{self, Write},
+    io::{self, Write}, error::Error, collections::HashMap,
 };
 
 const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
 
-//makes first requests and checks page behavior
-pub async fn empty_reqs(
+///makes first requests and checks page behavior
+pub async fn empty_reqs<'a>(
     config: &Config,
-    stats: &mut Statistic,
-    initial_response: &ResponseData,
-    reflections_count: usize,
+    request_defaults: &'a RequestDefaults<'a>,
     count: usize,
-    client: &Client,
     max: usize,
-) -> (Vec<String>, Stable) {
+) -> Result<(Vec<String>, Stable), Box<dyn Error>> {
     let mut stable = Stable {
         body: true,
         reflections: true,
@@ -29,10 +23,10 @@ pub async fn empty_reqs(
     let mut diffs: Vec<String> = Vec::new();
 
     for i in 0..count {
-        let response =
-            random_request(config, stats, client, reflections_count, max)
-                .await
-                .unwrap_or(ResponseData::default());
+        let response = //TODO
+            Request::new_random(request_defaults, max)
+                .send()
+                .await?;
 
         //progress bar
         if config.verbose > 0 && !config.disable_progress_bar {
@@ -46,279 +40,92 @@ pub async fn empty_reqs(
             io::stdout().flush().unwrap_or(());
         }
 
-        if response.text.len() > MAX_PAGE_SIZE && !config.force {
+        //do not check pages >25MB because usually its just a binary file or sth
+        if response.body.len() > MAX_PAGE_SIZE && !config.force {
             writeln!(io::stderr(), "[!] {} the page is too huge", &config.url).ok(); //TODO return error
             std::process::exit(1)
         }
 
-        if !response.reflected_params.is_empty() {
+        if !response.reflected_parameters.is_empty() {
             stable.reflections = false;
         }
 
-        let (is_code_the_same, new_diffs) = compare(initial_response, &response);
+        let (is_code_diff, mut new_diffs) = response.compare(&diffs)?;
 
-        if !is_code_the_same {
-            writeln!(
-                io::stderr(),
-                "[!] {} the page is not stable (code)",
-                &config.url
-            ).ok();
-            std::process::exit(1)
+        if is_code_diff {
+            Err("The page is not stable (code)")?
         }
 
-        for diff in new_diffs {
-            if !diffs.iter().any(|i| i == &diff) {
-                diffs.push(diff);
-            }
-        }
+        diffs.append(&mut new_diffs);
     }
 
+    //check the last time
     let response =
-        random_request(config, stats, client, reflections_count, max)
-            .await
-            .unwrap_or(ResponseData::default());//TODO replace with
+        Request::new_random(request_defaults, max)
+            .send()
+            .await?;
 
-    for diff in compare(initial_response, &response).1 {
-        if !diffs.iter().any(|i| i == &diff) {
-            if config.verbose > 0 {
-                writeln!(
-                    io::stdout(),
-                    "{} the page is not stable (body)",
-                    &config.url
-                ).ok();
-            }
-            stable.body = false;
-            return (diffs, stable);
+    //in case the page is still different from other random ones - the body isn't stable
+    if !response.compare(&diffs)?.1.is_empty() {
+        if config.verbose > 0 {
+            writeln!(
+                io::stdout(),
+                "The page is not stable (body)",
+            ).ok();
         }
+        stable.body = false;
     }
-    (diffs, stable)
+
+    Ok((diffs, stable))
 }
 
-//calls request() with random parameters
-pub async fn random_request(
-    config: &Config,
-    stats: &mut Statistic,
-    client: &Client,
-    reflections: usize,
-    max: usize,
-) -> Option<ResponseData> {
-    request(
-        config,
-        stats,
-        &client,
-        &make_hashmap(
-            &(0..max).map(|_| random_line(config.value_size*2)).collect::<Vec<String>>(),
-            config.value_size,
-        ),
-        reflections
-    ).await
+pub async fn verify<'a>(
+    request_defaults: &RequestDefaults<'a>, found_params: &HashMap<String, String>, diffs: &Vec<String>, stable: &Stable
+) -> Result<HashMap<String,String>, Box<dyn Error>> {
+    let mut filtered_params = HashMap::with_capacity(found_params.len());
+
+    for (param, reason) in found_params {
+
+        let mut response = Request::new(&request_defaults, vec![param.clone()])
+                                    .send()
+                                    .await?;
+
+        let (is_code_the_same, new_diffs) = response.compare(&diffs)?;
+        let mut is_the_body_the_same = true;
+
+        if !new_diffs.is_empty() {
+            is_the_body_the_same = false;
+        }
+
+        response.fill_reflected_parameters();
+
+        if !is_code_the_same || !(!stable.body || is_the_body_the_same) || !response.reflected_parameters.is_empty() {
+            filtered_params.insert(param.to_owned(), reason.to_owned());
+        }
+    }
+
+    Ok(filtered_params)
 }
 
-fn create_request(
-    config: &Config,
-    query: String,
-    hashmap_query: &HashMap<String, String>,
-    client: &Client
-) -> reqwest::RequestBuilder {
-    let url: String = if config.url.contains("%s") {
-        config.url.replace("%s", &query)
+pub async fn replay<'a>(
+    config: &Config, request_defaults: &RequestDefaults<'a>, replay_client: &Client, found_params: &HashMap<String, String>
+) -> Result<(), Box<dyn Error>> {
+     //get cookies
+    Request::new(request_defaults, vec![])
+        .send_by(replay_client)
+        .await?;
+
+    if config.replay_once {
+        Request::new(request_defaults, found_params.keys().map(|x| x.to_owned()).collect::<Vec<String>>())
+            .send_by(replay_client)
+            .await?;
     } else {
-        config.url.clone()
-    };
-
-    let mut client = if config.as_body {
-        match config.method.as_str() {
-            "GET" => client.get(url).body(query.clone()),
-            "POST" => client.post(url).body(query.clone()),
-            "PUT" => client.put(url).body(query.clone()),
-            "PATCH" => client.patch(url).body(query.clone()),
-            "DELETE" => client.delete(url).body(query.clone()),
-            "HEAD" => client.head(url).body(query.clone()),
-            _ => {
-                writeln!(io::stderr(), "Method is not supported").ok();
-                std::process::exit(1); //TODO return error
-            },
-        }
-    } else {
-        match config.method.as_str() {
-            "GET" => client.get(url),
-            "POST" => client.post(url),
-            "PUT" => client.put(url),
-            "PATCH" => client.patch(url),
-            "DELETE" => client.delete(url),
-            "HEAD" => client.head(url),
-            _ => {
-                writeln!(io::stderr(), "Method is not supported").ok();
-                std::process::exit(1);
-            }
-        }
-    };
-
-    client = if config.as_body && !config.disable_cachebuster {
-        client.query(&[(random_line(config.value_size), random_line(config.value_size))])
-    } else {
-        client
-    };
-
-    client = if !config.as_body && !config.body.is_empty() {
-        client.body(config.body.clone())
-    } else {
-        client
-    };
-
-    for (key, value) in config.headers.iter() {
-        if value.contains("%s") && config.within_headers {
-            client = client.header(key, value.replace("%s", &query).replace("{{random}}", &random_line(config.value_size)));
-        } else {
-            client = client.header(key, value.replace("{{random}}", &random_line(config.value_size)));
-        };
-    }
-
-    if config.headers_discovery && !config.within_headers {
-        for (key, value) in hashmap_query.iter() {
-
-            client = match fix_headers(key) {
-                Some(val) => client.header(&val, value.replace("{{random}}", &random_line(config.value_size))),
-                None => client.header(key, value.replace("{{random}}", &random_line(config.value_size)))
-            };
+        for param  in found_params.keys() {
+            Request::new(request_defaults, vec![param.to_string()])
+                .send_by(replay_client)
+                .await?;
         }
     }
 
-    client
-}
-
-pub async fn request(
-    config: &Config,
-    stats: &mut Statistic,
-    client: &Client,
-    initial_query: &HashMap<String, String>,
-    reflections: usize,
-) -> Option<ResponseData> {
-    let mut hashmap_query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
-    for (k, v) in initial_query.iter() {
-        hashmap_query.insert(k.to_string(), v.replace("%random%_", ""));
-    }
-
-    let query: String = if !hashmap_query.is_empty() {
-        if config.as_body {
-            make_body(config, &hashmap_query)
-        } else if config.within_headers {
-            make_header_value(config, &hashmap_query)
-        } else if config.headers_discovery {
-            String::new()
-        } else {
-            make_query(config, &hashmap_query)
-        }
-    } else {
-        String::new()
-    };
-
-    std::thread::sleep(config.delay);
-
-    let url: &str = &config.url;
-
-    stats.amount_of_requests += 1;
-    let res = match create_request(config, query, &hashmap_query, client).send().await {
-        Ok(val) => val,
-        Err(_) => {
-            //Try to make a random request instead
-            let mut random_query: HashMap<String, String> = HashMap::with_capacity(hashmap_query.len());
-            for (k, v) in make_hashmap(
-                &(0..hashmap_query.len()).map(|_| random_line(config.value_size)).collect::<Vec<String>>(),
-                config.value_size,
-            ) {
-                random_query.insert(k.to_string(), v.replace("%random%_", ""));
-            }
-            let random_query: String = if !random_query.is_empty() {
-                if config.as_body {
-                    make_body(config, &random_query)
-                } else if config.headers_discovery {
-                    make_header_value(config, &random_query)
-                } else {
-                    make_query(config, &random_query)
-                }
-            } else {
-                String::new()
-            };
-
-            stats.amount_of_requests += 1;
-            match create_request(config, random_query.clone(), &hashmap_query, client).send().await {
-                Ok(_) => return Some(ResponseData {
-                                    text: String::new(),
-                                    code: 0,
-                                    reflected_params: HashMap::new(),
-                                }),
-                Err(err) => {
-                    writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
-                    writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
-                    std::thread::sleep(Duration::from_secs(50));
-                    match create_request(config, random_query, &hashmap_query, client).send().await {
-                        Ok(_) => return Some(ResponseData {
-                            text: String::new(),
-                            code: 0,
-                            reflected_params: HashMap::new(),
-                        }),
-                        Err(_) => {
-                            writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
-                            std::process::exit(1);
-                        }
-                    }
-                }
-            }
-        }
-    };
-
-    let code = res.status().as_u16();
-    let mut headers: BTreeMap<String, String> = BTreeMap::new();
-    for (key, value) in res.headers().iter() {
-        headers.insert(
-            key.as_str().to_string(),
-            value.to_str().unwrap_or("").to_string(),
-        );
-    }
-
-    let body = match res.text().await {
-        Ok(val) => {
-            if config.disable_response_correction {
-                val
-            } else if config.is_json
-                || (headers.get("content-type").is_some()
-                    && headers.get("content-type").unwrap().as_str().contains(&"json"))
-            {
-                beautify_json(&val)
-            } else if headers.get("content-type").is_some()
-                && headers.get("content-type").unwrap().as_str().contains(&"html")
-            {
-                beautify_html(&val)
-            } else {
-                val
-            }
-        }
-        Err(_) => String::new(),
-    };
-
-    let mut reflected_params: HashMap<String, usize> = HashMap::new();
-
-    for (key, value) in initial_query.iter() {
-        let number_of_reflections = body.to_ascii_lowercase().matches(&value.replace("%random%_", "").as_str()).count();
-        if value.contains("%random%_") && number_of_reflections as usize != reflections {
-            reflected_params.insert(key.to_string(), number_of_reflections);
-        }
-    }
-
-    let mut text = String::new();
-    for (key, value) in headers.iter() {
-        text.push_str(key);
-        text.push_str(": ");
-        text.push_str(value);
-        text.push_str("\n");
-    }
-    text.push_str(&"\n\n");
-    text.push_str(&body);
-
-    Some(ResponseData {
-        text,
-        code,
-        reflected_params,
-    })
+    Ok(())
 }

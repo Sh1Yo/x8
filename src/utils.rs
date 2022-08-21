@@ -1,12 +1,11 @@
-use crate::requests::request;
-use crate::structs::{Config, ResponseData, Statistic};
-use crate::diff::diff;
+use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults, Request, Stable};
 
 use lazy_static::lazy_static;
-use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+use percent_encoding::{AsciiSet, CONTROLS};
 use rand::Rng;
 use regex::Regex;
-use reqwest::Client;
+use colored::*;
+use std::error::Error;
 use std::{
     collections::HashMap,
     fs::File,
@@ -39,328 +38,141 @@ lazy_static! {
     static ref RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 }
 
-//calls check_diffs & returns code and found diffs
-pub fn compare(
-    initial_response: &ResponseData,
-    response: &ResponseData,
-) -> (bool, Vec<String>) {
-
-    let mut code: bool = true;
-    let mut diffs: Vec<String> = Vec::new();
-
-    if initial_response.code != response.code {
-        code = false
-    }
-
-    //just push every found diff to the vector of diffs
-    for diff in match diff(
-        &initial_response.text,
-        &response.text,
-    ) {
-        Ok(val) => val,
-        Err(err) => {
-            writeln!(io::stderr(), "Unable to compare: {}", err).ok(); //TODO return error instead
-            std::process::exit(1);
-        }
-    } {
-        if !diffs.contains(&diff) {
-            diffs.push(diff);
-        } else {
-            let mut c = 1;
-            while diffs.contains(&[&diff, "(", &c.to_string(), ")"].concat()) {
-                c += 1
-            }
-            diffs.push([&diff, " (", &c.to_string(), ")"].concat());
-        }
-    }
-
-    (code, diffs)
-}
-
-//get possible parameters from the page code
-pub fn heuristic(body: &str) -> Vec<String> {
-    let mut found: Vec<String> = Vec::new();
-
-    let re_special_chars = Regex::new(r#"[\W]"#).unwrap();
-
-    let re_name = Regex::new(r#"(?i)name=("|')?"#).unwrap();
-    let re_inputs = Regex::new(r#"(?i)name=("|')?[\w-]+"#).unwrap();
-    for cap in re_inputs.captures_iter(body) {
-        found.push(re_name.replace_all(&cap[0], "").to_string());
-    }
-
-    let re_var = Regex::new(r#"(?i)(var|let|const)\s+?"#).unwrap();
-    let re_full_vars = Regex::new(r#"(?i)(var|let|const)\s+?[\w-]+"#).unwrap();
-    for cap in re_full_vars.captures_iter(body) {
-        found.push(re_var.replace_all(&cap[0], "").to_string());
-    }
-
-    let re_words_in_quotes = Regex::new(r#"("|')[a-zA-Z0-9]{3,20}('|")"#).unwrap();
-    for cap in re_words_in_quotes.captures_iter(body) {
-        found.push(re_special_chars.replace_all(&cap[0], "").to_string());
-    }
-
-    let re_words_within_objects = Regex::new(r#"[\{,]\s*[[:alpha:]]\w{2,25}:"#).unwrap();
-    for cap in re_words_within_objects.captures_iter(body){
-        found.push(re_special_chars.replace_all(&cap[0], "").to_string());
-    }
-
-    found.sort();
-    found.dedup();
-    found
-}
-
-//remove forbidden characters from header name, otherwise reqwest throws errors
-pub fn fix_headers(header: &str) -> Option<String> {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r"[^!-'*+\-\.0-9a-zA-Z^-`|~]").unwrap();
-    }
-
-    if RE.is_match(header) {
-        Some(RE.replace_all(header, "").to_string())
-
-    // hyper throws an error in case the Content-Length header contains random value with http2
-    } else if header.to_ascii_lowercase() == "content-length" {
-        Some(String::from("disabled"))
-    } else {
-        None
-    }
-}
-
-pub fn generate_request(config: &Config, initial_query: &HashMap<String, String>) -> String {
-    let mut hashmap_query: HashMap<String, String> = HashMap::with_capacity(initial_query.len());
-    for (k, v) in initial_query.iter() {
-        hashmap_query.insert(k.to_string(), v.replace("%random%_", ""));
-    }
-
-    let query: String = if !hashmap_query.is_empty() {
-        if config.as_body {
-            make_body(config, &hashmap_query)
-        } else if config.within_headers {
-            make_header_value(config, &hashmap_query)
-        } else if config.headers_discovery {
-            String::new()
-        } else {
-            make_query(config, &hashmap_query)
-        }
-    } else {
-        String::new()
-    };
-
-    let mut req: String = String::with_capacity(4096);
-    req.push_str(&config.url);
-    req.push('\n');
-    req.push_str(&config.method);
-    req.push(' ');
-    req.push_str(&config.path.replace("%s", &query));
-
-
-    req.push_str(" HTTP/1.1\n");
-
-    if !config.headers.keys().any(|i| i.contains("Host")) {
-        req.push_str(&("Host: ".to_owned() + &config.host));
-        req.push('\n');
-    }
-
-    for (key, value) in config.headers.iter() {
-        req.push_str(key);
-        req.push_str(": ");
-        if value.contains("%s") && config.headers_discovery && config.within_headers {
-            req.push_str(&value.replace("%s", &query).replace("{{random}}", &random_line(config.value_size)));
-        } else {
-            req.push_str(&value.replace("{{random}}", &random_line(config.value_size)));
-        }
-        req.push('\n');
-    }
-
-    if config.headers_discovery && !config.within_headers {
-        for (key, value) in hashmap_query.iter() {
-            req.push_str(key);
-            req.push_str(": ");
-            req.push_str(&value.replace("{{random}}", &random_line(config.value_size)));
-            req.push('\n');
-        }
-    }
-
-    if config.as_body && !query.is_empty() {
-        req.push('\n');
-        req.push_str(&query);
-        req.push('\n');
-    }
-
-    req
-}
-
-//prints request and response
-pub async fn generate_data(config: &Config, stats: &mut Statistic, client: &Client, query: &HashMap<String, String>) -> Option<()> {
-    let req = generate_request(config, query);
-
-    writeln!(io::stdout(), "Request:\n{}", req).ok();
-
-    let response =
-        request(config, stats, client, query, 0)
-            .await?;
-
+pub fn write_banner(config: &Config, request_defaults: &RequestDefaults) {
     writeln!(
         io::stdout(),
-        "Response:\nCode: {}\n\n{}",
-        response.code,
-        response.text
+        " _________  __ ___     _____\n|{} {}",
+        &request_defaults.method.blue(),
+        &config.url.green(),
     ).ok();
 
+    if !config.proxy.is_empty() {
+        writeln!(
+            io::stdout(),
+            "|{} {}",
+            "Proxy".magenta(),
+            &config.proxy.green(),
+        ).ok();
+    }
+}
+
+pub fn write_banner_response(initial_response: &Response, reflections_count: usize, params: &Vec<String>) {
     writeln!(
         io::stdout(),
-        "Possible parameters: {}",
-        heuristic(&response.text).join(", ")
+        "|{} {}\n|{} {}\n|{} {}\n|{} {}\n",
+        &"Code".magenta(),
+        &initial_response.code.to_string().green(),
+        &"Response Len".magenta(),
+        &initial_response.body.len().to_string().green(),
+        &"Reflections".magenta(),
+        &reflections_count.to_string().green(),
+        &"Words".magenta(),
+        &params.len().to_string().green(),
     ).ok();
-
-    Some(())
 }
 
-//Add %s if it is absent in the body
-pub fn adjust_body(body: &str, t: &str) -> String {
-    let mut body = body.to_string();
+/// checks whether increasing the amount of parameters changes the page
+/// returns the max possible amount of parameters that possible to send without changing the page
+pub async fn try_to_increase_max<'a>(
+    request_defaults: &RequestDefaults<'a>, diffs: &Vec<String>, mut max: usize, stable: &Stable
+) -> Result<usize, Box<dyn Error>> {
+    let response = Request::new_random(&request_defaults, max + 64)
+                                .send()
+                                .await?;
 
-    //if type is json and body has parameters -> add an injection to the end
-    if t.contains("json") && !body.is_empty() && body.contains('"') {
-        body.pop();
-        body.push_str(", %s}");
-        body
-    } else if t.contains("json") {
-        String::from("{%s}")
-    //suppose that body type is urlencode
-    } else if !body.is_empty()  {
-        body.push_str("&%s");
-        body
-    } else {
-        body.push_str("%s");
-        body
+    let (is_code_the_same, new_diffs) = response.compare(&diffs)?;
+    let mut is_the_body_the_same = true;
+
+    if !new_diffs.is_empty() {
+        is_the_body_the_same = false;
     }
-}
 
-pub fn make_header_value(config: &Config, query: &HashMap<String, String>) -> String {
-    make_query(config, query)
-}
+    //in case the page isn't different from previous one - try to increase max amount of parameters by 128
+    if is_code_the_same && (!stable.body || is_the_body_the_same) {
+        let response =  Request::new_random(&request_defaults, max + 128)
+                .send()
+                .await?;
 
-pub fn make_body(config: &Config, query: &HashMap<String, String>) -> String {
-    let mut body: String = String::new();
+        let (is_code_the_same, new_diffs) = response.compare(&diffs)?;
 
-    for (k, v) in query {
-        if config.body_type.contains("json") && RE_JSON_WORDS_WITHOUT_QUOTES.is_match(v) {
-            body.push_str(&config.parameter_template.replace("%k", k).replace("\"%v\"", v));
-        } else {
-            body.push_str(&config.parameter_template.replace("%k", k).replace("%v", v));
+        if !new_diffs.is_empty() {
+            is_the_body_the_same = false;
         }
-    }
 
-    if config.body_type.contains("json") {
-        body.truncate(body.len().saturating_sub(2)) //remove the last ', '
-    }
-
-    body = match config.encode {
-        true =>config.body.replace("%s", &utf8_percent_encode(&body, &FRAGMENT).to_string()).replace("{{random}}", &random_line(config.value_size)),
-        false => config.body.replace("%s", &body).replace("{{random}}", &random_line(config.value_size))
-    };
-
-    body
-}
-
-pub fn make_query(config: &Config, params: &HashMap<String, String>) -> String {
-    let mut query: String = String::new();
-
-    for (k, v) in params {
-        query = query + &config.parameter_template.replace("%k", k).replace("%v", v);
-    }
-    query.pop();
-    if config.body_type.contains("json") {
-        query.pop(); //remove the last ','
-    }
-
-    if config.encode {
-        utf8_percent_encode(&query, &FRAGMENT).to_string()
-    } else {
-        query
-    }
-}
-
-//"param" -> param:random_value
-//"param=value" -> param:value
-pub fn make_hashmap(
-    words: &[String],
-    value_size: usize,
-) -> HashMap<String, String> {
-    let mut hashmap: HashMap<String, String> = HashMap::new();
-
-    for word in words.iter() {
-        let (param, value) = if word.matches('=').count() == 1 {
-            let mut splitted = word.split('=');
-            (splitted.next().unwrap(), splitted.next().unwrap().to_string())
+        if is_code_the_same && (!stable.body || is_the_body_the_same) {
+            max += 128
         } else {
-            (word.as_str(), "%random%_".to_owned()+&random_line(value_size))
-        };
+            max += 64
+        }
 
-        hashmap.insert(param.to_string(), value);
     }
 
-    hashmap
+    Ok(max)
 }
 
-pub fn parse_request(config: Config, proto: &str, request: &str, custom_parameter_template: bool) -> Option<Config> {
+pub fn parse_request<'a>(request: &'a str, as_body: bool) -> Result<(
+    String, //method
+    String, //host
+    String, //path
+    HashMap<&'a str, String>, //headers
+    String, //body
+    Option<DataType>,
+    InjectionPlace,
+), Box<dyn Error>> {
+    //request by lines
+    //TODO maybe add option whether split lines only by '\r\n' instead of splitting by '\n' as well.
     let mut lines = request.lines();
+    let mut data_type: Option<DataType> = None;
+    let mut injection_place: InjectionPlace = InjectionPlace::Path;
+    let mut headers: HashMap<&'a str, String> = HashMap::new();
     let mut host = String::new();
-    let mut content_type = String::new();
-    let mut headers: HashMap<String, String> = config.headers.clone();
-    let mut within_headers: bool = config.within_headers;
-    let mut firstline = lines.next()?.split(' ');
-    let method = firstline.next()?.to_string();
-    let mut path = firstline.next()?.to_string();
 
-    let http2: bool = firstline.next()?.to_string().contains("HTTP/2");
+    //parse the first line
+    let mut firstline = lines.next().ok_or("Unable to parse firstline")?.split(' ');
+    let method = firstline.next().ok_or("Unable to parse method")?.to_string();
+    let path = firstline.next().ok_or("Unable to parse path")?.to_string(); //include ' ' in path too?
+    let http2 = firstline.next().ok_or("Unable to parse http version")?.contains("HTTP/2");
 
-    //read headers
+    //parse headers
     while let Some(line) = lines.next() {
         if line.is_empty() {
             break;
         }
 
         let mut k_v = line.split(':');
-        let key = k_v.next()?;
+        let key = k_v.next().ok_or("Unable to parse header key")?;
         let value: String = [
-            k_v.next()?.trim().to_owned(),
+            k_v.next().ok_or("Unable to parse header value")?.trim().to_owned(),
             k_v.map(|x| ":".to_owned() + x).collect(),
         ].concat();
 
         if value.contains("%s") {
-            within_headers = true;
+            injection_place = InjectionPlace::HeaderValue;
         }
 
         match key.to_lowercase().as_str() {
-            "content-type" => content_type = value.clone(),
+            "content-type" => if as_body {
+                if value.contains("json") {
+                    data_type = Some(DataType::Json)
+                } else if value.contains("urlencoded") {
+                    data_type = Some(DataType::Urlencoded)
+                }
+            },
             "host" => {
                 host = value.clone();
+                // host header in http2 breaks the h2 lib for now
                 if http2 {
                     continue
                 }
             },
+            //breaks h2 too
+            //TODO maybe add an option to keep request as it is without removing anything
             "content-length" => continue,
             _ => ()
         };
 
-        headers.insert(key.to_string(), value);
+        headers.insert(key, value);
     }
-
-    let mut parameter_template = if !custom_parameter_template {
-        if config.within_headers {
-            String::from("%k=%v; ")
-        } else {
-            match config.body_type == "json" {
-                true => String::from("\"%k\":\"%v\", "),
-                false => String::from("%k=%v&")
-            }
-        }
-    } else {
-        config.parameter_template.clone()
-    };
 
     let mut body = lines.next().unwrap_or("").to_string();
     while let Some(part) = lines.next() {
@@ -370,58 +182,15 @@ pub fn parse_request(config: Config, proto: &str, request: &str, custom_paramete
         }
     }
 
-    //check whether the body type can be json
-     //TODO check whether can be combined with the same check in args.rs
-    let body_type = if config.body_type.contains('-') && config.as_body && !custom_parameter_template
-    && (
-        content_type.contains("json") || (!body.is_empty() && body.starts_with('{') )
-    ) {
-        parameter_template = String::from("\"%k\":\"%v\", ");
-        String::from("json-")
-    } else {
-        config.body_type
-    };
-
-    //if --as-body is specified and body is empty or lacks injection points - add an injection point
-    let body = if config.as_body && ((!body.is_empty() && !body.contains("%s")) || body.is_empty()) {
-        adjust_body(&body, &body_type)
-    } else {
-        body
-    };
-
-    let mut url = [proto,"://", &host, &path].concat();
-    let initial_url = url.clone();
-
-    if !config.as_body && url.contains('?') && !within_headers && !config.headers_discovery && url.contains('=') && !url.contains("%s") {
-        url.push_str("&%s");
-        path.push_str("&%s");
-    } else if !config.as_body && !within_headers && !config.headers_discovery {
-        url.push_str("?%s");
-        path.push_str("?%s");
-    }
-
-    Some(Config {
+    Ok((
         method,
-        url,
         host,
         path,
         headers,
-        within_headers,
         body,
-        body_type,
-        parameter_template,
-        initial_url,
-        ..config
-    })
-}
-
-pub fn random_line(size: usize) -> String {
-    (0..size)
-        .map(|_| {
-            let idx = rand::thread_rng().gen_range(0,RANDOM_CHARSET.len());
-            RANDOM_CHARSET[idx] as char
-        })
-        .collect()
+        data_type,
+        injection_place
+    ))
 }
 
 pub fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
@@ -437,113 +206,75 @@ pub fn read_stdin_lines() -> Vec<String> {
     stdin.lock().lines().filter_map(|x| x.ok()).collect()
 }
 
-pub fn create_output(config: &Config, stats: &Statistic, found_params: HashMap<String, String>) -> String {
+pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_params: HashMap<String, String>) -> String {
+
+    //for internal methods like .url()
+    let mut req = Request::new(request_defaults, found_params.keys().map(|x| x.to_owned()).collect());
+
     match config.output_format.as_str() {
         "url" => {
-            let mut line = if !found_params.is_empty() {
-                match config.initial_url.contains('?') {
-                    true => config.initial_url.to_owned()+"&",
-                    false => config.initial_url.to_owned()+"?"
+            let url = req.url();
+
+            //make line an url with injection point
+            let line = if !found_params.is_empty() && !url.contains("%s")  {
+                if !url.contains("?") {
+                    url + "%s"
+                } else {
+                    url + "?%s"
                 }
             } else {
-                config.initial_url.clone()
+                url
             };
 
-            if !found_params.is_empty() {
-
-                for param in found_params.keys() {
-                    line.push_str(param);
-                    if !param.contains('=') {
-                        line.push('=');
-                        line.push_str(&random_line(config.value_size));
-                    }
-                    line.push('&')
-                }
-
-                line.pop();
-            }
-
-            line.push('\n');
-
-            line
+            (line+"\n").replace("%s", &req.make_query())
         }
+        //TODO maybe use external lib :think:
+        //don't want to use serde for such a simple task
         "json" => {
-            let mut line = format!(
-                "{{\"method\":\"{}\", \"url\":\"{}\", \"parameters\":[",
-                &config.method,
-                &config.initial_url
-            );
-
-            if !found_params.is_empty() {
-
-                for (param, reason) in &found_params {
-                    line.push_str(&format!("{{\"name\":\"{}\", \"reason\":\"{}\"}}, ", param, reason));
-                }
-
-                line = line[..line.len() - 2].to_string();
-            }
-
-            line.push_str(&format!("], \"amount_of_requests\":{}}}\n", stats.amount_of_requests));
-
-            line
+            format!(
+                r#"{{"method": "{}", "url": "{}", "parameters": [{}]}}"#,
+                &request_defaults.method,
+                &config.url,
+                found_params
+                    .iter()
+                    .map(|(name, reason)| format!(r#""name": "{}", "reason": "{}""#, name.replace("\"", "\\\""), reason))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
         },
+
         "request" => {
-            generate_request(config, &make_hashmap(&found_params.keys().map(|x| x.to_owned()).collect::<Vec<String>>(), config.value_size))
-                .lines()
-                .skip(1)
-                .collect::<Vec<&str>>()
-                .join("\n") + "\n"
+            req.print()+"\n"
         },
+
         _ => {
-            let mut line = format!("{} {} % ", &config.method, &config.initial_url);
-
-            if !found_params.is_empty() {
-
-                for param in found_params.keys() {
-                    line.push_str(param);
-                    line.push_str(", ")
-                }
-
-                line = line[..line.len() - 2].to_string();
-            }
-
-            line.push('\n');
-            line
+            format!(
+                "{} {} % {}\n",
+                &request_defaults.method,
+                &config.url,
+                found_params.keys().map(|x| x.as_str()).collect::<Vec<&str>>().join(", ")
+            )
         },
     }
 }
 
 //writes request and response to a file
 //return file location
-pub fn save_request(config: &Config, query: &HashMap<String, String>, response: &ResponseData, param_key: &str) -> String {
-    let output = format!(
-        "{}\n\n--- response ---\nCode: {}\n{}",
-        generate_request(config, query),
-        &response.code,
-        &response.text
-    );
+pub fn save_request(config: &Config, response: &Response, param_key: &str) -> Result<String, Box<dyn Error>> {
+    let output = response.print();
 
     let filename = format!(
-        "{}/{}-{}-{}-{}", &config.save_responses, config.host, config.method.to_lowercase(), param_key, random_line(3)
+        "{}/{}-{}-{}-{}", &config.save_responses, response.request.defaults.host, response.request.method.to_lowercase(), param_key, random_line(3)
     );
 
-    match std::fs::write(
+    std::fs::write(
         &filename,
         output,
-    ) {
-        Ok(_) => (),
-        Err(err) => {
-            writeln!(
-                io::stderr(),
-                "Unable to save request - {}",
-                err
-            ).ok();
-        }
-    }
+    )?;
 
-    filename
+    Ok(filename)
 }
-
+/*
 //beautify json before comparing responses
 pub fn beautify_json(json: &str) -> String {
     let json = json.replace("\\\"", "'");
@@ -557,4 +288,13 @@ pub fn beautify_json(json: &str) -> String {
 //same with html
 pub fn beautify_html(html: &str) -> String {
     html.replace('>', ">\n")
+}*/
+
+pub fn random_line(size: usize) -> String {
+    (0..size)
+        .map(|_| {
+            let idx = rand::thread_rng().gen_range(0,RANDOM_CHARSET.len());
+            RANDOM_CHARSET[idx] as char
+        })
+        .collect()
 }
