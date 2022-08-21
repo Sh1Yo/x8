@@ -6,6 +6,8 @@ use std::{
 use itertools::Itertools;
 use regex::Regex;
 use reqwest::{Client, Url};
+use lazy_static::lazy_static;
+
 
 use crate::{
     utils::random_line, diff::diff,
@@ -428,6 +430,7 @@ impl <'a>Request<'a> {
             additional_parameter: additional_parameter
         };
 
+        response.beautify_body();
         response.fill_reflected_parameters();
 
         Ok(response)
@@ -607,6 +610,35 @@ impl<'a> Response<'a> {
         }
 
         Ok((is_code_diff, diffs))
+    }
+
+    /// adds new lines where necessary in order to increase accuracy in diffing
+    fn beautify_body(&mut self) {
+        lazy_static! {
+            static ref RE_JSON_WORDS_WITHOUT_QUOTES: Regex =
+                Regex::new(r#"^(\d+|null|false|true)$"#).unwrap();
+            static ref RE_JSON_BRACKETS: Regex =
+                Regex::new(r#"(?P<bracket>(\{"|"\}|\[("|\d)|("|\d)\]))"#).unwrap();
+            static ref RE_JSON_COMMA_AFTER_DIGIT: Regex =
+                Regex::new(r#"(?P<first>"[\w\.-]*"):(?P<second>\d+),"#).unwrap();
+            static ref RE_JSON_COMMA_AFTER_BOOL: Regex =
+                Regex::new(r#"(?P<first>"[\w\.-]*"):(?P<second>(false|null|true)),"#).unwrap();
+        }
+
+        self.body
+            = if (self.headers.contains_key("content-type") && self.headers["content-type"].contains("json"))
+            || (self.body.starts_with("{") && self.body.ends_with("}")) {
+            let body = self.body
+                                    .replace("\\\"", "'")
+                                    .replace("\",", "\",\n");
+            let body = RE_JSON_BRACKETS.replace_all(&body, "${bracket}\n");
+            let body = RE_JSON_COMMA_AFTER_DIGIT.replace_all(&body, "$first:$second,\n");
+            let body = RE_JSON_COMMA_AFTER_BOOL.replace_all(&body, "$first:$second,\n");
+
+            body.to_string()
+        } else {
+            self.body.replace('>', ">\n")
+        }
     }
 
     /// find parameters with the different amount of reflections and add them to self.reflected_parameters

@@ -26,14 +26,6 @@ lazy_static! {
         .add(b'/')
         .add(b'=')
         .add(b'%');
-    static ref RE_JSON_WORDS_WITHOUT_QUOTES: Regex =
-        Regex::new(r#"^(\d+|null|false|true)$"#).unwrap();
-    static ref RE_JSON_BRACKETS: Regex =
-        Regex::new(r#"(?P<bracket>(\{"|"\}|\[("|\d)|("|\d)\]))"#).unwrap();
-    static ref RE_JSON_COMMA_AFTER_DIGIT: Regex =
-        Regex::new(r#"(?P<first>"[\w\.-]*"):(?P<second>\d+),"#).unwrap();
-    static ref RE_JSON_COMMA_AFTER_BOOL: Regex =
-        Regex::new(r#"(?P<first>"[\w\.-]*"):(?P<second>(false|null|true)),"#).unwrap();
 
     static ref RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 }
@@ -274,21 +266,6 @@ pub fn save_request(config: &Config, response: &Response, param_key: &str) -> Re
 
     Ok(filename)
 }
-/*
-//beautify json before comparing responses
-pub fn beautify_json(json: &str) -> String {
-    let json = json.replace("\\\"", "'");
-    let json = json.replace("\",", "\",\n");
-    let json = RE_JSON_BRACKETS.replace_all(&json, "${bracket}\n");
-    let json = RE_JSON_COMMA_AFTER_DIGIT.replace_all(&json, "$first:$second,\n");
-    let json = RE_JSON_COMMA_AFTER_BOOL.replace_all(&json, "$first:$second,\n");
-    json.to_string()
-}
-
-//same with html
-pub fn beautify_html(html: &str) -> String {
-    html.replace('>', ">\n")
-}*/
 
 pub fn random_line(size: usize) -> String {
     (0..size)
