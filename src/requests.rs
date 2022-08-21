@@ -23,7 +23,7 @@ pub async fn empty_reqs<'a>(
     let mut diffs: Vec<String> = Vec::new();
 
     for i in 0..count {
-        let response = //TODO
+        let response =
             Request::new_random(request_defaults, max)
                 .send()
                 .await?;
@@ -42,8 +42,7 @@ pub async fn empty_reqs<'a>(
 
         //do not check pages >25MB because usually its just a binary file or sth
         if response.body.len() > MAX_PAGE_SIZE && !config.force {
-            writeln!(io::stderr(), "[!] {} the page is too huge", &config.url).ok(); //TODO return error
-            std::process::exit(1)
+            Err("The page is too huge")?;
         }
 
         if !response.reflected_parameters.is_empty() {
