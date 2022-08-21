@@ -235,7 +235,7 @@ pub async fn check_parameters<'a>(
 
                                 writeln!(io::stdout(), "{}", output_message).ok();
                             } else if !config.save_responses.is_empty() {
-                                save_request(config, &response, &chunk[0]);
+                                save_request(config, &response, &chunk[0])?;
                             }
 
                             futures_data.found_params.insert(

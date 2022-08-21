@@ -268,7 +268,6 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
 
     let delay = Duration::from_millis(parse_int(&args, "delay") as u64);
 
-    let value_size = parse_int(&args, "value_size");
     let learn_requests_count = parse_int(&args, "learn_requests_count");
     let concurrency = parse_int(&args, "concurrency");
     let verbose = parse_int(&args, "verbose");

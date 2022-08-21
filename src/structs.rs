@@ -661,7 +661,7 @@ impl<'a> Response<'a> {
 
         //try to find a parameter with different amount of reflections between all of them
         if parameters_by_reflections.len() == 2 {
-            for (k, v) in parameters_by_reflections.iter() {
+            for (_, v) in parameters_by_reflections.iter() {
                 if v.len() == 1 {
                     return (Some(v[0]), true)
                 }
