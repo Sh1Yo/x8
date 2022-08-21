@@ -138,12 +138,6 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
                 .help("Ignore 'binary data detected', 'the page is too huge', 'param_template lacks variables' error messages")
         )
         .arg(
-            Arg::with_name("disable-response-correction")
-                .long("disable-response-correction")
-                .short("C")
-                .help("Do not beautify responses before processing. Reduces accuracy.")
-        )
-        .arg(
             Arg::with_name("disable-custom-parameters")
                 .long("disable-custom-parameters")
                 .help("Do not check automatically parameters like admin=true")
@@ -464,7 +458,6 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         output_format: args.value_of("output-format").unwrap_or("").to_string(),
         append: args.is_present("append"),
         force: args.is_present("force"),
-        disable_response_correction: args.is_present("disable-response-correction"),
         disable_custom_parameters: args.is_present("disable-custom-parameters"),
         disable_progress_bar: args.is_present("disable-progress-bar"),
         follow_redirects: args.is_present("follow-redirects"),

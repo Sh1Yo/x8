@@ -758,9 +758,6 @@ pub struct Config {
     pub custom_parameters: HashMap<String, Vec<String>>,
     pub disable_custom_parameters: bool,
 
-    //do not beautify responses before comparing
-    pub disable_response_correction: bool,
-
     //disable progress bar for high verbosity
     pub disable_progress_bar: bool,
 
