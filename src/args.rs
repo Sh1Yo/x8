@@ -195,11 +195,6 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
                 .help("Encodes query or body before a request, i.e & -> %26, = -> %3D\nList of chars to encode: \", `, , <, >, &, #, ;, /, =, %")
         )
         .arg(
-            Arg::with_name("is-json")
-                .long("is-json")
-                .help("If the output is valid json and the content type does not contain 'json' keyword - specify this argument for a more accurate search")
-        )
-        .arg(
             Arg::with_name("test")
                 .long("test")
                 .help("Prints request and response")
@@ -409,8 +404,6 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
     };
 
     let url = format!("{}{}:{}{}", proto, host, port, path);
-
-    //TODO recreate keep-newlines for param_template and encode
 
     let custom_keys: Vec<String> = match args.values_of("custom-parameters") {
         Some(val) => {
