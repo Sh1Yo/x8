@@ -3,7 +3,6 @@ use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults
 use lazy_static::lazy_static;
 use percent_encoding::{AsciiSet, CONTROLS};
 use rand::Rng;
-use regex::Regex;
 use colored::*;
 use std::error::Error;
 use std::{

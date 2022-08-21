@@ -419,7 +419,6 @@ impl <'a>Request<'a> {
 
         let body = String::from_utf8_lossy(&body_bytes).to_string();
 
-        //TODO beautify body
         let mut response = Response{
             code,
             headers,
