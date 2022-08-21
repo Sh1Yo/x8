@@ -153,7 +153,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         .arg(
             Arg::with_name("keep-newlines")
                 .long("keep-newlines")
-                .help("--body 'a\\r\\nb' -> --body 'a{{new_line}}b'.\nWorks with body and parameter templates only.")
+                .help("--body 'a\\r\\nb' -> --body 'a{{new_line}}b'.\nWorks with body only.")
             )
         .arg(
             Arg::with_name("replay-once")
@@ -495,6 +495,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         client,
         args.value_of("parameter_template"),
         args.value_of("joiner"),
+        args.is_present("encode"),
         data_type,
         injection_place,
         &body,

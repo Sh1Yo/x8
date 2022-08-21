@@ -4,10 +4,25 @@ use std::{
     convert::TryFrom, error::Error, iter::FromIterator
 };
 use itertools::Itertools;
+use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use regex::Regex;
 use reqwest::{Client, Url};
 use lazy_static::lazy_static;
 
+lazy_static! {
+    static ref FRAGMENT: AsciiSet = CONTROLS
+        .add(b' ')
+        .add(b'"')
+        .add(b'<')
+        .add(b'>')
+        .add(b'`')
+        .add(b'&')
+        .add(b'#')
+        .add(b';')
+        .add(b'/')
+        .add(b'=')
+        .add(b'%');
+}
 
 use crate::{
     utils::random_line, diff::diff,
@@ -26,6 +41,7 @@ pub struct RequestDefaults<'a> {
     pub client: Client,
     pub template: String,
     pub joiner: String,
+    pub encode: bool,
     pub is_json: bool, //to replace {"key": "false"} with {"key": false}
     pub body: String,
     pub injection_place: InjectionPlace,
@@ -47,6 +63,7 @@ impl<'a> Default for RequestDefaults<'a> {
             template: "{k}={v}".to_string(),
             joiner: "&".to_string(),
             is_json: false,
+            encode: false,
             body: String::new(),
             injection_place: InjectionPlace::Path,
             amount_of_reflections: 0
@@ -63,6 +80,7 @@ impl<'a> RequestDefaults<'a> {
         client: Client,
         template: Option<&str>,
         joiner: Option<&str>,
+        encode: bool,
         data_type: Option<DataType>,
         injection_place: InjectionPlace,
         body: &str
@@ -94,6 +112,7 @@ impl<'a> RequestDefaults<'a> {
             client,
             template: template.to_string(),
             joiner: joiner.to_string(),
+            encode,
             is_json,
             body,
             injection_place,
@@ -185,6 +204,7 @@ impl<'a> RequestDefaults<'a> {
             self.client.clone(),
             template,
             joiner,
+            self.encode,
             data_type,
             self.injection_place.clone(),
             &self.body
@@ -268,14 +288,20 @@ impl <'a>Request<'a> {
     }
 
     pub fn make_query(&self) -> String {
-        self.prepared_parameters
+        let query = self.prepared_parameters
             .iter()
             .map(|(k, v)| self.defaults.template
                                     .replace("{k}", k)
                                     .replace("{v}", v)
             )
             .collect::<Vec<String>>()
-            .join(&self.defaults.joiner)
+            .join(&self.defaults.joiner);
+
+        if self.defaults.encode {
+            utf8_percent_encode(&query, &FRAGMENT).to_string()
+        } else {
+            query
+        }
     }
 
     /// replace injection points with parameters
@@ -491,6 +517,7 @@ mod tests {
             Default::default(),
             None,
             None,
+            false,
             None,
             super::InjectionPlace::Path,
             ""

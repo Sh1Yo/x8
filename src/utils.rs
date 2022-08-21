@@ -1,7 +1,5 @@
 use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults, Request, Stable};
 
-use lazy_static::lazy_static;
-use percent_encoding::{AsciiSet, CONTROLS};
 use rand::Rng;
 use colored::*;
 use std::error::Error;
@@ -12,22 +10,7 @@ use std::{
     path::Path,
 };
 
-lazy_static! {
-    static ref FRAGMENT: AsciiSet = CONTROLS
-        .add(b' ')
-        .add(b'"')
-        .add(b'<')
-        .add(b'>')
-        .add(b'`')
-        .add(b'&')
-        .add(b'#')
-        .add(b';')
-        .add(b'/')
-        .add(b'=')
-        .add(b'%');
-
-    static ref RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
-}
+static RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 
 pub fn write_banner(config: &Config, request_defaults: &RequestDefaults) {
     writeln!(
