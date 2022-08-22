@@ -31,6 +31,7 @@ pub async fn check_parameters<'a>(
     //make diffs and green_lines accessable by all futures
     let shared_diffs = Arc::new(Mutex::new(diffs));
     let shared_green_lines = Arc::new(Mutex::new(green_lines));
+    let shared_found_params = Arc::new(Mutex::new(found_params));
 
     let futures_data = futures::stream::iter(params.chunks(max).map(|chunk| {
         count += 1;
@@ -40,9 +41,10 @@ pub async fn check_parameters<'a>(
             found_params: Vec::new(),
         };
 
-        let found_params: &Vec<FoundParameter> = found_params;
+        //let found_params: &Vec<FoundParameter> = found_params;
         let cloned_diffs = Arc::clone(&shared_diffs);
         let cloned_green_lines = Arc::clone(&shared_green_lines);
+        let cloned_found_params = Arc::clone(&shared_found_params);
 
         async move {
             let request = Request::new(request_defaults, chunk.iter().map(|x| x.to_string()).collect::<Vec<String>>());
@@ -80,10 +82,14 @@ pub async fn check_parameters<'a>(
                 if reflected_parameter.is_some() {
                     let reflected_parameter = reflected_parameter.unwrap();
 
+                    let mut found_params = cloned_found_params.lock();
                     if !found_params.iter().any(|x| x.name == reflected_parameter) {
-                        futures_data.found_params.push(
+
+                        found_params.push(
                             FoundParameter::new(reflected_parameter, &vec!["reflected".to_string()], "Different amount of reflections")
                         );
+
+                        drop(found_params);
 
                         let mut kind = ReasonKind::Reflected;
                         // explained in response.proceed_reflected_parameters() method
@@ -148,7 +154,8 @@ pub async fn check_parameters<'a>(
                 if chunk.len() == 1 {
                     response.write_and_save(config, ReasonKind::Code, &chunk[0], None)?;
 
-                    futures_data.found_params.push(
+                    let mut found_params = cloned_found_params.lock();
+                    found_params.push(
                         FoundParameter::new(
                             &chunk[0],
                             &vec![format!("{} -> {}", request_defaults.initial_response.as_ref().unwrap().code, response.code)],
@@ -166,6 +173,18 @@ pub async fn check_parameters<'a>(
                 //check whether the new_diff has at least 1 unique diff
                 //and then check whether it's permament diff or not
                 if !new_diffs.is_empty()  {
+
+                    if config.strict {
+                        let found_params = cloned_found_params.lock();
+                        if found_params.iter().any(|x| x.diffs == new_diffs.join("|"))
+                        || futures_data.found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
+                            log::debug!("skip branch due to --strict");
+                            return Ok(futures_data);
+                        } else {
+                            log::debug!("{:?} and {}", found_params, new_diffs.join("|"));
+                        }
+                    }
+
                     //the next function with .await will never return if something is locked
                     //so we need to unlock diffs firstly
                     drop(diffs);
@@ -217,25 +236,25 @@ pub async fn check_parameters<'a>(
                             }
                         }
 
+                        let mut found_params = cloned_found_params.lock();
                         if chunk.len() == 1
                         && !found_params.iter().any(|x| x.name == chunk[0])
                         && !futures_data.found_params.iter().any(|x| x.name == chunk[0])  {
 
+                            //we need to repeat this because futures are fast and a few same parameters can already be here
                             if config.strict {
-                                if !found_params.iter().any(|x| x.diffs == new_diffs.join("|"))
-                                || !futures_data.found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
-
-                                    if config.verbose > 0 {
-                                        writeln!(io::stdout(), "Removed: {}", chunk[0].bright_black()).ok();
-                                    }
-
-                                    break;
+                                if found_params.iter().any(|x| x.diffs == new_diffs.join("|"))
+                                || futures_data.found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
+                                    log::debug!("skip branch due to --strict");
+                                    return Ok(futures_data);
+                                } else {
+                                    log::debug!("{:?} and {}", found_params, new_diffs.join("|"));
                                 }
                             }
 
                             response.write_and_save(config, ReasonKind::Text, &chunk[0], Some(&diff))?;
 
-                            futures_data.found_params.push(
+                            found_params.push(
                                 FoundParameter::new(
                                     &chunk[0],
                                     &new_diffs,
@@ -258,8 +277,8 @@ pub async fn check_parameters<'a>(
     .await;
 
     for instance in futures_data {
-        let mut instance = instance?;
-        found_params.append(&mut instance.found_params);
+        let instance = instance?;
+        //found_params.append(&mut instance.found_params);
         remaining_params.push(instance.remaining_params.iter().map(|x| x.to_string()).collect());
     }
 
