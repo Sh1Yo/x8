@@ -71,6 +71,9 @@ pub async fn empty_reqs<'a>(
                 io::stdout(),
                 "The page is not stable (body)",
             ).ok();
+
+            log::debug!("empty_reqs - new diffs are {:?}", response.compare(&diffs)?.1);
+            log::debug!("empty_reqs - diffs are {:?}", &diffs);
         }
         stable.body = false;
     }

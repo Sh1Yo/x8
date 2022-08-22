@@ -404,8 +404,6 @@ impl <'a>Request<'a> {
 
         self.prepare(Some(&additional_parameter));
 
-        log::debug!("request:request url is {:?}", self.url());
-
         let mut request = http::Request::builder()
             .method(self.method.as_str())
             .uri(self.url());
@@ -622,9 +620,9 @@ impl<'a> Response<'a> {
             &self.print(),
             &self.request.defaults.initial_response.as_ref().unwrap().print(),
         )? {
-            if !diffs.contains(&diff) && old_diffs.contains(&diff) {
+            if !diffs.contains(&diff) && !old_diffs.contains(&diff) {
                 diffs.push(diff);
-            } else {
+            } else if !old_diffs.contains(&diff) {
                 let mut c = 1;
                 while diffs.contains(&[&diff, "(", &c.to_string(), ")"].concat()) {
                     c += 1
