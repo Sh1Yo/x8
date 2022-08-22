@@ -258,7 +258,7 @@ impl <'a>Request<'a> {
 
         Self{
             defaults: l,
-            method: "GET".to_string(),
+            method: l.method.to_owned(),
             path: l.path.to_owned(),
             headers,
             body: String::new(),
