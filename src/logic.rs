@@ -126,8 +126,6 @@ pub async fn check_parameters<'a>(
                     ).ok();
                 }
 
-                futures_data.remaining_params.append(&mut chunk.to_vec());
-
                 let mut green_lines = cloned_green_lines.lock();
 
                 //to prevent loops when ip got banned or server broke
@@ -154,6 +152,30 @@ pub async fn check_parameters<'a>(
                     _ => {
                         green_lines.insert(response.code.to_string(), 0);
                     }
+                }
+
+                if chunk.len() == 1 {
+                    write_and_save( //maybe to response method?
+                        &config,
+                        &response,
+                        format!(
+                            "{}: code {} -> {}",
+                            &chunk[0],
+                            request_defaults.initial_response.as_ref().unwrap().code, //TODO maybe different color on different codes
+                            &response.code.to_string().bright_yellow(),
+                        ),
+                        &chunk[0]
+                    )?;
+
+                    futures_data.found_params.push(
+                        FoundParameter::new(
+                            &chunk[0],
+                            &vec![format!("{} -> {}", request_defaults.initial_response.as_ref().unwrap().code, response.code)],
+                            &format!("Changes code: {} -> {}", request_defaults.initial_response.as_ref().unwrap().code, response.code)
+                        )
+                    );
+                } else {
+                    futures_data.remaining_params.append(&mut chunk.to_vec());
                 }
             }
 
