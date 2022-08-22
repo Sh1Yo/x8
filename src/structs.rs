@@ -744,8 +744,8 @@ impl<'a> Response<'a> {
             ReasonKind::Code => format!(
                 "{}: code {} -> {}",
                 &parameter,
-                self.request.defaults.initial_response.as_ref().unwrap().code, //TODO maybe different color on different codes
-                &self.code.to_string().bright_yellow(),
+                self.request.defaults.initial_response.as_ref().unwrap().code(),
+                &self.code(),
             ),
             ReasonKind::Text => format!(
                 "{}: page {} -> {} ({})",
@@ -769,6 +769,32 @@ impl<'a> Response<'a> {
         }
 
         Ok(())
+    }
+
+    fn kind(&self) -> Status {
+        if self.code <= 199 {
+            Status::Other
+        } else if self.code <= 299 {
+            Status::Ok
+        } else if self.code <= 399 {
+            Status::Redirect
+        } else if self.code <= 499 {
+            Status::UserFault
+        } else if self.code <= 599 {
+            Status::ServerFault
+        } else {
+            Status::Other
+        }
+    }
+
+    pub fn code(&self) -> String {
+        match self.kind() {
+            Status::Ok => self.code.to_string().green().to_string(),
+            Status::Redirect => self.code.to_string().blue().to_string(),
+            Status::UserFault => self.code.to_string().yellow().to_string(),
+            Status::ServerFault => self.code.to_string().red().to_string(),
+            Status::Other => self.code.to_string().magenta().to_string(),
+        }
     }
 
     /// get possible parameters from the page itself
@@ -826,6 +852,15 @@ pub enum ReasonKind {
     Text,
     Reflected,
     NotReflected
+}
+
+#[derive(PartialEq, Eq)]
+pub enum Status {
+    Ok,             //2xx
+    Redirect,       //3xx
+    UserFault,      //4xx
+    ServerFault,    //5xx
+    Other,
 }
 
 #[derive(Debug, Clone)]
