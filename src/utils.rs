@@ -45,6 +45,21 @@ pub fn write_banner_response(initial_response: &Response, reflections_count: usi
     ).ok();
 }
 
+/// write about found parameter to stdout and save when needed
+pub fn write_and_save(config: &Config, response: &Response, mut message: String, parameter: &str) -> Result<(), Box<dyn Error>> {
+    if config.verbose > 0 {
+        if !config.save_responses.is_empty() {
+            message += &format!(" [saved to {}]", save_request(config, response, parameter)?);
+        }
+
+        writeln!(io::stdout(), "{}", message).ok();
+    } else if !config.save_responses.is_empty() {
+        save_request(config, &response, parameter)?;
+    }
+
+    Ok(())
+}
+
 /// checks whether increasing the amount of parameters changes the page
 /// returns the max possible amount of parameters that possible to send without changing the page
 pub async fn try_to_increase_max<'a>(
@@ -232,8 +247,8 @@ pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_
     }
 }
 
-//writes request and response to a file
-//return file location
+/// writes request and response to a file
+/// return file location
 pub fn save_request(config: &Config, response: &Response, param_key: &str) -> Result<String, Box<dyn Error>> {
     let output = response.print();
 

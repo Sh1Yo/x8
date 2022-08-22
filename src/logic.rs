@@ -1,6 +1,6 @@
 use crate::{
     structs::{Config, Stable, FuturesData, Request, RequestDefaults, FoundParameter},
-    utils::save_request,
+    utils::{save_request, write_and_save},
 };
 use colored::*;
 use futures::stream::StreamExt;
@@ -92,21 +92,16 @@ pub async fn check_parameters<'a>(
                             msg = "not reflected one";
                         }
 
-                        if config.verbose > 0 {
-                            let mut output_message = format!(
+                        write_and_save(
+                            &config,
+                            &response,
+                            format!(
                                 "{}: {}",
                                 msg.bright_blue(),
                                 reflected_parameter
-                            );
-
-                            if !config.save_responses.is_empty() {
-                                output_message += &format!(" [saved to {}]", save_request(config, &response, reflected_parameter)?);
-                            }
-
-                            writeln!(io::stdout(), "{}", output_message).ok();
-                        } else if !config.save_responses.is_empty() {
-                            save_request(config, &response, reflected_parameter)?;
-                        }
+                            ),
+                            &reflected_parameter
+                        )?;
                     }
                 }
 
@@ -236,23 +231,18 @@ pub async fn check_parameters<'a>(
                                 }
                             }
 
-                            if config.verbose > 0 {
-                                let mut output_message = format!(
+                            write_and_save(
+                                &config,
+                                &response,
+                                format!(
                                     "{}: page {} -> {} ({})",
                                     &chunk[0],
                                     request_defaults.initial_response.as_ref().unwrap().body.len(),
                                     &response.body.len().to_string().bright_yellow(),
                                     &diff
-                                );
-
-                                if !config.save_responses.is_empty() {
-                                    output_message += &format!(" [saved to {}]", save_request(config, &response, &chunk[0])?);
-                                }
-
-                                writeln!(io::stdout(), "{}", output_message).ok();
-                            } else if !config.save_responses.is_empty() {
-                                save_request(config, &response, &chunk[0])?;
-                            }
+                                ),
+                                &chunk[0]
+                            )?;
 
                             futures_data.found_params.push(
                                 FoundParameter::new(
