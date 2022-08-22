@@ -100,7 +100,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
             Request::new(&request_defaults, Vec::new())
                 .send()
                 .await?
-                .print()
+                .print_all()
         ).ok();
         return Ok(())
     }

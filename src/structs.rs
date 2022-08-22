@@ -385,7 +385,7 @@ impl <'a>Request<'a> {
 
         match self.clone().request(clients).await {
             Ok(val) => Ok(val),
-            Err(err) => {
+            Err(_) => {
                 std::thread::sleep(Duration::from_secs(10));
                 Ok(self.clone().request(clients).await?)
             }
@@ -852,6 +852,23 @@ impl<'a> Response<'a> {
         text.push_str(&self.text);
         text
     }
+
+        ///print the request and response
+        pub fn print_all(&mut self) -> String {
+
+            let mut text: String = self.request.print();
+
+            text.push_str(&("Code: ".to_owned()+&(self.code.to_string()+"\n")));
+            for (k,v) in self.headers.iter() {
+                text.push_str(&k);
+                text.push_str(": ");
+                text.push_str(&v);
+                text.push('\n');
+            }
+            text.push('\n');
+            text.push_str(&self.text);
+            text
+        }
 }
 
 pub enum ReasonKind {
