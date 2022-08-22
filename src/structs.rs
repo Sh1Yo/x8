@@ -444,19 +444,20 @@ impl <'a>Request<'a> {
 
         let body_bytes = res.bytes().await?.to_vec();
 
-        let body = String::from_utf8_lossy(&body_bytes).to_string();
+        let text = String::from_utf8_lossy(&body_bytes).to_string();
 
         let mut response = Response{
             code,
             headers,
             time: duration.as_millis(),
-            body,
+            text,
             request: self,
             reflected_parameters: HashMap::new(),
             additional_parameter: additional_parameter
         };
 
         response.beautify_body();
+        response.add_headers();
         response.fill_reflected_parameters();
 
         Ok(response)
@@ -469,7 +470,7 @@ impl <'a>Request<'a> {
             time: 0,
             code: 0,
             headers: BTreeMap::new(),
-            body: String::new(),
+            text: String::new(),
             reflected_parameters: HashMap::new(),
             additional_parameter: String::new(),
             request: self,
@@ -591,7 +592,7 @@ pub struct Response<'a> {
     pub time: u128,
     pub code: u16,
     pub headers: BTreeMap<String, String>,
-    pub body: String,
+    pub text: String,
     pub reflected_parameters: HashMap<String, usize>, //<parameter, amount of reflections>
     pub additional_parameter: String,
     pub request: Request<'a>,
@@ -601,13 +602,7 @@ impl<'a> Response<'a> {
 
     /// count how many times we can see the string in the response
     pub fn count(&self, string: &str) -> usize {
-        //TODO maybe optimize a bit and merge headers with body before counting
-        let mut count: usize = 0;
-        for (key, value) in self.headers.iter() {
-            count += key.matches(string).count() + value.matches(string).count();
-        }
-        count += self.body.matches(string).count();
-        count
+        self.text.matches(string).count()
     }
 
     /// calls check_diffs & returns code and found diffs
@@ -654,10 +649,10 @@ impl<'a> Response<'a> {
                 Regex::new(r#"(?P<first>"[\w\.-]*"):(?P<second>(false|null|true)),"#).unwrap();
         }
 
-        self.body
+        self.text
             = if (self.headers.contains_key("content-type") && self.headers["content-type"].contains("json"))
-            || (self.body.starts_with("{") && self.body.ends_with("}")) {
-            let body = self.body
+            || (self.text.starts_with("{") && self.text.ends_with("}")) {
+            let body = self.text
                                     .replace("\\\"", "'")
                                     .replace("\",", "\",\n");
             let body = RE_JSON_BRACKETS.replace_all(&body, "${bracket}\n");
@@ -666,7 +661,7 @@ impl<'a> Response<'a> {
 
             body.to_string()
         } else {
-            self.body.replace('>', ">\n")
+            self.text.replace('>', ">\n")
         }
     }
 
@@ -733,6 +728,15 @@ impl<'a> Response<'a> {
         (None, true)
     }
 
+    fn add_headers(&mut self) {
+        let mut text = String::new();
+        for (k, v) in self.headers.iter().sorted() {
+            text += &format!("{}: {}\n", k, v);
+        }
+
+        self.text = text + "\n" + &self.text;
+    }
+
     /// write about found parameter to stdout and save when needed
     pub fn write_and_save(&self, config: &Config, reason: ReasonKind, parameter: &str, diff: Option<&str>) -> Result<(), Box<dyn Error>> {
 
@@ -746,8 +750,8 @@ impl<'a> Response<'a> {
             ReasonKind::Text => format!(
                 "{}: page {} -> {} ({})",
                 &parameter,
-                self.request.defaults.initial_response.as_ref().unwrap().body.len(),
-                &self.body.len().to_string().bright_yellow(),
+                self.request.defaults.initial_response.as_ref().unwrap().text.len(),
+                &self.text.len().to_string().bright_yellow(),
                 diff.unwrap()
             ),
             ReasonKind::Reflected => format!("{}: {}", "reflects".bright_blue(), parameter),
@@ -770,7 +774,7 @@ impl<'a> Response<'a> {
     /// get possible parameters from the page itself
     pub fn get_possible_parameters(&self) -> Vec<String> {
         let mut found: Vec<String> = Vec::new();
-        let body = &self.body;
+        let body = &self.text;
 
         let re_special_chars = Regex::new(r#"[\W]"#).unwrap();
 
@@ -812,7 +816,7 @@ impl<'a> Response<'a> {
             text.push('\n');
         }
         text.push('\n');
-        text.push_str(&self.body);
+        text.push_str(&self.text);
         text
     }
 }

@@ -41,7 +41,7 @@ pub async fn empty_reqs<'a>(
         }
 
         //do not check pages >25MB because usually its just a binary file or sth
-        if response.body.len() > MAX_PAGE_SIZE && !config.force {
+        if response.text.len() > MAX_PAGE_SIZE && !config.force {
             Err("The page is too huge")?;
         }
 

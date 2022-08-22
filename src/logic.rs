@@ -112,7 +112,7 @@ pub async fn check_parameters<'a>(
                         io::stdout(),
                         "{} {}      ",
                         &response.code.to_string().bright_yellow(),
-                        response.body.len()
+                        response.text.len()
                     ).ok();
                 }
 
@@ -195,7 +195,7 @@ pub async fn check_parameters<'a>(
                                 io::stdout(),
                                 "{} {} ({})",
                                 response.code,
-                                &response.body.len().to_string().bright_yellow(),
+                                &response.text.len().to_string().bright_yellow(),
                                 &diff
                             ).ok();
                         }
@@ -239,7 +239,7 @@ pub async fn check_parameters<'a>(
                                 FoundParameter::new(
                                     &chunk[0],
                                     &new_diffs,
-                                    &format!("Changes page: {} -> {}", request_defaults.initial_response.as_ref().unwrap().body.len(), response.body.len())
+                                    &format!("Changes page: {} -> {}", request_defaults.initial_response.as_ref().unwrap().text.len(), response.text.len())
                                 )
                             );
                             break;

@@ -37,7 +37,7 @@ pub fn write_banner_response(initial_response: &Response, reflections_count: usi
         &"Code".magenta(),
         &initial_response.code.to_string().green(),
         &"Response Len".magenta(),
-        &initial_response.body.len().to_string().green(),
+        &initial_response.text.len().to_string().green(),
         &"Reflections".magenta(),
         &reflections_count.to_string().green(),
         &"Words".magenta(),
