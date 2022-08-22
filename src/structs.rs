@@ -1,8 +1,9 @@
 use std::{
     collections::{BTreeMap, HashMap},
     time::{Duration, Instant},
-    convert::TryFrom, error::Error, iter::FromIterator
+    convert::TryFrom, error::Error, iter::FromIterator, io::{self, Write}
 };
+use colored::*;
 use itertools::Itertools;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use regex::Regex;
@@ -25,7 +26,7 @@ lazy_static! {
 }
 
 use crate::{
-    utils::random_line, diff::diff,
+    utils::{random_line, save_request}, diff::diff,
 };
 
 #[derive(Debug, Clone)]
@@ -732,6 +733,40 @@ impl<'a> Response<'a> {
         (None, true)
     }
 
+    /// write about found parameter to stdout and save when needed
+    pub fn write_and_save(&self, config: &Config, reason: ReasonKind, parameter: &str, diff: Option<&str>) -> Result<(), Box<dyn Error>> {
+
+        let mut message = match reason {
+            ReasonKind::Code => format!(
+                "{}: code {} -> {}",
+                &parameter,
+                self.request.defaults.initial_response.as_ref().unwrap().code, //TODO maybe different color on different codes
+                &self.code.to_string().bright_yellow(),
+            ),
+            ReasonKind::Text => format!(
+                "{}: page {} -> {} ({})",
+                &parameter,
+                self.request.defaults.initial_response.as_ref().unwrap().body.len(),
+                &self.body.len().to_string().bright_yellow(),
+                diff.unwrap()
+            ),
+            ReasonKind::Reflected => format!("{}: {}", "reflects".bright_blue(), parameter),
+            ReasonKind::NotReflected => format!("{}: {}", "not reflected one".magenta(), parameter),
+        };
+
+        if config.verbose > 0 {
+            if !config.save_responses.is_empty() {
+                message += &format!(" [saved to {}]", save_request(config, self, parameter)?);
+            }
+
+            writeln!(io::stdout(), "{}", message).ok();
+        } else if !config.save_responses.is_empty() {
+            save_request(config, self, parameter)?;
+        }
+
+        Ok(())
+    }
+
     /// get possible parameters from the page itself
     pub fn get_possible_parameters(&self) -> Vec<String> {
         let mut found: Vec<String> = Vec::new();
@@ -782,6 +817,12 @@ impl<'a> Response<'a> {
     }
 }
 
+pub enum ReasonKind {
+    Code,
+    Text,
+    Reflected,
+    NotReflected
+}
 
 #[derive(Debug, Clone)]
 pub struct FuturesData {

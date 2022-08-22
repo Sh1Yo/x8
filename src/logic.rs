@@ -1,6 +1,5 @@
 use crate::{
-    structs::{Config, Stable, FuturesData, Request, RequestDefaults, FoundParameter},
-    utils::{save_request, write_and_save},
+    structs::{Config, Stable, FuturesData, Request, RequestDefaults, FoundParameter, ReasonKind},
 };
 use colored::*;
 use futures::stream::StreamExt;
@@ -86,22 +85,13 @@ pub async fn check_parameters<'a>(
                             FoundParameter::new(reflected_parameter, &vec!["reflected".to_string()], "Different amount of reflections")
                         );
 
-                        let mut msg = "reflects";
+                        let mut kind = ReasonKind::Reflected;
                         // explained in response.proceed_reflected_parameters() method
                         if chunk.len() == 2 {
-                            msg = "not reflected one";
+                            kind = ReasonKind::NotReflected;
                         }
 
-                        write_and_save(
-                            &config,
-                            &response,
-                            format!(
-                                "{}: {}",
-                                msg.bright_blue(),
-                                reflected_parameter
-                            ),
-                            &reflected_parameter
-                        )?;
+                        response.write_and_save(config, kind, &reflected_parameter, None)?;
                     }
                 }
 
@@ -155,17 +145,7 @@ pub async fn check_parameters<'a>(
                 }
 
                 if chunk.len() == 1 {
-                    write_and_save( //maybe to response method?
-                        &config,
-                        &response,
-                        format!(
-                            "{}: code {} -> {}",
-                            &chunk[0],
-                            request_defaults.initial_response.as_ref().unwrap().code, //TODO maybe different color on different codes
-                            &response.code.to_string().bright_yellow(),
-                        ),
-                        &chunk[0]
-                    )?;
+                    response.write_and_save(config, ReasonKind::Code, &chunk[0], None)?;
 
                     futures_data.found_params.push(
                         FoundParameter::new(
@@ -253,18 +233,7 @@ pub async fn check_parameters<'a>(
                                 }
                             }
 
-                            write_and_save(
-                                &config,
-                                &response,
-                                format!(
-                                    "{}: page {} -> {} ({})",
-                                    &chunk[0],
-                                    request_defaults.initial_response.as_ref().unwrap().body.len(),
-                                    &response.body.len().to_string().bright_yellow(),
-                                    &diff
-                                ),
-                                &chunk[0]
-                            )?;
+                            response.write_and_save(config, ReasonKind::Text, &chunk[0], Some(&diff))?;
 
                             futures_data.found_params.push(
                                 FoundParameter::new(
