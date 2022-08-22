@@ -90,7 +90,8 @@ pub async fn check_parameters<'a>(
 
                         let mut kind = ReasonKind::Reflected;
                         // explained in response.proceed_reflected_parameters() method
-                        if chunk.len() == 2 {
+                        // chunk.len() == 1 and not 2 because the random parameter appends later
+                        if chunk.len() == 1 {
                             kind = ReasonKind::NotReflected;
                         }
 

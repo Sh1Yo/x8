@@ -602,7 +602,7 @@ impl<'a> Response<'a> {
 
     /// count how many times we can see the string in the response
     pub fn count(&self, string: &str) -> usize {
-        self.text.matches(string).count()
+        self.text.to_lowercase().matches(string).count()
     }
 
     /// calls check_diffs & returns code and found diffs
@@ -683,7 +683,12 @@ impl<'a> Response<'a> {
         };
 
         for (k, v) in prepated_parameters.iter() {
-            let new_count = self.count(v);
+            //TODO do sth about that initial_response because "unwrapping" it every time doesn't seem good
+            let new_count = self.count(v) - match self.request.defaults.initial_response.as_ref() {
+                Some(val) => val.count(v),
+                None => 0
+            };
+
             if self.request.defaults.amount_of_reflections != new_count {
                 self.reflected_parameters.insert(k.to_string(), new_count);
             }
@@ -693,10 +698,13 @@ impl<'a> Response<'a> {
     /// returns parameters with different amount of reflections and tells whether we need to recheck the remaining parameters
     pub fn proceed_reflected_parameters(&self) -> (Option<&str>, bool) {
 
-        // only one reflected parameter - return it
-        if self.reflected_parameters.len() == 1 {
+        if self.reflected_parameters.is_empty() {
+            return (None, false)
+
+         // only one reflected parameter - return it
+        } else if self.reflected_parameters.len() == 1 {
             return (Some(self.reflected_parameters.keys().next().unwrap()), false)
-        }
+        };
 
         // only one reflected parameter besides additional one - return it
         // this parameter caused other parameters to reflect different amount of times
@@ -719,11 +727,13 @@ impl<'a> Response<'a> {
         if parameters_by_reflections.len() == 2 {
             for (_, v) in parameters_by_reflections.iter() {
                 if v.len() == 1 {
+                    log::debug!("proceed_reflected_parameters - the reflections weren't stable, but parameter was catched");
                     return (Some(v[0]), true)
                 }
             }
         }
 
+        log::debug!("proceed_reflected_parameters - the reflections weren't stable");
         // the reflections weren't stable. It's better to recheck the parameters
         (None, true)
     }
@@ -755,7 +765,7 @@ impl<'a> Response<'a> {
                 diff.unwrap()
             ),
             ReasonKind::Reflected => format!("{}: {}", "reflects".bright_blue(), parameter),
-            ReasonKind::NotReflected => format!("{}: {}", "not reflected one".magenta(), parameter),
+            ReasonKind::NotReflected => format!("{}: {}", "not reflected one".bright_cyan(), parameter),
         };
 
         if config.verbose > 0 {
@@ -789,10 +799,10 @@ impl<'a> Response<'a> {
 
     pub fn code(&self) -> String {
         match self.kind() {
-            Status::Ok => self.code.to_string().green().to_string(),
-            Status::Redirect => self.code.to_string().blue().to_string(),
-            Status::UserFault => self.code.to_string().yellow().to_string(),
-            Status::ServerFault => self.code.to_string().red().to_string(),
+            Status::Ok => self.code.to_string().bright_green().to_string(),
+            Status::Redirect => self.code.to_string().bright_blue().to_string(),
+            Status::UserFault => self.code.to_string().bright_yellow().to_string(),
+            Status::ServerFault => self.code.to_string().bright_red().to_string(),
             Status::Other => self.code.to_string().magenta().to_string(),
         }
     }

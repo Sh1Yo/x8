@@ -132,7 +132,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
     initial_response.fill_reflected_parameters();
 
     //let reflections count = the number of reflections of the first parameter
-    let reflections_count = if initial_response.reflected_parameters.len() == 0 {
+    request_defaults.amount_of_reflections = if initial_response.reflected_parameters.len() == 0 {
         //by default reflection count is 0
         //that's why in case the initial_response.reflected_parameters is empty - every parameter was reflected 0 times
         0
@@ -143,7 +143,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
     };
 
     if config.verbose > 0 {
-        write_banner_response(&initial_response, reflections_count, &params);
+        write_banner_response(&initial_response, request_defaults.amount_of_reflections, &params);
     }
 
     request_defaults.initial_response = Some(initial_response);
