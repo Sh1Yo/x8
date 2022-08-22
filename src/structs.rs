@@ -189,7 +189,7 @@ impl<'a> RequestDefaults<'a> {
 
     /// recreates url
     pub fn url(&self) -> String {
-        format!("{}{}:{}{}", self.scheme, self.host, self.port, self.path)
+        format!("{}://{}:{}{}", self.scheme, self.host, self.port, self.path)
     }
 
     /// for testing purposes only
@@ -285,7 +285,7 @@ impl <'a>Request<'a> {
     }
 
     pub fn url(&self) -> String {
-        format!("{}{}:{}{}", &self.defaults.scheme, &self.defaults.host, &self.defaults.port, &self.path)
+        format!("{}://{}:{}{}", &self.defaults.scheme, &self.defaults.host, &self.defaults.port, &self.path)
     }
 
     pub fn make_query(&self) -> String {
@@ -403,6 +403,8 @@ impl <'a>Request<'a> {
         let additional_parameter = random_line(7);
 
         self.prepare(Some(&additional_parameter));
+
+        log::debug!("request:request url is {:?}", self.url());
 
         let mut request = http::Request::builder()
             .method(self.method.as_str())

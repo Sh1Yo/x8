@@ -286,16 +286,14 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
             injection_place
         )
     ) = if !request.is_empty() {
-        let mut proto = args.value_of("proto").ok_or("--proto wasn't provided")?.to_string();
+        let proto = args.value_of("proto").ok_or("--proto wasn't provided")?.to_string();
 
-        if !proto.ends_with("://") {
-            proto = proto + "://"
-        }
+        let scheme = proto.replace("://", "");
 
         let port: u16 = if args.value_of("port").is_some() {
             parse_int(&args, "port") as u16
         } else {
-            if proto == "https://" {
+            if scheme == "https" {
                 443
             } else {
                 80
@@ -303,7 +301,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         };
 
         (
-            proto,
+            scheme,
             port,
             parse_request(
                 &request,
@@ -377,7 +375,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
 
         let url = Url::parse(args.value_of("url").unwrap())?;
         (
-            url.scheme().to_string(),
+            url.scheme().to_string()+"://",
             url.port_or_known_default().ok_or("Wrong scheme")?,
             (
                 args.value_of("method").unwrap().to_string(),
