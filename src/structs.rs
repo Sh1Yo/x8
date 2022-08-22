@@ -840,35 +840,13 @@ impl<'a> Response<'a> {
 
     ///print the whole response
     pub fn print(&self) -> String {
-        let mut text: String = String::new();
-        text.push_str(&("Code: ".to_owned()+&(self.code.to_string()+"\n")));
-        for (k,v) in self.headers.iter() {
-            text.push_str(&k);
-            text.push_str(": ");
-            text.push_str(&v);
-            text.push('\n');
-        }
-        text.push('\n');
-        text.push_str(&self.text);
-        text
+        format!("HTTP/x {} \n{}", self.code, self.text)
     }
 
-        ///print the request and response
-        pub fn print_all(&mut self) -> String {
-
-            let mut text: String = self.request.print();
-
-            text.push_str(&("Code: ".to_owned()+&(self.code.to_string()+"\n")));
-            for (k,v) in self.headers.iter() {
-                text.push_str(&k);
-                text.push_str(": ");
-                text.push_str(&v);
-                text.push('\n');
-            }
-            text.push('\n');
-            text.push_str(&self.text);
-            text
-        }
+    ///print the request and response
+    pub fn print_all(&mut self) -> String {
+        self.request.print() + &self.print()
+    }
 }
 
 pub enum ReasonKind {
