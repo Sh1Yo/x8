@@ -54,7 +54,7 @@ pub async fn try_to_increase_max<'a>(
                                 .send()
                                 .await?;
 
-    let (is_code_the_same, new_diffs) = response.compare(&diffs)?;
+    let (is_code_different, new_diffs) = response.compare(&diffs)?;
     let mut is_the_body_the_same = true;
 
     if !new_diffs.is_empty() {
@@ -62,18 +62,19 @@ pub async fn try_to_increase_max<'a>(
     }
 
     //in case the page isn't different from previous one - try to increase max amount of parameters by 128
-    if is_code_the_same && (!stable.body || is_the_body_the_same) {
+    if !is_code_different && (!stable.body || is_the_body_the_same) {
+
         let response =  Request::new_random(&request_defaults, max + 128)
                 .send()
                 .await?;
 
-        let (is_code_the_same, new_diffs) = response.compare(&diffs)?;
+        let (is_code_different, new_diffs) = response.compare(&diffs)?;
 
         if !new_diffs.is_empty() {
             is_the_body_the_same = false;
         }
 
-        if is_code_the_same && (!stable.body || is_the_body_the_same) {
+        if !is_code_different && (!stable.body || is_the_body_the_same) {
             max += 128
         } else {
             max += 64

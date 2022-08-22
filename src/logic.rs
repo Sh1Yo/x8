@@ -28,9 +28,6 @@ pub async fn check_parameters<'a>(
     let all = params.len() / max;
     let mut count: usize = 0;
 
-    log::debug!("check_parameters:max is {}", max);
-    log::debug!("check_parameters:diffs are {:?}", diffs);
-
     //make diffs and green_lines accessable by all futures
     let shared_diffs = Arc::new(Mutex::new(diffs));
     let shared_green_lines = Arc::new(Mutex::new(green_lines));

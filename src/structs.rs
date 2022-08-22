@@ -386,8 +386,7 @@ impl <'a>Request<'a> {
         match self.clone().request(clients).await {
             Ok(val) => Ok(val),
             Err(err) => {
-                log::info!("send_by:request error - {}\nRepeat in 30 secs", err);
-                std::thread::sleep(Duration::from_secs(30));
+                std::thread::sleep(Duration::from_secs(10));
                 Ok(self.clone().request(clients).await?)
             }
         }
@@ -727,13 +726,11 @@ impl<'a> Response<'a> {
         if parameters_by_reflections.len() == 2 {
             for (_, v) in parameters_by_reflections.iter() {
                 if v.len() == 1 {
-                    log::debug!("proceed_reflected_parameters - the reflections weren't stable, but parameter was catched");
                     return (Some(v[0]), true)
                 }
             }
         }
 
-        log::debug!("proceed_reflected_parameters - the reflections weren't stable");
         // the reflections weren't stable. It's better to recheck the parameters
         (None, true)
     }
