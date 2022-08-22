@@ -248,7 +248,8 @@ impl <'a>Request<'a> {
 
         let mut headers = HashMap::from([
             ("User-Agent".to_string(), "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.82 Safari/537.36".to_string()),
-            ("Host".to_string(), l.host.to_owned())
+            //We don't need Host header in http/2. In http/1 it should be added automatically
+            //("Host".to_string(), l.host.to_owned())
         ]);
 
         for (k, v) in l.custom_headers.to_owned() {
@@ -479,7 +480,7 @@ impl <'a>Request<'a> {
     pub fn print(&mut self) -> String {
         self.prepare(Some(&random_line(5)));
 
-        let mut str_req = format!("{} {} HTTP/1.1\n", &self.method, self.path); //TODO identify HTTP version
+        let mut str_req = format!("{} {} HTTP/x\nHost: {}\n", &self.method, self.path, self.defaults.host); //TODO identify HTTP version
 
         for (k, v) in self.headers.iter().sorted() {
             str_req += &format!("{}: {}\n", k, v)
