@@ -12,6 +12,8 @@ use std::{
 };
 
 /// check parameters in a loop chunk by chunk
+/// probably way better to make it recursive
+/// but looks like it's not that easy to make recursive async funcs in rust that call other async funcs..
 pub async fn check_parameters<'a>(
     first: bool,
     config: &Config,
@@ -176,8 +178,7 @@ pub async fn check_parameters<'a>(
 
                     if config.strict {
                         let found_params = cloned_found_params.lock();
-                        if found_params.iter().any(|x| x.diffs == new_diffs.join("|"))
-                        || futures_data.found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
+                        if found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
                             log::debug!("skip branch due to --strict");
                             return Ok(futures_data);
                         } else {
@@ -238,13 +239,11 @@ pub async fn check_parameters<'a>(
 
                         let mut found_params = cloned_found_params.lock();
                         if chunk.len() == 1
-                        && !found_params.iter().any(|x| x.name == chunk[0])
-                        && !futures_data.found_params.iter().any(|x| x.name == chunk[0])  {
+                        && !found_params.iter().any(|x| x.name == chunk[0]) {
 
                             //we need to repeat this because futures are fast and a few same parameters can already be here
                             if config.strict {
-                                if found_params.iter().any(|x| x.diffs == new_diffs.join("|"))
-                                || futures_data.found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
+                                if found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
                                     log::debug!("skip branch due to --strict");
                                     return Ok(futures_data);
                                 } else {
