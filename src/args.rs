@@ -1,7 +1,7 @@
 use crate::{structs::{Config, InjectionPlace, RequestDefaults, DataType}, utils::parse_request};
 use clap::{crate_version, App, AppSettings, Arg};
 use reqwest::Client;
-use std::{collections::HashMap, fs, time::Duration, io::{self, Write}, error::Error};
+use std::{collections::HashMap, fs, time::Duration, error::Error};
 use url::Url;
 
 pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn Error>> {
@@ -260,11 +260,11 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         Err("A target was not provided")?;
     }
 
-    let delay = Duration::from_millis(parse_int(&args, "delay") as u64);
+    let delay = Duration::from_millis(parse_int(&args, "delay")? as u64);
 
-    let learn_requests_count = parse_int(&args, "learn_requests_count");
-    let concurrency = parse_int(&args, "concurrency");
-    let verbose = parse_int(&args, "verbose");
+    let learn_requests_count = parse_int(&args, "learn_requests_count")?;
+    let concurrency = parse_int(&args, "concurrency")?;
+    let verbose = parse_int(&args, "verbose")?;
 
     let request = match args.value_of("request") {
         Some(val) => fs::read_to_string(val)?,
@@ -291,7 +291,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         let scheme = proto.replace("://", "");
 
         let port: u16 = if args.value_of("port").is_some() {
-            parse_int(&args, "port") as u16
+            parse_int(&args, "port")? as u16
         } else {
             if scheme == "https" {
                 443
@@ -390,7 +390,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
     };
 
     let max: isize = if args.is_present("max") {
-        parse_int(&args, "max") as isize
+        parse_int(&args, "max")? as isize
     } else {
         match injection_place {
             InjectionPlace::Body => -512,
@@ -503,12 +503,9 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
 }
 
 //TODO remove this func and just use ?
-fn parse_int(args: &clap::ArgMatches, value: &str) -> usize {
+fn parse_int(args: &clap::ArgMatches, value: &str) -> Result<usize, Box<dyn Error>> {
     match args.value_of(value).unwrap().parse() {
-        Ok(val) => val,
-        Err(err) => {
-            writeln!(io::stderr(), "Unable to parse '{}' value: {}", value, err).ok();
-            std::process::exit(1);
-        }
+        Ok(val) => Ok(val),
+        Err(err) => Err(format!("Unable to parse '{}' value: {}", value, err))?
     }
 }
