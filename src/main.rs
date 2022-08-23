@@ -1,18 +1,19 @@
 extern crate x8;
-use reqwest::Client;
-use atty::Stream;
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
     io::{self, Write},
-    time::Duration, error::Error,
+    error::Error,
 };
+
+use atty::Stream;
+
 use x8::{
     args::get_config,
     logic::check_parameters,
     requests::{empty_reqs, verify, replay},
     structs::{Config, RequestDefaults, Request, InjectionPlace, FoundParameter},
-    utils::{write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output},
+    utils::{write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client},
 };
 
 #[cfg(windows)]
@@ -71,21 +72,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         params = read_stdin_lines();
     }
 
-    let mut replay_client = Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(Duration::from_secs(60))
-        .http1_title_case_headers()
-        .cookie_store(true)
-        .use_rustls_tls();
-
-    if !config.replay_proxy.is_empty() {
-        replay_client = replay_client.proxy(reqwest::Proxy::all(&config.replay_proxy).unwrap());
-    }
-    if !config.follow_redirects {
-        replay_client = replay_client.redirect(reqwest::redirect::Policy::none());
-    }
-
-    let replay_client = replay_client.build().unwrap();
+    let replay_client = create_client(&config.replay_proxy, config.follow_redirects)?;
 
     //get cookies
     Request::new(&request_defaults, Vec::new())

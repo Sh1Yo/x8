@@ -2,7 +2,9 @@ use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults
 
 use rand::Rng;
 use colored::*;
+use reqwest::Client;
 use std::error::Error;
+use std::time::Duration;
 use std::{
     collections::HashMap,
     fs::File,
@@ -231,6 +233,24 @@ pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_
             )
         },
     }
+}
+
+pub fn create_client(proxy: &str, follow_redirects: bool) -> Result<Client, Box<dyn Error>> {
+    let mut client = Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(Duration::from_secs(60))
+        .http1_title_case_headers()
+        .cookie_store(true)
+        .use_rustls_tls();
+
+    if !proxy.is_empty() {
+        client = client.proxy(reqwest::Proxy::all(proxy)?);
+    }
+    if !follow_redirects {
+        client = client.redirect(reqwest::redirect::Policy::none());
+    }
+
+    Ok(client.build()?)
 }
 
 /// writes request and response to a file

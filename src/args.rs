@@ -1,6 +1,5 @@
-use crate::{structs::{Config, InjectionPlace, RequestDefaults, DataType}, utils::parse_request};
+use crate::{structs::{Config, InjectionPlace, RequestDefaults, DataType}, utils::{parse_request, create_client}};
 use clap::{crate_version, App, AppSettings, Arg};
-use reqwest::Client;
 use std::{collections::HashMap, fs, time::Duration, error::Error};
 use url::Url;
 
@@ -466,23 +465,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         reflected_only: args.is_present("reflected-only")
     };
 
-    //build client
-    let mut client = Client::builder()
-        //.resolve("localhost", "127.0.0.1".parse().unwrap())
-        .danger_accept_invalid_certs(true)
-        .timeout(Duration::from_secs(60))
-        .http1_title_case_headers()
-        .cookie_store(true)
-        .use_rustls_tls();
-
-    if !config.proxy.is_empty() {
-        client = client.proxy(reqwest::Proxy::all(&config.proxy).unwrap());
-    }
-    if !config.follow_redirects {
-        client = client.redirect(reqwest::redirect::Policy::none());
-    }
-
-    let client = client.build()?;
+    let client = create_client(&config.proxy, config.follow_redirects)?;
 
     let request_defaults = RequestDefaults::new(
         &method,
