@@ -256,6 +256,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
             Arg::with_name("http")
                 .long("http")
                 .help("HTTP version. Supported versions: --http 1.1, --http 2")
+                .takes_value(true)
         );
 
     let args = app.clone().get_matches();
