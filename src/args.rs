@@ -251,6 +251,11 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
             Arg::with_name("reflected-only")
                 .long("reflected-only")
                 .help("Disable page comparison and search for reflected parameters only.")
+        )
+        .arg(
+            Arg::with_name("http")
+                .long("http")
+                .help("HTTP version. Supported versions: --http 1.1, --http 2")
         );
 
     let args = app.clone().get_matches();
@@ -462,10 +467,11 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         learn_requests_count,
         concurrency,
         verify: args.is_present("verify"),
-        reflected_only: args.is_present("reflected-only")
+        reflected_only: args.is_present("reflected-only"),
+        http: args.value_of("output").unwrap_or("").to_string(),
     };
 
-    let client = create_client(&config.proxy, config.follow_redirects)?;
+    let client = create_client(&config.proxy, config.follow_redirects, &config.http)?;
 
     let request_defaults = RequestDefaults::new(
         &method,

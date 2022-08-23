@@ -938,6 +938,9 @@ pub struct Config {
     //but in rare cases its number may be higher
     pub reflected_only: bool,
 
+    //http version. 1.1 or 2
+    pub http: String,
+
     pub follow_redirects: bool,
 }
 

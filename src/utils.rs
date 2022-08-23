@@ -1,16 +1,17 @@
-use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults, Request, Stable, FoundParameter};
-
-use rand::Rng;
-use colored::*;
-use reqwest::Client;
-use std::error::Error;
-use std::time::Duration;
 use std::{
     collections::HashMap,
     fs::File,
     io::{self, BufRead, Write},
     path::Path,
+    error::Error,
+    time::Duration,
 };
+
+use rand::Rng;
+use colored::*;
+use reqwest::Client;
+
+use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults, Request, Stable, FoundParameter};
 
 static RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -235,7 +236,7 @@ pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_
     }
 }
 
-pub fn create_client(proxy: &str, follow_redirects: bool) -> Result<Client, Box<dyn Error>> {
+pub fn create_client(proxy: &str, follow_redirects: bool, http: &str) -> Result<Client, Box<dyn Error>> {
     let mut client = Client::builder()
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(60))
@@ -248,6 +249,14 @@ pub fn create_client(proxy: &str, follow_redirects: bool) -> Result<Client, Box<
     }
     if !follow_redirects {
         client = client.redirect(reqwest::redirect::Policy::none());
+    }
+
+    if !http.is_empty() {
+        match http {
+            "1.1" =>  client = client.http1_only(),
+            "2" => client = client.http2_prior_knowledge(),
+            _ => writeln!(io::stdout(), "[#] Incorrect http version provided. The argument is ignored").unwrap_or(()),
+        }
     }
 
     Ok(client.build()?)
