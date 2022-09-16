@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     time::{Duration, Instant},
     convert::TryFrom, error::Error, iter::FromIterator, io::{self, Write}
 };
@@ -36,7 +36,7 @@ pub struct RequestDefaults<'a> {
     pub path: String,
     pub host: String,
     pub port: u16,
-    pub custom_headers: HashMap<String, String>,
+    pub custom_headers: Vec<(String, String)>,
     pub delay: Duration,
     pub initial_response: Option<Response<'a>>,
     pub client: Client,
@@ -56,7 +56,7 @@ impl<'a> Default for RequestDefaults<'a> {
             scheme: "https".to_string(),
             path: "/".to_string(),
             host: "example.com".to_string(),
-            custom_headers: HashMap::new(),
+            custom_headers: Vec::new(),
             port: 443,
             delay: Duration::from_millis(0),
             initial_response: None,
@@ -100,7 +100,7 @@ impl<'a> RequestDefaults<'a> {
             (url.path().to_string(), body.to_owned())
         };
 
-        let custom_headers: HashMap<String, String> = custom_headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let custom_headers: Vec<(String, String)> = custom_headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
 
         Ok(Self{
             method: method.to_string(),
@@ -233,7 +233,7 @@ pub struct Request<'a> {
     pub path: String,
     pub method: String,
 
-    headers: HashMap<String, String>,
+    headers: Vec<(String, String)>,
     parameters: Vec<String>, //vector of supplied parameters
     prepared_parameters: HashMap<String, String>, //parsed parameters
     non_random_parameters: HashMap<String, String>, //parameters with not random values (in order to remove false positive reflections)
@@ -246,14 +246,14 @@ impl <'a>Request<'a> {
 
     pub fn new(l: &'a RequestDefaults, parameters: Vec<String>) -> Self {
 
-        let mut headers = HashMap::from([
+        let mut headers = Vec::from([
             ("User-Agent".to_string(), "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.82 Safari/537.36".to_string()),
             //We don't need Host header in http/2. In http/1 it should be added automatically
             //("Host".to_string(), l.host.to_owned())
         ]);
 
         for (k, v) in l.custom_headers.to_owned() {
-            headers.insert(k, v);
+            headers.push((k, v));
         }
 
         Self{
@@ -276,12 +276,12 @@ impl <'a>Request<'a> {
     }
 
     pub fn set_header<S: Into<String>>(&mut self, key: S, value: S) {
-        self.headers.insert(key.into(), value.into());
+        self.headers.push((key.into(), value.into()));
     }
 
     pub fn set_headers(&mut self, headers: HashMap<String, String>) {
         for (k, v) in headers {
-            self.headers.insert(k, v);
+            self.headers.push((k, v));
         }
     }
 
@@ -426,18 +426,13 @@ impl <'a>Request<'a> {
 
         let duration = start.elapsed();
 
-        let mut headers: BTreeMap<String, String> = BTreeMap::new();
+        let mut headers: Vec<(String, String)> = Vec::new();
 
         for (k, v) in res.headers() {
             let k = k.to_string();
             let v = v.to_str().unwrap().to_string();
 
-            if headers.contains_key(&k) {
-                //mostly for Set-Cookie headers
-                headers.insert(k.to_owned(), [headers[&k].to_owned(), v].join("\n"));
-            } else {
-                headers.insert(k, v);
-            }
+            headers.push((k, v));
         }
 
         let code = res.status().as_u16();
@@ -469,7 +464,7 @@ impl <'a>Request<'a> {
         Response {
             time: 0,
             code: 0,
-            headers: BTreeMap::new(),
+            headers: Vec::new(),
             text: String::new(),
             reflected_parameters: HashMap::new(),
             additional_parameter: String::new(),
@@ -496,7 +491,7 @@ impl <'a>Request<'a> {
 mod tests {
     use std::{collections::HashMap, time::Duration};
 
-    use crate::structs::{RequestDefaults, Request, InjectionPlace, DataType};
+    use crate::structs::{RequestDefaults, Request, InjectionPlace, DataType, Headers};
 
     #[test]
     fn query_creation() {
@@ -529,7 +524,7 @@ mod tests {
         assert_eq!(defaults.host, "example.com");
         assert_eq!(defaults.port, 8443);
         assert_eq!(defaults.path, "/path?%s");
-        assert_eq!(defaults.custom_headers["X-Header"], "Value");
+        assert_eq!(defaults.custom_headers.get_value("X-Header").unwrap(), "Value");
         assert_eq!(defaults.template, "{k}={v}");
         assert_eq!(defaults.joiner, "&");
         assert_eq!(defaults.injection_place, InjectionPlace::Path);
@@ -591,7 +586,7 @@ mod tests {
 pub struct Response<'a> {
     pub time: u128,
     pub code: u16,
-    pub headers: BTreeMap<String, String>,
+    pub headers: Vec<(String, String)>,
     pub text: String,
     pub reflected_parameters: HashMap<String, usize>, //<parameter, amount of reflections>
     pub additional_parameter: String,
@@ -650,7 +645,7 @@ impl<'a> Response<'a> {
         }
 
         self.text
-            = if (self.headers.contains_key("content-type") && self.headers["content-type"].contains("json"))
+            = if (self.headers.contains_key("content-type") && self.headers.get_value_case_insensitive("content-type").unwrap().contains("json"))
             || (self.text.starts_with("{") && self.text.ends_with("}")) {
             let body = self.text
                                     .replace("\\\"", "'")
@@ -965,4 +960,41 @@ impl FoundParameter {
             reason: reason.into()
         }
     }
+}
+
+trait Headers {
+    fn contains_key(&self, key: &str) -> bool;
+    fn get_value(&self, key: &str) -> Option<String>;
+    fn get_value_case_insensitive(&self, key: &str) -> Option<String>;
+}
+
+impl Headers for Vec<(String, String)> {
+    fn contains_key(&self, key: &str) -> bool {
+        for (k, _) in self.iter() {
+            if k == key {
+                return true
+            }
+        }
+        false
+    }
+
+    fn get_value(&self, key: &str) -> Option<String> {
+        for (k, v) in self.iter() {
+            if k == key {
+                return Some(v.to_owned())
+            }
+        }
+        None
+    }
+
+    fn get_value_case_insensitive(&self, key: &str) -> Option<String> {
+        let key = key.to_lowercase();
+        for (k, v) in self.iter() {
+            if k.to_lowercase() == key {
+                return Some(v.to_owned())
+            }
+        }
+        None
+    }
+
 }
