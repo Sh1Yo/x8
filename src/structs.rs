@@ -498,10 +498,11 @@ mod tests {
         let mut l = RequestDefaults::default();
         l.template = "{k}=payload".to_string();
         l.joiner = "&".to_string();
-        let parameters = vec!["test1".to_string(), "test2".to_string()];
-        let request = Request::new(&l, parameters);
+        let parameters = vec!["test1".to_string()];
+        let mut request = Request::new(&l, parameters);
+        request.prepare(None);
 
-        assert_eq!(request.make_query(), "test1=payload&test2=payload");
+        assert_eq!(request.make_query(), "test1=payload");
     }
 
     #[test]
@@ -569,16 +570,16 @@ mod tests {
         template.injection_place = InjectionPlace::Body;
         template.body = "{\"something\":[%s]}".to_string();
         let defaults = template.recreate(None, Some("\"{k}\""), Some(", "));
-        let params = vec!["param1".to_string(), "param2".to_string()];
+        let params = vec!["param1".to_string()];
         let mut request = Request::new(&defaults, params.clone());
         request.prepare(None);
-        assert_eq!(request.body, "{\"something\":[\"param1\", \"param2\"]}");
+        assert_eq!(request.body, "{\"something\":[\"param1\"]}");
 
         template.body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><note>%s</note>".to_string();
         let defaults = template.recreate(None, Some("<{k}>sth</{k}>"), Some(""));
         let mut request = Request::new(&defaults, params);
         request.prepare(None);
-        assert_eq!(request.body, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><note><param1>sth</param1><param2>sth</param2></note>");
+        assert_eq!(request.body, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><note><param1>sth</param1></note>");
     }
 }
 
