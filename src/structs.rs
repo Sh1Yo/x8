@@ -234,7 +234,7 @@ pub struct Request<'a> {
     pub method: String,
 
     headers: HashMap<String, String>,
-    parameters: Box<Vec<String>>, //vector of supplied parameters
+    parameters: Vec<String>, //vector of supplied parameters
     prepared_parameters: HashMap<String, String>, //parsed parameters
     non_random_parameters: HashMap<String, String>, //parameters with not random values (in order to remove false positive reflections)
     body: String,
@@ -262,7 +262,7 @@ impl <'a>Request<'a> {
             path: l.path.to_owned(),
             headers,
             body: String::new(),
-            parameters: Box::new(parameters),
+            parameters: parameters,
             prepared_parameters: HashMap::new(),
             non_random_parameters: HashMap::new(),
             delay: l.delay,
