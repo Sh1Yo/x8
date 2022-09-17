@@ -105,6 +105,14 @@ pub fn get_config() -> (Config, usize) {
                 .takes_value(true)
         )
         .arg(
+            Arg::with_name("timeout")
+                .long("timeout")
+                .value_name("timeout")
+                .help("HTTP request timeout in seconds.")
+                .default_value("5")
+                .takes_value(true)
+        )
+        .arg(
             Arg::with_name("headers")
                 .short("H")
                 .help("Example: -H 'one:one' 'two:two'")
@@ -283,6 +291,7 @@ pub fn get_config() -> (Config, usize) {
     let learn_requests_count = parse_int(&args, "learn_requests_count");
     let concurrency = parse_int(&args, "concurrency");
     let verbose = parse_int(&args, "verbose");
+    let timeout = parse_int(&args, "timeout");
 
     let mut headers: HashMap<String, String> = HashMap::new();
     let mut within_headers: bool = false;
@@ -503,6 +512,7 @@ pub fn get_config() -> (Config, usize) {
         is_json: args.is_present("is-json"),
         test: args.is_present("test"),
         verbose,
+        timeout,
         disable_cachebuster: args.is_present("disable-cachebuster"),
         delay,
         value_size,

@@ -90,7 +90,8 @@ async fn run() {
     let mut client = Client::builder()
         //.resolve("localhost", "127.0.0.1".parse().unwrap())
         .danger_accept_invalid_certs(true)
-        .timeout(Duration::from_secs(60))
+        .timeout(Duration::from_secs(config.timeout as u64))
+        .connect_timeout(Duration::from_secs(config.timeout as u64))
         .http1_title_case_headers()
         .cookie_store(true)
         .use_rustls_tls();
@@ -106,7 +107,8 @@ async fn run() {
 
     let mut replay_client = Client::builder()
         .danger_accept_invalid_certs(true)
-        .timeout(Duration::from_secs(60))
+        .timeout(Duration::from_secs(config.timeout as u64))
+        .connect_timeout(Duration::from_secs(config.timeout as u64))
         .http1_title_case_headers()
         .cookie_store(true)
         .use_rustls_tls();

@@ -190,6 +190,8 @@ OPTIONS:
 
     -r, --request <request>                                 The file with the raw http request
         --save-responses <save-responses>                   Save matched responses to a directory
+        
+        --timeout <timeout>                                 HTTP request timeout in seconds. [default: 5]
     -u, --url <url>                                         You can add a custom injection point with %s.
         --value-size <value_size>
             Custom value size. Affects {{random}} variables as well [default: 7]
