@@ -248,21 +248,9 @@ pub async fn request(
                                     code: 0,
                                     reflected_params: HashMap::new(),
                                 }),
-                Err(err) => {
-                    writeln!(io::stderr(), "[!] {} {:?}", url, err).ok();
-                    writeln!(io::stderr(), "[~] error at the {} observed. Wait 50 sec and repeat.", config.url).ok();
-                    std::thread::sleep(Duration::from_secs(50));
-                    match create_request(config, random_query, &hashmap_query, client).send().await {
-                        Ok(_) => return Some(ResponseData {
-                            text: String::new(),
-                            code: 0,
-                            reflected_params: HashMap::new(),
-                        }),
-                        Err(_) => {
-                            writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
-                            std::process::exit(1);
-                        }
-                    }
+                Err(_err) => {
+                    writeln!(io::stderr(), "[!] unable to reach {}", config.url).ok();
+                    std::process::exit(1);
                 }
             }
         }
