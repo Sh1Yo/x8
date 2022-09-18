@@ -236,10 +236,10 @@ pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_
     }
 }
 
-pub fn create_client(proxy: &str, follow_redirects: bool, http: &str) -> Result<Client, Box<dyn Error>> {
+pub fn create_client(proxy: &str, follow_redirects: bool, http: &str, timeout: usize) -> Result<Client, Box<dyn Error>> {
     let mut client = Client::builder()
         .danger_accept_invalid_certs(true)
-        .timeout(Duration::from_secs(60))
+        .timeout(Duration::from_secs(timeout as u64))
         .http1_title_case_headers()
         .cookie_store(true)
         .use_rustls_tls();

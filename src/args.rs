@@ -236,6 +236,13 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
                 .takes_value(true)
         )
         .arg(
+            Arg::with_name("timeout")
+                .long("timeout")
+                .help("HTTP request timeout in seconds.")
+                .default_value("15")
+                .takes_value(true)
+        )
+        .arg(
             Arg::with_name("concurrency")
                 .short("c")
                 .help("The number of concurrent requests")
@@ -270,6 +277,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
     let learn_requests_count = args.value_of("learn_requests_count").unwrap().parse()?;
     let concurrency = args.value_of("concurrency").unwrap().parse()?;
     let verbose = args.value_of("verbose").unwrap().parse()?;
+    let timeout = args.value_of("timeout").unwrap().parse()?;
 
     let request = match args.value_of("request") {
         Some(val) => fs::read_to_string(val)?,
@@ -467,12 +475,13 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         verbose,
         learn_requests_count,
         concurrency,
+        timeout,
         verify: args.is_present("verify"),
         reflected_only: args.is_present("reflected-only"),
         http: args.value_of("output").unwrap_or("").to_string(),
     };
 
-    let client = create_client(&config.proxy, config.follow_redirects, &config.http)?;
+    let client = create_client(&config.proxy, config.follow_redirects, &config.http, config.timeout)?;
 
     let request_defaults = RequestDefaults::new(
         &method,

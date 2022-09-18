@@ -144,6 +144,9 @@ pub struct Config {
     //amount of concurrent requests
     pub concurrency: usize,
 
+    //http request timeout in seconds
+    pub timeout: usize,
+
     //whether the verify found parameters one time more.
     //in future - check for _false_potives like when every parameter that starts with _ is found
     pub verify: bool,

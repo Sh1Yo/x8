@@ -72,7 +72,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         params = read_stdin_lines();
     }
 
-    let replay_client = create_client(&config.replay_proxy, config.follow_redirects, &config.http)?;
+    let replay_client = create_client(&config.replay_proxy, config.follow_redirects, &config.http, config.timeout)?;
 
     //get cookies
     Request::new(&request_defaults, Vec::new())
