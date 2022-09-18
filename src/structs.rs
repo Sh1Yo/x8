@@ -7,22 +7,52 @@ use reqwest::Client;
 
 #[derive(Debug, Clone)]
 pub struct RequestDefaults<'a> {
+    //default request data
     pub method: String,
     pub scheme: String,
     pub path: String,
     pub host: String,
     pub port: u16,
+
+    //custom user supplied headers or default ones
     pub custom_headers: Vec<(String, String)>,
+
+    //how much to sleep between requests in millisecs
     pub delay: Duration,
+
+    //the initial response to compare with.
+    //can be None at the start when no requests were made yet
+    //probably better to adjust the logic and keep just Response
     pub initial_response: Option<Response<'a>>,
+
+    //default reqwest client
     pub client: Client,
+
+    //parameter template, for example %k=%v
     pub template: String,
+
+    //how to join parameters, for example '&'
     pub joiner: String,
+
+    //whether to encode the query like param1=value1&param2=value2 -> param1%3dvalue1%26param2%3dvalue2
     pub encode: bool,
-    pub is_json: bool, //to replace {"key": "false"} with {"key": false}
+
+    //to replace {"key": "false"} with {"key": false}
+    pub is_json: bool,
+
+    //default body
     pub body: String,
+
+    //parameters to add to every request
+    //it is used in recursive search
+    pub parameters: HashMap<String, String>,
+
+    //where the injection point is
     pub injection_place: InjectionPlace,
+
+    //the default amount of reflection per non existing parameter
     pub amount_of_reflections: usize
+
 }
 
 pub enum DataType {
@@ -65,6 +95,7 @@ pub struct Response<'a> {
     pub request: Request<'a>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum ReasonKind {
     Code,
     Text,
@@ -141,6 +172,10 @@ pub struct Config {
     //doesn't include first two requests made for cookies and initial response
     pub learn_requests_count: usize,
 
+    //check the same list of parameters with the found parameters until there are no new parameters to be found.
+    //conflicts with --verify for now. Will be changed in the future.
+    pub recursive_depth: usize,
+
     //amount of concurrent requests
     pub concurrency: usize,
 
@@ -173,14 +208,16 @@ pub struct FoundParameter {
     pub name: String,
     pub diffs: String,
     pub reason: String,
+    pub reason_kind: ReasonKind
 }
 
 impl FoundParameter {
-    pub fn new<S: Into<String>>(name: S, diffs: &Vec<String>, reason: S) -> Self {
+    pub fn new<S: Into<String>>(name: S, diffs: &Vec<String>, reason: S, reason_kind: ReasonKind) -> Self {
         Self {
             name: name.into(),
             diffs: diffs.join("|"),
-            reason: reason.into()
+            reason: reason.into(),
+            reason_kind
         }
     }
 }

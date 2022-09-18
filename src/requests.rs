@@ -178,7 +178,7 @@ impl <'a>Request<'a> {
             headers,
             body: String::new(),
             parameters: parameters,
-            prepared_parameters: HashMap::new(),
+            prepared_parameters: l.parameters.clone(),
             non_random_parameters: HashMap::new(),
             delay: l.delay,
             prepared: false
@@ -243,16 +243,23 @@ impl <'a>Request<'a> {
         );
 
         self.prepared_parameters = HashMap::from_iter(
-            self.parameters
+            //append self.prepared_parameters (can be set from RequestDefaults using recursive search)
+            self.prepared_parameters
                 .iter()
-                .chain([additional_param.unwrap_or(&String::new())])
-                .filter(|x| !x.is_empty() && !x.contains("%=%"))
-                .map(|x| (x.to_owned(), random_line(5)))
+                .map(|(k, v)| (k.to_owned(), v.to_owned()))
                 //append parameters with not random values
                 .chain(
                     self.non_random_parameters
                         .iter()
                         .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                )
+                //append random parameters
+                .chain(
+                    self.parameters
+                        .iter()
+                        .chain([additional_param.unwrap_or(&String::new())])
+                        .filter(|x| !x.is_empty() && !x.contains("%=%"))
+                        .map(|x| (x.to_owned(), random_line(5)))
                 )
         );
 
@@ -515,6 +522,7 @@ impl<'a> Default for RequestDefaults<'a> {
             is_json: false,
             encode: false,
             body: String::new(),
+            parameters: HashMap::new(),
             injection_place: InjectionPlace::Path,
             amount_of_reflections: 0
         }
@@ -566,9 +574,12 @@ impl<'a> RequestDefaults<'a> {
             is_json,
             body,
             injection_place,
+
             //to fill after the first request
             initial_response: None,
-            amount_of_reflections: 0
+            amount_of_reflections: 0,
+
+            parameters: HashMap::new(),
         })
     }
 

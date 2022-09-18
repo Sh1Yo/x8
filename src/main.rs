@@ -3,24 +3,25 @@ use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
     io::{self, Write},
-    error::Error,
+    error::Error, iter::FromIterator,
 };
 
 use atty::Stream;
 
+use reqwest::Client;
 use x8::{
     args::get_config,
     logic::check_parameters,
     requests::{empty_reqs, verify, replay},
-    structs::{Config, RequestDefaults, Request, InjectionPlace, FoundParameter},
-    utils::{write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client},
+    structs::{Config, RequestDefaults, Request, InjectionPlace, FoundParameter, ReasonKind},
+    utils::{write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client, random_line},
 };
 
 #[cfg(windows)]
 #[tokio::main]
 async fn main() {
     colored::control::set_virtual_terminal(true).unwrap();
-    std::process::exit(match run().await {
+    std::process::exit(match init().await {
         Ok(_) => 0,
         Err(err) => {
             eprintln!("{:?}", err);
@@ -32,7 +33,7 @@ async fn main() {
 #[cfg(not(windows))]
 #[tokio::main]
 async fn main() {
-    std::process::exit(match run().await {
+    std::process::exit(match init().await {
         Ok(_) => 0,
         Err(err) => {
             eprintln!("{:?}", err);
@@ -41,15 +42,10 @@ async fn main() {
     });
 }
 
-async fn run() -> Result<(), Box<dyn Error>> {
+async fn init() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    //saves false-positive diffs
-    let mut green_lines: HashMap<String, usize> = HashMap::new();
-
-    let (config, mut request_defaults, mut default_max): (Config, RequestDefaults, isize) = get_config()?;
-    //default_max can be negative in case guessed automatucally.
-    let mut max = default_max.abs() as usize;
+    let (config, mut request_defaults, default_max): (Config, RequestDefaults, isize) = get_config()?;
 
     if config.verbose > 0 && !config.test {
         write_banner(&config, &request_defaults);
@@ -91,6 +87,93 @@ async fn run() -> Result<(), Box<dyn Error>> {
         ).ok();
         return Ok(())
     }
+
+    let mut all_found_params = Vec::new();
+    let mut local_recursive_depth = 0;
+
+    //run parameter discovery in a loop
+    //in case config.recursive_depth = 0 (default) it makes only one iteration
+    //otherwise till local_recursive_depth reaches  config.recursive_depth
+    loop {
+        request_defaults.parameters = HashMap::from_iter(
+            //TODO check parameters that change code in a different loop
+            all_found_params
+                .iter()
+                .filter(|x: &&FoundParameter| x.reason_kind != ReasonKind::Code)
+                .map(|x: &FoundParameter| (x.name.to_owned(), random_line(5)))
+        );
+
+        let found_params = run(&config, request_defaults.clone(), &replay_client, params.clone(), default_max).await?;
+
+        // to understand whether to make another iteration
+        // there's no sense in proceeding in case no new parameters were found in the previous iteration
+        let mut new_found = false;
+
+        //add new found_params to all_found_params
+        for param in found_params {
+            if !all_found_params.iter().any(|x: &FoundParameter| x.name == param.name) {
+                all_found_params.push(param);
+                new_found = true;
+            }
+        }
+
+        //check recursion
+        if new_found && local_recursive_depth < config.recursive_depth {
+
+            //remove found params from the initial params vec and run yet one iteration
+            for param in all_found_params.iter() {
+                if let Some(index) = params.iter().position(|value| value == &param.name) {
+                    params.swap_remove(index);
+                }
+            }
+
+            if config.verbose > 0 {
+                writeln!(io::stdout(),"[#] recursive search").ok();
+            }
+
+            local_recursive_depth += 1;
+            continue
+        }
+
+        break
+    }
+
+    let output = create_output(&config, &request_defaults, all_found_params);
+
+    if !config.output_file.is_empty() {
+        let mut file = OpenOptions::new();
+
+        let file = if config.append {
+            file.write(true).append(true)
+        } else {
+            file.write(true).truncate(true)
+        };
+
+        let mut file = match file.open(&config.output_file) {
+            Ok(file) => file,
+            Err(_) => fs::File::create(&config.output_file)?
+        };
+
+        write!(file, "{}" , output)?;
+    }
+    write!(io::stdout(), "\n{}", &output).ok();
+
+    Ok(())
+}
+
+async fn run(
+    config: &Config,
+    mut request_defaults: RequestDefaults<'_>,
+    replay_client: &Client,
+    mut params: Vec<String>,
+    mut default_max: isize,
+) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
+    //saves false-positive diffs
+    let mut green_lines: HashMap<String, usize> = HashMap::new();
+
+    //default_max can be negative in case guessed automatically.
+    let mut max = default_max.abs() as usize;
+
 
     //make first request and collect some information like code, reflections, possible parameters
     let cloned_request_defaults = request_defaults.clone();
@@ -152,6 +235,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         max = try_to_increase_max(&request_defaults, &diffs, max, &stable).await?;
 
         if max != default_max.abs() as usize && config.verbose > 0 {
+            default_max = max as isize;
             writeln!(
                 io::stdout(),
                 "[#] the max amount of parameters in every request was increased to {}",
@@ -160,11 +244,23 @@ async fn run() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    //parameters like admin=true
     let mut custom_parameters: HashMap<String, Vec<String>> = config.custom_parameters.clone();
+
+    //remaining sets of parameters where new parameters can be found
     let mut remaining_params: Vec<Vec<String>> = Vec::new();
+
+    //all found parameters
     let mut found_params: Vec<FoundParameter> = Vec::new();
+
+    //whether it's the first run. Changes some logic in check_parameters function
     let mut first: bool = true;
+
+    //the initial size of parameters' sets (the amount of requests to be send in the one loop iteration)
     let initial_size: usize = params.len() / max;
+
+    //how many times subsets of the same parameters were checked
+    //helps to detect infinity loops that can happen in rare cases
     let mut count: usize = 0;
 
     loop {
@@ -226,6 +322,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
             }
         }
 
+        //TODO move them somwhere else because they break recursion things
         //check custom parameters like admin=true
         if params.is_empty() && !config.disable_custom_parameters {
             max = default_max.abs() as usize;
@@ -266,25 +363,5 @@ async fn run() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let output = create_output(&config, &request_defaults, found_params);
-
-    if !config.output_file.is_empty() {
-        let mut file = OpenOptions::new();
-
-        let file = if config.append {
-            file.write(true).append(true)
-        } else {
-            file.write(true).truncate(true)
-        };
-
-        let mut file = match file.open(&config.output_file) {
-            Ok(file) => file,
-            Err(_) => fs::File::create(&config.output_file)?
-        };
-
-        write!(file, "{}" , output)?;
-    }
-    write!(io::stdout(), "\n{}", &output).ok();
-
-    Ok(())
+    Ok(found_params)
 }

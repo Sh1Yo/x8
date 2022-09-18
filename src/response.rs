@@ -156,9 +156,9 @@ impl<'a> Response<'a> {
     }
 
     /// write about found parameter to stdout and save when needed
-    pub fn write_and_save(&self, config: &Config, reason: ReasonKind, parameter: &str, diff: Option<&str>) -> Result<(), Box<dyn Error>> {
+    pub fn write_and_save(&self, config: &Config, reason_kind: ReasonKind, parameter: &str, diff: Option<&str>) -> Result<(), Box<dyn Error>> {
 
-        let mut message = match reason {
+        let mut message = match reason_kind {
             ReasonKind::Code => format!(
                 "{}: code {} -> {}",
                 &parameter,

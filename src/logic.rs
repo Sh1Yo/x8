@@ -87,18 +87,20 @@ pub async fn check_parameters<'a>(
                     let mut found_params = cloned_found_params.lock();
                     if !found_params.iter().any(|x| x.name == reflected_parameter) {
 
-                        found_params.push(
-                            FoundParameter::new(reflected_parameter, &vec!["reflected".to_string()], "Different amount of reflections")
-                        );
-
-                        drop(found_params);
-
                         let mut kind = ReasonKind::Reflected;
                         // explained in response.proceed_reflected_parameters() method
                         // chunk.len() == 1 and not 2 because the random parameter appends later
                         if chunk.len() == 1 {
                             kind = ReasonKind::NotReflected;
                         }
+
+                        found_params.push(
+                            FoundParameter::new(
+                                reflected_parameter, &vec!["reflected".to_string()], "Different amount of reflections", kind.clone()
+                            )
+                        );
+
+                        drop(found_params);
 
                         response.write_and_save(config, kind, &reflected_parameter, None)?;
                     }
@@ -161,7 +163,8 @@ pub async fn check_parameters<'a>(
                         FoundParameter::new(
                             &chunk[0],
                             &vec![format!("{} -> {}", request_defaults.initial_response.as_ref().unwrap().code, response.code)],
-                            &format!("Changes code: {} -> {}", request_defaults.initial_response.as_ref().unwrap().code, response.code)
+                            &format!("Changes code: {} -> {}", request_defaults.initial_response.as_ref().unwrap().code, response.code),
+                            ReasonKind::Code
                         )
                     );
                 } else {
@@ -257,7 +260,8 @@ pub async fn check_parameters<'a>(
                                 FoundParameter::new(
                                     &chunk[0],
                                     &new_diffs,
-                                    &format!("Changes page: {} -> {}", request_defaults.initial_response.as_ref().unwrap().text.len(), response.text.len())
+                                    &format!("Changes page: {} -> {}", request_defaults.initial_response.as_ref().unwrap().text.len(), response.text.len()),
+                                    ReasonKind::Text
                                 )
                             );
                             break;
