@@ -265,11 +265,11 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         Err("A target was not provided")?;
     }
 
-    let delay = Duration::from_millis(parse_int(&args, "delay")? as u64);
+    let delay = Duration::from_millis(args.value_of("delay").unwrap().parse()?);
 
-    let learn_requests_count = parse_int(&args, "learn_requests_count")?;
-    let concurrency = parse_int(&args, "concurrency")?;
-    let verbose = parse_int(&args, "verbose")?;
+    let learn_requests_count = args.value_of("learn_requests_count").unwrap().parse()?;
+    let concurrency = args.value_of("concurrency").unwrap().parse()?;
+    let verbose = args.value_of("verbose").unwrap().parse()?;
 
     let request = match args.value_of("request") {
         Some(val) => fs::read_to_string(val)?,
@@ -296,7 +296,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
         let scheme = proto.replace("://", "");
 
         let port: u16 = if args.value_of("port").is_some() {
-            parse_int(&args, "port")? as u16
+            args.value_of("port").unwrap().parse()?
         } else {
             if scheme == "https" {
                 443
@@ -395,7 +395,7 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
     };
 
     let max: isize = if args.is_present("max") {
-        parse_int(&args, "max")? as isize
+        args.value_of("max").unwrap().parse()?
     } else {
         match injection_place {
             InjectionPlace::Body => -512,
@@ -490,12 +490,4 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
 
 
     Ok((config, request_defaults, max))
-}
-
-//TODO remove this func and just use ?
-fn parse_int(args: &clap::ArgMatches, value: &str) -> Result<usize, Box<dyn Error>> {
-    match args.value_of(value).unwrap().parse() {
-        Ok(val) => Ok(val),
-        Err(err) => Err(format!("Unable to parse '{}' value: {}", value, err))?
-    }
 }
