@@ -11,7 +11,7 @@ use rand::Rng;
 use colored::*;
 use reqwest::Client;
 
-use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults, Request, Stable, FoundParameter};
+use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults, Request, Stable, FoundParameter, ReasonKind};
 
 static RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -46,6 +46,52 @@ pub fn write_banner_response(initial_response: &Response, reflections_count: usi
         &"Words".magenta(),
         &params.len().to_string().green(),
     ).ok();
+}
+
+/// notify about found parameters
+pub fn notify(config: &Config, reason_kind: ReasonKind, response: &Response, diffs: Option<&String>) {
+    if config.verbose > 1 {
+        match reason_kind {
+            ReasonKind::Code => writeln!(
+                io::stdout(),
+                "{} {}     ", //a few spaces to remove some chars of progress bar
+                response.code(),
+                response.text.len()
+            ).unwrap_or(()),
+            ReasonKind::Text => writeln!(
+                io::stdout(),
+                "{} {} ({})", //a few spaces to remove some chars of progress bar
+                response.code,
+                response.text.len().to_string().bright_yellow(),
+                diffs.unwrap()
+            ).unwrap_or(()),
+            _ => unreachable!()
+        }
+    }
+}
+
+pub fn info<S: std::fmt::Display>(config: &Config, msg: S) {
+    if config.verbose > 0 {
+        writeln!(io::stdout(), "{} {}", "[$]".yellow(), msg).ok();
+    }
+}
+
+pub fn error<S: std::fmt::Display>(msg: S) {
+    writeln!(io::stderr(), "{} {}", "[#]".red(), msg).ok();
+}
+
+pub fn progress_bar(config: &Config, count: usize, all: usize) {
+    if config.verbose > 0 && !config.disable_progress_bar {
+        write!(
+            io::stdout(),
+            "{} {}/{}         \r",
+            &"-> ".bright_yellow(),
+            count,
+            all
+        ).ok();
+
+        io::stdout().flush().ok();
+    }
 }
 
 /// checks whether increasing the amount of parameters changes the page

@@ -14,7 +14,7 @@ use x8::{
     logic::check_parameters,
     requests::{empty_reqs, verify, replay},
     structs::{Config, RequestDefaults, Request, InjectionPlace, FoundParameter, ReasonKind},
-    utils::{write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client, random_line},
+    utils::{self, write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client, random_line},
 };
 
 #[cfg(windows)]
@@ -24,7 +24,7 @@ async fn main() {
     std::process::exit(match init().await {
         Ok(_) => 0,
         Err(err) => {
-            eprintln!("{:?}", err);
+            utils::error(err);
             1
         }
     });
@@ -36,7 +36,7 @@ async fn main() {
     std::process::exit(match init().await {
         Ok(_) => 0,
         Err(err) => {
-            eprintln!("{:?}", err);
+            utils::error(err);
             1
         }
     });
@@ -127,11 +127,10 @@ async fn init() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            if config.verbose > 0 {
-                writeln!(io::stdout(),"[#] recursive search").ok();
-            }
-
             local_recursive_depth += 1;
+
+            utils::info(&config, format!("recursive search: {}", local_recursive_depth));
+
             continue
         }
 
@@ -234,13 +233,12 @@ async fn run(
     if default_max == -128  {
         max = try_to_increase_max(&request_defaults, &diffs, max, &stable).await?;
 
-        if max != default_max.abs() as usize && config.verbose > 0 {
+        if max != default_max.abs() as usize {
             default_max = max as isize;
-            writeln!(
-                io::stdout(),
-                "[#] the max amount of parameters in every request was increased to {}",
+            utils::info(&config, format!(
+                "the max amount of parameters in every request was increased to {}",
                 max
-            ).ok();
+            ));
         }
     }
 
@@ -348,18 +346,14 @@ async fn run(
             = verify(&request_defaults, &found_params, &diffs, &stable).await {
             filtered_params
         } else {
-            if config.verbose > 0 {
-                writeln!(io::stdout(),"[#] was unable to verify found parameters").ok();
-            }
+            utils::info(&config, "was unable to verify found parameters");
             found_params
         };
     }
 
     if !config.replay_proxy.is_empty() {
         if let Err(_) = replay(&config, &request_defaults, &replay_client, &found_params).await {
-            if config.verbose > 0 {
-                writeln!(io::stdout(),"[#] was unable to resend found parameters via different proxy").ok();
-            }
+            utils::info(&config, "was unable to resend found parameters via different proxy");
         }
     }
 

@@ -1,14 +1,13 @@
 use crate::{
-    structs::{Config, Stable, RequestDefaults, Request, FoundParameter, InjectionPlace, Response, Headers, DataType}, utils::random_line,
+    structs::{Config, Stable, RequestDefaults, Request, FoundParameter, InjectionPlace, Response, Headers, DataType}, utils::{random_line, self, progress_bar},
 };
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use colored::*;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use reqwest::Client;
 use url::Url;
 use std::{
-    io::{self, Write}, error::Error, collections::HashMap, iter::FromIterator, time::{Duration, Instant}, convert::TryFrom,
+    error::Error, collections::HashMap, iter::FromIterator, time::{Duration, Instant}, convert::TryFrom,
 };
 
 const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
@@ -47,17 +46,7 @@ pub async fn empty_reqs<'a>(
                 .send()
                 .await?;
 
-        //progress bar
-        if config.verbose > 0 && !config.disable_progress_bar {
-            write!(
-                io::stdout(),
-                "{} {}/{}       \r",
-                &"-> ".bright_green(),
-                i,
-                count
-            ).ok();
-            io::stdout().flush().unwrap_or(());
-        }
+        progress_bar(config, i, count);
 
         //do not check pages >25MB because usually its just a binary file or sth
         if response.text.len() > MAX_PAGE_SIZE && !config.force {
@@ -85,12 +74,7 @@ pub async fn empty_reqs<'a>(
 
     //in case the page is still different from other random ones - the body isn't stable
     if !response.compare(&diffs)?.1.is_empty() {
-        if config.verbose > 0 {
-            writeln!(
-                io::stdout(),
-                "The page is not stable (body)",
-            ).ok();
-        }
+        utils::info(config, "The page is not stable (body)");
         stable.body = false;
     }
 

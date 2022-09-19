@@ -1,14 +1,12 @@
 use crate::{
-    structs::{Config, Stable, FuturesData, Request, RequestDefaults, FoundParameter, ReasonKind},
+    structs::{Config, Stable, FuturesData, Request, RequestDefaults, FoundParameter, ReasonKind}, utils::{progress_bar, self},
 };
-use colored::*;
 use futures::stream::StreamExt;
 use std::{sync::Arc, error::Error};
 use parking_lot::Mutex;
 
 use std::{
     collections::HashMap,
-    io::{self, Write},
 };
 
 /// check parameters in a loop chunk by chunk
@@ -65,18 +63,7 @@ pub async fn check_parameters<'a>(
                     }
             };
 
-            //progress bar
-            if config.verbose > 0 && !config.disable_progress_bar { //TODO maybe use external library
-                write!(
-                    io::stdout(),
-                    "{} {}/{}       \r",
-                    &"-> ".bright_yellow(),
-                    count,
-                    all
-                ).ok();
-
-                io::stdout().flush().ok();
-            }
+            progress_bar(config, count, all);
 
             if stable.reflections {
                 let (reflected_parameter, repeat) = response.proceed_reflected_parameters();
@@ -118,14 +105,7 @@ pub async fn check_parameters<'a>(
 
             if request_defaults.initial_response.as_ref().unwrap().code != response.code {
 
-                if config.verbose > 1 {
-                    writeln!(
-                        io::stdout(),
-                        "{} {}      ",
-                        &response.code.to_string().bright_yellow(),
-                        response.text.len()
-                    ).ok();
-                }
+                utils::notify(config, ReasonKind::Code, &response, None);
 
                 let mut green_lines = cloned_green_lines.lock();
 
@@ -182,10 +162,7 @@ pub async fn check_parameters<'a>(
                     if config.strict {
                         let found_params = cloned_found_params.lock();
                         if found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
-                            log::debug!("skip branch due to --strict");
                             return Ok(futures_data);
-                        } else {
-                            log::debug!("{:?} and {}", found_params, new_diffs.join("|"));
                         }
                     }
 
@@ -213,15 +190,7 @@ pub async fn check_parameters<'a>(
                 for diff in new_diffs.iter() {
                     if !diffs.contains(&diff) {
 
-                        if config.verbose > 1 {
-                            writeln!(
-                                io::stdout(),
-                                "{} {} ({})",
-                                response.code,
-                                &response.text.len().to_string().bright_yellow(),
-                                &diff
-                            ).ok();
-                        }
+                        utils::notify(config, ReasonKind::Text, &response, Some(&diff));
 
                         //catch some often false-positive diffs within the FIRST cycle
                         match green_lines.get(diff) {
@@ -247,10 +216,7 @@ pub async fn check_parameters<'a>(
                             //we need to repeat this because futures are fast and a few same parameters can already be here
                             if config.strict {
                                 if found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
-                                    log::debug!("skip branch due to --strict");
                                     return Ok(futures_data);
-                                } else {
-                                    log::debug!("{:?} and {}", found_params, new_diffs.join("|"));
                                 }
                             }
 
