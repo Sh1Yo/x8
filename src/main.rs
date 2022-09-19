@@ -8,6 +8,7 @@ use std::{
 
 use atty::Stream;
 
+use itertools::Itertools;
 use reqwest::Client;
 use x8::{
     args::get_config,
@@ -89,21 +90,15 @@ async fn init() -> Result<(), Box<dyn Error>> {
     }
 
     let mut all_found_params = Vec::new();
-    let mut local_recursive_depth = 0;
+    let mut local_recursion_depth = 0;
 
     //run parameter discovery in a loop
-    //in case config.recursive_depth = 0 (default) it makes only one iteration
-    //otherwise till local_recursive_depth reaches  config.recursive_depth
+    //in case config.recursion_depth = 0 (default) it makes only one iteration
+    //otherwise till local_recursion_depth reaches  config.recursion_depth
+    let mut first_run = true;
     loop {
-        request_defaults.parameters = HashMap::from_iter(
-            //TODO check parameters that change code in a different loop
-            all_found_params
-                .iter()
-                .filter(|x: &&FoundParameter| x.reason_kind != ReasonKind::Code)
-                .map(|x: &FoundParameter| (x.name.to_owned(), random_line(5)))
-        );
-
-        let found_params = run(&config, request_defaults.clone(), &replay_client, params.clone(), default_max).await?;
+        let found_params = run(&config, request_defaults.clone(), &replay_client, params.clone(), default_max, first_run).await?;
+        first_run = false;
 
         // to understand whether to make another iteration
         // there's no sense in proceeding in case no new parameters were found in the previous iteration
@@ -118,7 +113,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
         }
 
         //check recursion
-        if new_found && local_recursive_depth < config.recursive_depth {
+        if new_found && local_recursion_depth < config.recursion_depth {
 
             //remove found params from the initial params vec and run yet one iteration
             for param in all_found_params.iter() {
@@ -127,9 +122,18 @@ async fn init() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            local_recursive_depth += 1;
+            local_recursion_depth += 1;
 
-            utils::info(&config, format!("recursive search: {}", local_recursive_depth));
+            //add found parameters to query
+            request_defaults.parameters = HashMap::from_iter(
+                //TODO check parameters that change code in a different loop
+                all_found_params
+                    .iter()
+                    .filter(|x: &&FoundParameter| x.reason_kind != ReasonKind::Code)
+                    .map(|x: &FoundParameter| (x.name.to_owned(), random_line(5)))
+            );
+
+            utils::info(&config, "recursion", format!("{}: repeat with: {}", local_recursion_depth, request_defaults.parameters.keys().join(", ")));
 
             continue
         }
@@ -166,6 +170,7 @@ async fn run(
     replay_client: &Client,
     mut params: Vec<String>,
     mut default_max: isize,
+    first_run: bool
 ) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
     //saves false-positive diffs
     let mut green_lines: HashMap<String, usize> = HashMap::new();
@@ -211,7 +216,7 @@ async fn run(
         *initial_response.reflected_parameters.iter().next().unwrap().1
     };
 
-    if config.verbose > 0 {
+    if config.verbose > 0 && first_run {
         write_banner_response(&initial_response, request_defaults.amount_of_reflections, &params);
     }
 
@@ -235,10 +240,10 @@ async fn run(
 
         if max != default_max.abs() as usize {
             default_max = max as isize;
-            utils::info(&config, format!(
+            /*utils::info(&config, format!(
                 "the max amount of parameters in every request was increased to {}",
                 max
-            ));
+            ));*/
         }
     }
 
@@ -322,7 +327,7 @@ async fn run(
 
         //TODO move them somwhere else because they break recursion things
         //check custom parameters like admin=true
-        if params.is_empty() && !config.disable_custom_parameters {
+        if params.is_empty() && !config.disable_custom_parameters && first_run {
             max = default_max.abs() as usize;
             for (k, v) in custom_parameters.iter_mut() {
                 if !v.is_empty() {
@@ -346,14 +351,14 @@ async fn run(
             = verify(&request_defaults, &found_params, &diffs, &stable).await {
             filtered_params
         } else {
-            utils::info(&config, "was unable to verify found parameters");
+            utils::info(&config, "~", "was unable to verify found parameters");
             found_params
         };
     }
 
     if !config.replay_proxy.is_empty() {
         if let Err(_) = replay(&config, &request_defaults, &replay_client, &found_params).await {
-            utils::info(&config, "was unable to resend found parameters via different proxy");
+            utils::info(&config, "~", "was unable to resend found parameters via different proxy");
         }
     }
 

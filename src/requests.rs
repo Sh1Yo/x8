@@ -74,7 +74,7 @@ pub async fn empty_reqs<'a>(
 
     //in case the page is still different from other random ones - the body isn't stable
     if !response.compare(&diffs)?.1.is_empty() {
-        utils::info(config, "The page is not stable (body)");
+        utils::info(config, "~", "The page is not stable (body)");
         stable.body = false;
     }
 

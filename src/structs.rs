@@ -44,7 +44,7 @@ pub struct RequestDefaults<'a> {
     pub body: String,
 
     //parameters to add to every request
-    //it is used in recursive search
+    //it is used in recursion search
     pub parameters: HashMap<String, String>,
 
     //where the injection point is
@@ -174,7 +174,7 @@ pub struct Config {
 
     //check the same list of parameters with the found parameters until there are no new parameters to be found.
     //conflicts with --verify for now. Will be changed in the future.
-    pub recursive_depth: usize,
+    pub recursion_depth: usize,
 
     //amount of concurrent requests
     pub concurrency: usize,

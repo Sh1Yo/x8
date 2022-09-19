@@ -70,13 +70,13 @@ pub fn notify(config: &Config, reason_kind: ReasonKind, response: &Response, dif
     }
 }
 
-pub fn info<S: std::fmt::Display>(config: &Config, msg: S) {
+pub fn info<S: Into<String>, T: std::fmt::Display>(config: &Config, word: S, msg: T) {
     if config.verbose > 0 {
-        writeln!(io::stdout(), "{} {}", "[$]".yellow(), msg).ok();
+        writeln!(io::stdout(), "[{}] {}", word.into().yellow(), msg).ok();
     }
 }
 
-pub fn error<S: std::fmt::Display>(msg: S) {
+pub fn error<T: std::fmt::Display>(msg: T) {
     writeln!(io::stderr(), "{} {}", "[#]".red(), msg).ok();
 }
 

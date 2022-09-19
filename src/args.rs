@@ -229,8 +229,8 @@ pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("recursive_depth")
-                .long("recursive-depth")
+            Arg::with_name("recursion_depth")
+                .long("recursion-depth")
                 .help("Check the same list of parameters with the found parameters until there are no new parameters to be found.
 Conflicts with --verify for now. Will be changed in the future.")
                 .default_value("0")
@@ -287,7 +287,7 @@ Conflicts with --verify for now. Will be changed in the future.")
     let concurrency = args.value_of("concurrency").unwrap().parse()?;
     let verbose = args.value_of("verbose").unwrap().parse()?;
     let timeout = args.value_of("timeout").unwrap().parse()?;
-    let recursive_depth = args.value_of("recursive_depth").unwrap().parse()?;
+    let recursion_depth = args.value_of("recursion_depth").unwrap().parse()?;
 
     let request = match args.value_of("request") {
         Some(val) => fs::read_to_string(val)?,
@@ -486,7 +486,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         learn_requests_count,
         concurrency,
         timeout,
-        recursive_depth,
+        recursion_depth,
         verify: args.is_present("verify"),
         reflected_only: args.is_present("reflected-only"),
         http: args.value_of("output").unwrap_or("").to_string(),
