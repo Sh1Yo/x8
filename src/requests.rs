@@ -144,22 +144,11 @@ pub async fn replay<'a>(
 impl <'a>Request<'a> {
 
     pub fn new(l: &'a RequestDefaults, parameters: Vec<String>) -> Self {
-
-        let mut headers = Vec::from([
-            ("User-Agent".to_string(), "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.82 Safari/537.36".to_string()),
-            //We don't need Host header in http/2. In http/1 it should be added automatically
-            //("Host".to_string(), l.host.to_owned())
-        ]);
-
-        for (k, v) in l.custom_headers.to_owned() {
-            headers.push((k, v));
-        }
-
         Self{
             defaults: l,
             method: l.method.to_owned(),
             path: l.path.to_owned(),
-            headers,
+            headers: Vec::new(),
             body: String::new(),
             parameters: parameters,
             prepared_parameters: l.parameters.clone(),
