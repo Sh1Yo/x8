@@ -6,7 +6,7 @@ use reqwest::Client;
 
 
 #[derive(Debug, Clone)]
-pub struct RequestDefaults<'a> {
+pub struct RequestDefaults {
     //default request data
     pub method: String,
     pub scheme: String,
@@ -23,7 +23,7 @@ pub struct RequestDefaults<'a> {
     //the initial response to compare with.
     //can be None at the start when no requests were made yet
     //probably better to adjust the logic and keep just Response
-    pub initial_response: Option<Response<'a>>,
+    //pub initial_response: Option<Response<'a>>,
 
     //default reqwest client
     pub client: Client,
@@ -71,7 +71,7 @@ pub enum InjectionPlace {
 //TODO add references where possible because the request is often cloned
 #[derive(Debug, Clone)]
 pub struct Request<'a> {
-    pub defaults: &'a RequestDefaults<'a>,
+    pub defaults: &'a RequestDefaults,
     pub path: String,
     pub method: String,
 

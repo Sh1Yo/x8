@@ -97,13 +97,13 @@ pub fn progress_bar(config: &Config, count: usize, all: usize) {
 /// checks whether increasing the amount of parameters changes the page
 /// returns the max possible amount of parameters that possible to send without changing the page
 pub async fn try_to_increase_max<'a>(
-    request_defaults: &RequestDefaults<'a>, diffs: &Vec<String>, mut max: usize, stable: &Stable
+    initial_response: &Response<'a>, request_defaults: &RequestDefaults, diffs: &Vec<String>, mut max: usize, stable: &Stable
 ) -> Result<usize, Box<dyn Error>> {
     let response = Request::new_random(&request_defaults, max + 64)
                                 .send()
                                 .await?;
 
-    let (is_code_different, new_diffs) = response.compare(&diffs)?;
+    let (is_code_different, new_diffs) = response.compare(initial_response, &diffs)?;
     let mut is_the_body_the_same = true;
 
     if !new_diffs.is_empty() {
@@ -117,7 +117,7 @@ pub async fn try_to_increase_max<'a>(
                 .send()
                 .await?;
 
-        let (is_code_different, new_diffs) = response.compare(&diffs)?;
+        let (is_code_different, new_diffs) = response.compare(initial_response, &diffs)?;
 
         if !new_diffs.is_empty() {
             is_the_body_the_same = false;

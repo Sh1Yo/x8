@@ -30,7 +30,8 @@ lazy_static! {
 ///makes first requests and checks page behavior
 pub async fn empty_reqs<'a>(
     config: &Config,
-    request_defaults: &'a RequestDefaults<'a>,
+    initial_response: &Response<'a>,
+    request_defaults: &'a RequestDefaults,
     count: usize,
     max: usize,
 ) -> Result<(Vec<String>, Stable), Box<dyn Error>> {
@@ -53,11 +54,12 @@ pub async fn empty_reqs<'a>(
             Err("The page is too huge")?;
         }
 
+        //TODO i think it works wrong
         if !response.reflected_parameters.is_empty() {
             stable.reflections = false;
         }
 
-        let (is_code_diff, mut new_diffs) = response.compare(&diffs)?;
+        let (is_code_diff, mut new_diffs) = response.compare(initial_response, &diffs)?;
 
         if is_code_diff {
             Err("The page is not stable (code)")?
@@ -73,7 +75,7 @@ pub async fn empty_reqs<'a>(
             .await?;
 
     //in case the page is still different from other random ones - the body isn't stable
-    if !response.compare(&diffs)?.1.is_empty() {
+    if !response.compare(initial_response, &diffs)?.1.is_empty() {
         utils::info(config, "~", "The page is not stable (body)");
         stable.body = false;
     }
@@ -82,7 +84,11 @@ pub async fn empty_reqs<'a>(
 }
 
 pub async fn verify<'a>(
-    request_defaults: &RequestDefaults<'a>, found_params: &Vec<FoundParameter>, diffs: &Vec<String>, stable: &Stable
+    initial_response: &Response<'a>,
+    request_defaults: &RequestDefaults,
+    found_params: &Vec<FoundParameter>,
+    diffs: &Vec<String>,
+    stable: &Stable
 ) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
     //TODO maybe implement sth like similar patters? At least for reflected parameters
     //struct Pattern {kind: PatterKind, pattern: String}
@@ -101,14 +107,14 @@ pub async fn verify<'a>(
                                     .send()
                                     .await?;
 
-        let (is_code_the_same, new_diffs) = response.compare(&diffs)?;
+        let (is_code_the_same, new_diffs) = response.compare(initial_response, &diffs)?;
         let mut is_the_body_the_same = true;
 
         if !new_diffs.is_empty() {
             is_the_body_the_same = false;
         }
 
-        response.fill_reflected_parameters();
+        response.fill_reflected_parameters(initial_response);
 
         if !is_code_the_same || !(!stable.body || is_the_body_the_same) || !response.reflected_parameters.is_empty() {
             filtered_params.push(param.clone());
@@ -119,7 +125,7 @@ pub async fn verify<'a>(
 }
 
 pub async fn replay<'a>(
-    config: &Config, request_defaults: &RequestDefaults<'a>, replay_client: &Client, found_params: &Vec<FoundParameter>
+    config: &Config, request_defaults: &RequestDefaults, replay_client: &Client, found_params: &Vec<FoundParameter>
 ) -> Result<(), Box<dyn Error>> {
      //get cookies
     Request::new(request_defaults, vec![])
@@ -348,7 +354,6 @@ impl <'a>Request<'a> {
 
         response.beautify_body();
         response.add_headers();
-        response.fill_reflected_parameters();
 
         Ok(response)
     }
@@ -478,8 +483,8 @@ mod tests {
     }
 }
 
-impl<'a> Default for RequestDefaults<'a> {
-    fn default() -> RequestDefaults<'a> {
+impl<'a> Default for RequestDefaults {
+    fn default() -> RequestDefaults {
         RequestDefaults {
             method: "GET".to_string(),
             scheme: "https".to_string(),
@@ -488,7 +493,6 @@ impl<'a> Default for RequestDefaults<'a> {
             custom_headers: Vec::new(),
             port: 443,
             delay: Duration::from_millis(0),
-            initial_response: None,
             client: Default::default(),
             template: "{k}={v}".to_string(),
             joiner: "&".to_string(),
@@ -502,7 +506,7 @@ impl<'a> Default for RequestDefaults<'a> {
     }
 }
 
-impl<'a> RequestDefaults<'a> {
+impl<'a> RequestDefaults {
     pub fn new(
         method: &str,
         url: &str,
@@ -548,8 +552,6 @@ impl<'a> RequestDefaults<'a> {
             body,
             injection_place,
 
-            //to fill after the first request
-            initial_response: None,
             amount_of_reflections: 0,
 
             parameters: HashMap::new(),

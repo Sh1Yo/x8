@@ -14,8 +14,8 @@ use x8::{
     args::get_config,
     logic::check_parameters,
     requests::{empty_reqs, verify, replay},
-    structs::{Config, RequestDefaults, Request, InjectionPlace, FoundParameter, ReasonKind},
-    utils::{self, write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client, random_line},
+    structs::{Config, RequestDefaults, Request, FoundParameter, ReasonKind},
+    utils::{self, write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client, random_line}, //runner::Runner,
 };
 
 #[cfg(windows)]
@@ -166,12 +166,15 @@ async fn init() -> Result<(), Box<dyn Error>> {
 
 async fn run(
     config: &Config,
-    mut request_defaults: RequestDefaults<'_>,
+    mut request_defaults: RequestDefaults,
     replay_client: &Client,
     mut params: Vec<String>,
     mut default_max: isize,
     first_run: bool
 ) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
+
+    //let mut runner = Runner::new(config, request_defaults, replay_client, params, default_max);
+
     //saves false-positive diffs
     let mut green_lines: HashMap<String, usize> = HashMap::new();
 
@@ -186,13 +189,13 @@ async fn run(
                                             .await?;
 
     //add possible parameters to the list of parameters in case the injection place is not headers
-    if request_defaults.injection_place != InjectionPlace::Headers {
+    /*if runner.request_defaults.injection_place != InjectionPlace::Headers {
         for param in initial_response.get_possible_parameters() {
-            if !params.contains(&param) {
-                params.push(param)
+            if !runner.params.contains(&param) {
+                runner.params.push(param)
             }
         }
-    }
+    }*/
 
     //in case the list is too small - change the max amount of parameters
     if params.len() < max {
@@ -203,7 +206,8 @@ async fn run(
         }
     };
 
-    initial_response.fill_reflected_parameters();
+    //TODO
+    //initial_response.fill_reflected_parameters();
 
     //let reflections count = the number of reflections of the first parameter
     request_defaults.amount_of_reflections = if initial_response.reflected_parameters.len() == 0 {
@@ -220,11 +224,10 @@ async fn run(
         write_banner_response(&initial_response, request_defaults.amount_of_reflections, &params);
     }
 
-    request_defaults.initial_response = Some(initial_response);
-
     //make a few requests and collect all persistent diffs, check for stability
     let (mut diffs, stable) = empty_reqs(
         &config,
+        &initial_response,
         &request_defaults,
         config.learn_requests_count,
         max,
@@ -236,7 +239,7 @@ async fn run(
 
     //check whether it is possible to use 192 or 256 params in a single request instead of 128 default
     if default_max == -128  {
-        max = try_to_increase_max(&request_defaults, &diffs, max, &stable).await?;
+        max = try_to_increase_max(&initial_response, &request_defaults, &diffs, max, &stable).await?;
 
         if max != default_max.abs() as usize {
             default_max = max as isize;
@@ -278,6 +281,7 @@ async fn run(
             &mut green_lines,
             &mut remaining_params,
             &mut found_params,
+            &initial_response,
         ).await?;
         first = false;
         count += 1;
@@ -348,7 +352,7 @@ async fn run(
 
     if config.verify {
         found_params = if let Ok(filtered_params)
-            = verify(&request_defaults, &found_params, &diffs, &stable).await {
+            = verify(&initial_response, &request_defaults, &found_params, &diffs, &stable).await {
             filtered_params
         } else {
             utils::info(&config, "~", "was unable to verify found parameters");

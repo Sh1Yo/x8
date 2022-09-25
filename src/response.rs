@@ -15,19 +15,19 @@ impl<'a> Response<'a> {
     }
 
     /// calls check_diffs & returns code and found diffs
-    pub fn compare(&self, old_diffs: &Vec<String>) -> Result<(bool, Vec<String>), Box<dyn Error>> {
+    pub fn compare(&self, initial_response: &Response<'a>, old_diffs: &Vec<String>) -> Result<(bool, Vec<String>), Box<dyn Error>> {
 
         let mut is_code_diff: bool = false;
         let mut diffs: Vec<String> = Vec::new();
 
-        if self.request.defaults.initial_response.as_ref().unwrap().code != self.code {
+        if initial_response.code != self.code {
             is_code_diff = true
         }
 
         //just push every found diff to the vector of diffs
         for diff in diff(
             &self.print(),
-            &self.request.defaults.initial_response.as_ref().unwrap().print(),
+            &initial_response.print(),
         )? {
             if !diffs.contains(&diff) && !old_diffs.contains(&diff) {
                 diffs.push(diff);
@@ -75,7 +75,7 @@ impl<'a> Response<'a> {
     }
 
     /// find parameters with the different amount of reflections and add them to self.reflected_parameters
-    pub fn fill_reflected_parameters(&mut self) {
+    pub fn fill_reflected_parameters(&mut self, initial_response: &Response<'a>) {
         //let base_count = self.count(&self.request.prepared_parameters[additional_param]);
 
         //remove non random parameters from prepared parameters because they would cause false positives in this check
@@ -93,10 +93,7 @@ impl<'a> Response<'a> {
 
         for (k, v) in prepated_parameters.iter() {
             //TODO do sth about that initial_response because "unwrapping" it every time doesn't seem good
-            let new_count = self.count(v) - match self.request.defaults.initial_response.as_ref() {
-                Some(val) => val.count(v),
-                None => 0
-            };
+            let new_count = self.count(v) - initial_response.count(v);
 
             if self.request.defaults.amount_of_reflections != new_count {
                 self.reflected_parameters.insert(k.to_string(), new_count);
@@ -156,19 +153,19 @@ impl<'a> Response<'a> {
     }
 
     /// write about found parameter to stdout and save when needed
-    pub fn write_and_save(&self, config: &Config, reason_kind: ReasonKind, parameter: &str, diff: Option<&str>) -> Result<(), Box<dyn Error>> {
+    pub fn write_and_save(&self, config: &Config, initial_response: &Response<'a>, reason_kind: ReasonKind, parameter: &str, diff: Option<&str>) -> Result<(), Box<dyn Error>> {
 
         let mut message = match reason_kind {
             ReasonKind::Code => format!(
                 "{}: code {} -> {}",
                 &parameter,
-                self.request.defaults.initial_response.as_ref().unwrap().code(),
+               initial_response.code(),
                 &self.code(),
             ),
             ReasonKind::Text => format!(
                 "{}: page {} -> {} ({})",
                 &parameter,
-                self.request.defaults.initial_response.as_ref().unwrap().text.len(),
+               initial_response.text.len(),
                 &self.text.len().to_string().bright_yellow(),
                 diff.unwrap()
             ),

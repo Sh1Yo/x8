@@ -1,5 +1,5 @@
 use crate::{
-    structs::{Config, Stable, FuturesData, Request, RequestDefaults, FoundParameter, ReasonKind}, utils::{progress_bar, self},
+    structs::{Config, Stable, FuturesData, Request, RequestDefaults, FoundParameter, ReasonKind, Response}, utils::{progress_bar, self},
 };
 use futures::stream::StreamExt;
 use std::{sync::Arc, error::Error};
@@ -15,7 +15,7 @@ use std::{
 pub async fn check_parameters<'a>(
     first: bool,
     config: &Config,
-    request_defaults: &RequestDefaults<'a>,
+    request_defaults: &RequestDefaults,
     diffs: &mut Vec<String>,
     params: &Vec<String>,
     stable: &Stable,
@@ -23,6 +23,7 @@ pub async fn check_parameters<'a>(
     green_lines: &mut HashMap<String, usize>,
     remaining_params: &mut Vec<Vec<String>>,
     found_params: &mut Vec<FoundParameter>,
+    initial_response: &'a Response<'a>,
 ) -> Result<(), Box<dyn Error>> {
     //the amount of requests needed for process all the parameters
     let all = params.len() / max;
@@ -48,7 +49,7 @@ pub async fn check_parameters<'a>(
 
         async move {
             let request = Request::new(request_defaults, chunk.iter().map(|x| x.to_string()).collect::<Vec<String>>());
-            let response =
+            let mut response =
                 match request.clone()
                     .send()
                     .await {
@@ -66,6 +67,8 @@ pub async fn check_parameters<'a>(
             progress_bar(config, count, all);
 
             if stable.reflections {
+                response.fill_reflected_parameters(initial_response);
+
                 let (reflected_parameter, repeat) = response.proceed_reflected_parameters();
 
                 if reflected_parameter.is_some() {
@@ -89,7 +92,7 @@ pub async fn check_parameters<'a>(
 
                         drop(found_params);
 
-                        response.write_and_save(config, kind, &reflected_parameter, None)?;
+                        response.write_and_save(config, initial_response, kind, &reflected_parameter, None)?;
                     }
                 }
 
@@ -103,7 +106,7 @@ pub async fn check_parameters<'a>(
                 }
             }
 
-            if request_defaults.initial_response.as_ref().unwrap().code != response.code {
+            if initial_response.code != response.code {
 
                 utils::notify(config, ReasonKind::Code, &response, None);
 
@@ -122,7 +125,7 @@ pub async fn check_parameters<'a>(
                                 .send()
                                 .await?;
 
-                            if check_response.code != request_defaults.initial_response.as_ref().unwrap().code {
+                            if check_response.code != initial_response.code {
                                 return Err(format!("{} The page became unstable (code)", config.url))? // Bad
                             } else {
                                 let mut green_lines = cloned_green_lines.lock();
@@ -136,14 +139,14 @@ pub async fn check_parameters<'a>(
                 }
 
                 if chunk.len() == 1 {
-                    response.write_and_save(config, ReasonKind::Code, &chunk[0], None)?;
+                    response.write_and_save(config, initial_response, ReasonKind::Code, &chunk[0], None)?;
 
                     let mut found_params = cloned_found_params.lock();
                     found_params.push(
                         FoundParameter::new(
                             &chunk[0],
-                            &vec![format!("{} -> {}", request_defaults.initial_response.as_ref().unwrap().code, response.code)],
-                            &format!("Changes code: {} -> {}", request_defaults.initial_response.as_ref().unwrap().code, response.code),
+                            &vec![format!("{} -> {}", initial_response.code, response.code)],
+                            &format!("Changes code: {} -> {}", initial_response.code, response.code),
                             ReasonKind::Code
                         )
                     );
@@ -153,7 +156,7 @@ pub async fn check_parameters<'a>(
 
             } else if stable.body {
                 let mut diffs = cloned_diffs.lock();
-                let (_, new_diffs) = response.compare(&diffs)?;
+                let (_, new_diffs) = response.compare(initial_response, &diffs)?;
 
                 //check whether the new_diff has at least 1 unique diff
                 //and then check whether it's permament diff or not
@@ -178,7 +181,7 @@ pub async fn check_parameters<'a>(
                     //lock it again
                     diffs = cloned_diffs.lock();
 
-                    let (_, tmp_diffs) = tmp_resp.compare(&diffs)?;
+                    let (_, tmp_diffs) = tmp_resp.compare(initial_response, &diffs)?;
 
                     for diff in tmp_diffs {
                         diffs.push(diff);
@@ -220,13 +223,13 @@ pub async fn check_parameters<'a>(
                                 }
                             }
 
-                            response.write_and_save(config, ReasonKind::Text, &chunk[0], Some(&diff))?;
+                            response.write_and_save(config, initial_response, ReasonKind::Text, &chunk[0], Some(&diff))?;
 
                             found_params.push(
                                 FoundParameter::new(
                                     &chunk[0],
                                     &new_diffs,
-                                    &format!("Changes page: {} -> {}", request_defaults.initial_response.as_ref().unwrap().text.len(), response.text.len()),
+                                    &format!("Changes page: {} -> {}", initial_response.text.len(), response.text.len()),
                                     ReasonKind::Text
                                 )
                             );

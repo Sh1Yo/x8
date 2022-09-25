@@ -3,7 +3,7 @@ use clap::{crate_version, App, AppSettings, Arg};
 use std::{collections::HashMap, fs, time::Duration, error::Error};
 use url::Url;
 
-pub fn get_config() -> Result<(Config, RequestDefaults<'static>, isize), Box<dyn Error>> {
+pub fn get_config() -> Result<(Config, RequestDefaults, isize), Box<dyn Error>> {
 
     let app = App::new("x8")
         .setting(AppSettings::ArgRequiredElseHelp)
