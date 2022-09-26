@@ -96,8 +96,8 @@ pub fn progress_bar(config: &Config, count: usize, all: usize) {
 
 /// checks whether increasing the amount of parameters changes the page
 /// returns the max possible amount of parameters that possible to send without changing the page
-pub async fn try_to_increase_max<'a>(
-    initial_response: &Response<'a>, request_defaults: &RequestDefaults, diffs: &Vec<String>, mut max: usize, stable: &Stable
+pub async fn try_to_increase_max(
+    initial_response: &Response, request_defaults: &RequestDefaults, diffs: &Vec<String>, mut max: usize, stable: &Stable
 ) -> Result<usize, Box<dyn Error>> {
     let response = Request::new_random(&request_defaults, max + 64)
                                 .send()
@@ -314,7 +314,7 @@ pub fn save_request(config: &Config, response: &Response, param_key: &str) -> Re
     let output = response.print();
 
     let filename = format!(
-        "{}/{}-{}-{}-{}", &config.save_responses, response.request.defaults.host, response.request.method.to_lowercase(), param_key, random_line(3)
+        "{}/{}-{}-{}-{}", &config.save_responses, &response.request.host, response.request.method.to_lowercase(), param_key, random_line(3)
     );
 
     std::fs::write(

@@ -12,7 +12,7 @@ use std::{
 /// check parameters in a loop chunk by chunk
 /// probably way better to make it recursive
 /// but looks like it's not that easy to make recursive async funcs in rust that call other async funcs..
-pub async fn check_parameters<'a>(
+pub async fn check_parameters(
     first: bool,
     config: &Config,
     request_defaults: &RequestDefaults,
@@ -23,7 +23,7 @@ pub async fn check_parameters<'a>(
     green_lines: &mut HashMap<String, usize>,
     remaining_params: &mut Vec<Vec<String>>,
     found_params: &mut Vec<FoundParameter>,
-    initial_response: &'a Response<'a>,
+    initial_response: &Response,
 ) -> Result<(), Box<dyn Error>> {
     //the amount of requests needed for process all the parameters
     let all = params.len() / max;

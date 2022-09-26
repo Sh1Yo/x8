@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 
 use crate::{structs::{Status, ReasonKind, Config, Response, Headers}, diff::diff, utils::save_request};
 
-impl<'a> Response<'a> {
+impl Response {
 
     /// count how many times we can see the string in the response
     pub fn count(&self, string: &str) -> usize {
@@ -15,7 +15,7 @@ impl<'a> Response<'a> {
     }
 
     /// calls check_diffs & returns code and found diffs
-    pub fn compare(&self, initial_response: &Response<'a>, old_diffs: &Vec<String>) -> Result<(bool, Vec<String>), Box<dyn Error>> {
+    pub fn compare(&self, initial_response: &Response, old_diffs: &Vec<String>) -> Result<(bool, Vec<String>), Box<dyn Error>> {
 
         let mut is_code_diff: bool = false;
         let mut diffs: Vec<String> = Vec::new();
@@ -75,7 +75,7 @@ impl<'a> Response<'a> {
     }
 
     /// find parameters with the different amount of reflections and add them to self.reflected_parameters
-    pub fn fill_reflected_parameters(&mut self, initial_response: &Response<'a>) {
+    pub fn fill_reflected_parameters(&mut self, initial_response: &Response) {
         //let base_count = self.count(&self.request.prepared_parameters[additional_param]);
 
         //remove non random parameters from prepared parameters because they would cause false positives in this check
@@ -153,7 +153,7 @@ impl<'a> Response<'a> {
     }
 
     /// write about found parameter to stdout and save when needed
-    pub fn write_and_save(&self, config: &Config, initial_response: &Response<'a>, reason_kind: ReasonKind, parameter: &str, diff: Option<&str>) -> Result<(), Box<dyn Error>> {
+    pub fn write_and_save(&self, config: &Config, initial_response: &Response, reason_kind: ReasonKind, parameter: &str, diff: Option<&str>) -> Result<(), Box<dyn Error>> {
 
         let mut message = match reason_kind {
             ReasonKind::Code => format!(

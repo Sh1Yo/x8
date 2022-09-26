@@ -70,10 +70,23 @@ pub enum InjectionPlace {
 
 //TODO add references where possible because the request is often cloned
 #[derive(Debug, Clone)]
-pub struct Request<'a> {
-    pub defaults: &'a RequestDefaults,
+pub struct Request {
     pub path: String,
     pub method: String,
+    pub scheme: String,
+    pub host: String,
+    pub port: u16,
+
+    pub template: String,
+    pub joiner: String,
+
+    pub encode: bool,
+    pub is_json: bool,
+
+    pub injection_place: InjectionPlace,
+
+    //unprepared headers
+    pub custom_headers: Vec<(String, String)>,
 
     pub headers: Vec<(String, String)>,
     pub parameters: Vec<String>, //vector of supplied parameters
@@ -85,14 +98,14 @@ pub struct Request<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Response<'a> {
+pub struct Response {
     pub time: u128,
     pub code: u16,
     pub headers: Vec<(String, String)>,
     pub text: String,
     pub reflected_parameters: HashMap<String, usize>, //<parameter, amount of reflections>
     pub additional_parameter: String,
-    pub request: Request<'a>,
+    pub request: Request,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -197,7 +210,7 @@ pub struct Config {
     pub follow_redirects: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Stable {
     pub body: bool,
     pub reflections: bool,

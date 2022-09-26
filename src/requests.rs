@@ -28,10 +28,10 @@ lazy_static! {
 }
 
 ///makes first requests and checks page behavior
-pub async fn empty_reqs<'a>(
+pub async fn empty_reqs(
     config: &Config,
-    initial_response: &Response<'a>,
-    request_defaults: &'a RequestDefaults,
+    initial_response: &Response,
+    request_defaults: &RequestDefaults,
     count: usize,
     max: usize,
 ) -> Result<(Vec<String>, Stable), Box<dyn Error>> {
@@ -83,8 +83,8 @@ pub async fn empty_reqs<'a>(
     Ok((diffs, stable))
 }
 
-pub async fn verify<'a>(
-    initial_response: &Response<'a>,
+pub async fn verify(
+    initial_response: &Response,
     request_defaults: &RequestDefaults,
     found_params: &Vec<FoundParameter>,
     diffs: &Vec<String>,
@@ -147,24 +147,33 @@ pub async fn replay<'a>(
     Ok(())
 }
 
-impl <'a>Request<'a> {
+impl Request {
 
-    pub fn new(l: &'a RequestDefaults, parameters: Vec<String>) -> Self {
+    pub fn new(l: &RequestDefaults, parameters: Vec<String>) -> Self {
         Self{
-            defaults: l,
+            //defaults: l,
             method: l.method.to_owned(),
             path: l.path.to_owned(),
+            host: l.host.to_owned(),
+            port: l.port,
+            custom_headers: l.custom_headers.clone(),
             headers: Vec::new(),
             body: String::new(),
             parameters: parameters,
             prepared_parameters: l.parameters.clone(),
             non_random_parameters: HashMap::new(),
             delay: l.delay,
-            prepared: false
+            prepared: false,
+            scheme: l.scheme.to_owned(),
+            template: l.template.to_owned(),
+            joiner: l.joiner.to_owned(),
+            encode: l.encode,
+            is_json: l.is_json,
+            injection_place: l.injection_place,
         }
     }
 
-    pub fn new_random(l: &'a RequestDefaults, max: usize) -> Self {
+    pub fn new_random(l: &RequestDefaults, max: usize) -> Self {
         let parameters = Vec::from_iter((0..max).map(|_| random_line(5)));
         Request::new(l, parameters)
     }
@@ -180,20 +189,20 @@ impl <'a>Request<'a> {
     }
 
     pub fn url(&self) -> String {
-        format!("{}://{}:{}{}", &self.defaults.scheme, &self.defaults.host, &self.defaults.port, &self.path)
+        format!("{}://{}:{}{}", &self.scheme, &self.host, &self.port, &self.path)
     }
 
     pub fn make_query(&self) -> String {
         let query = self.prepared_parameters
             .iter()
-            .map(|(k, v)| self.defaults.template
+            .map(|(k, v)| self.template
                                     .replace("{k}", k)
                                     .replace("{v}", v)
             )
             .collect::<Vec<String>>()
-            .join(&self.defaults.joiner);
+            .join(&self.joiner);
 
-        if self.defaults.encode {
+        if self.encode {
             utf8_percent_encode(&query, &FRAGMENT).to_string()
         } else {
             query
@@ -242,24 +251,24 @@ impl <'a>Request<'a> {
                 )
         );
 
-        if self.defaults.injection_place != InjectionPlace::HeaderValue {
-            for (k, v) in self.defaults.custom_headers.iter() {
+        if self.injection_place != InjectionPlace::HeaderValue {
+            for (k, v) in self.custom_headers.iter() {
                 self.set_header(
                     k,
                     &v.replace("{{random}}", &random_line(5))
                 );
             }
         }
-        self.path = self.defaults.path.replace("{{random}}", &random_line(5));
-        self.body = self.defaults.body.replace("{{random}}", &random_line(5));
+        self.path = self.path.replace("{{random}}", &random_line(5));
+        self.body = self.body.replace("{{random}}", &random_line(5));
 
-       match self.defaults.injection_place {
+       match self.injection_place {
             InjectionPlace::Path => self.path = self.path.replace("%s", &self.make_query()),
             InjectionPlace::Body => {
                 self.body = self.body.replace("%s", &self.make_query());
 
-                if !self.defaults.custom_headers.contains_key("Content-Type") {
-                    if self.defaults.is_json {
+                if !self.custom_headers.contains_key("Content-Type") {
+                    if self.is_json {
                         self.set_header("Content-Type", "application/json");
                     } else {
                         self.set_header("Content-Type", "application/x-www-form-urlencoded");
@@ -267,7 +276,7 @@ impl <'a>Request<'a> {
                 }
             },
             InjectionPlace::HeaderValue => {
-                for (k, v) in self.defaults.custom_headers.iter() {
+                for (k, v) in self.custom_headers.iter() {
                     self.set_header(
                         k,
                         &v.replace("{{random}}", &random_line(5)).replace("%s", &self.make_query())
@@ -283,7 +292,7 @@ impl <'a>Request<'a> {
        }
     }
 
-    pub async fn send_by(self, clients: &Client) -> Result<Response<'a>, Box<dyn Error>> {
+    pub async fn send_by(self, clients: &Client) -> Result<Response, Box<dyn Error>> {
 
         match self.clone().request(clients).await {
             Ok(val) => Ok(val),
@@ -294,12 +303,12 @@ impl <'a>Request<'a> {
         }
     }
 
-    pub async fn send(self) -> Result<Response<'a>, Box<dyn Error>> {
-        let dc = &self.defaults.client;
+    pub async fn send(self) -> Result<Response, Box<dyn Error>> {
+        let dc = &self.client;
         self.send_by(dc).await
     }
 
-    async fn request(mut self, client: &Client) -> Result<Response<'a>, reqwest::Error> {
+    async fn request(mut self, client: &Client) -> Result<Response, reqwest::Error> {
 
         let additional_parameter = random_line(7);
 
@@ -359,7 +368,7 @@ impl <'a>Request<'a> {
     }
 
     /// the function is used when there was a error during the request
-    pub fn empty_response(mut self) -> Response<'a> {
+    pub fn empty_response(mut self) -> Response {
         self.prepare(None);
         Response {
             time: 0,
@@ -375,7 +384,7 @@ impl <'a>Request<'a> {
     pub fn print(&mut self) -> String {
         self.prepare(Some(&random_line(5)));
 
-        let mut str_req = format!("{} {} HTTP/x\nHost: {}\n", &self.method, self.path, self.defaults.host); //TODO identify HTTP version
+        let mut str_req = format!("{} {} HTTP/x\nHost: {}\n", &self.method, self.path, self.host); //TODO identify HTTP version
 
         for (k, v) in self.headers.iter().sorted() {
             str_req += &format!("{}: {}\n", k, v)
