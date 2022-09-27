@@ -13,6 +13,7 @@ use std::{
 const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
 
 lazy_static! {
+    //characters to encode
     static ref FRAGMENT: AsciiSet = CONTROLS
         .add(b' ')
         .add(b'"')
@@ -30,7 +31,7 @@ lazy_static! {
 ///makes first requests and checks page behavior
 pub async fn empty_reqs(
     config: &Config,
-    initial_response: &Response,
+    initial_response: &Response<'_>,
     request_defaults: &RequestDefaults,
     count: usize,
     max: usize,
@@ -83,9 +84,9 @@ pub async fn empty_reqs(
     Ok((diffs, stable))
 }
 
-pub async fn verify(
-    initial_response: &Response,
-    request_defaults: &RequestDefaults,
+pub async fn verify<'a>(
+    initial_response: &'a Response<'a>,
+    request_defaults: &'a RequestDefaults,
     found_params: &Vec<FoundParameter>,
     diffs: &Vec<String>,
     stable: &Stable
@@ -103,7 +104,7 @@ pub async fn verify(
 
     for param in found_params {
 
-        let mut response = Request::new(&request_defaults, vec![param.name.clone()])
+        let mut response = Request::new(request_defaults, vec![param.name.clone()])
                                     .send()
                                     .await?;
 
@@ -147,33 +148,22 @@ pub async fn replay<'a>(
     Ok(())
 }
 
-impl Request {
+impl<'a> Request<'a> {
 
-    pub fn new(l: &RequestDefaults, parameters: Vec<String>) -> Self {
+    pub fn new(l: &'a RequestDefaults, parameters: Vec<String>) -> Self {
         Self{
-            //defaults: l,
-            method: l.method.to_owned(),
             path: l.path.to_owned(),
-            host: l.host.to_owned(),
-            port: l.port,
-            custom_headers: l.custom_headers.clone(),
+            defaults: l,
             headers: Vec::new(),
             body: String::new(),
             parameters: parameters,
             prepared_parameters: l.parameters.clone(),
-            non_random_parameters: HashMap::new(),
-            delay: l.delay,
+            non_random_parameters: Vec::new(),
             prepared: false,
-            scheme: l.scheme.to_owned(),
-            template: l.template.to_owned(),
-            joiner: l.joiner.to_owned(),
-            encode: l.encode,
-            is_json: l.is_json,
-            injection_place: l.injection_place,
         }
     }
 
-    pub fn new_random(l: &RequestDefaults, max: usize) -> Self {
+    pub fn new_random(l: &'a RequestDefaults, max: usize) -> Self {
         let parameters = Vec::from_iter((0..max).map(|_| random_line(5)));
         Request::new(l, parameters)
     }
@@ -189,20 +179,20 @@ impl Request {
     }
 
     pub fn url(&self) -> String {
-        format!("{}://{}:{}{}", &self.scheme, &self.host, &self.port, &self.path)
+        format!("{}://{}:{}{}", &self.defaults.scheme, &self.defaults.host, &self.defaults.port, &self.path)
     }
 
     pub fn make_query(&self) -> String {
         let query = self.prepared_parameters
             .iter()
-            .map(|(k, v)| self.template
+            .map(|(k, v)| self.defaults.template
                                     .replace("{k}", k)
                                     .replace("{v}", v)
             )
             .collect::<Vec<String>>()
-            .join(&self.joiner);
+            .join(&self.defaults.joiner);
 
-        if self.encode {
+        if self.defaults.encode {
             utf8_percent_encode(&query, &FRAGMENT).to_string()
         } else {
             query
@@ -222,7 +212,7 @@ impl Request {
         }
         self.prepared = true;
 
-        self.non_random_parameters = HashMap::from_iter(
+        self.non_random_parameters = Vec::from_iter(
             self.parameters
                 .iter()
                 .filter(|x| x.contains("%=%"))
@@ -230,7 +220,7 @@ impl Request {
                 .map(|mut x| (x.next().unwrap().to_owned(), x.next().unwrap_or("").to_owned()))
         );
 
-        self.prepared_parameters = HashMap::from_iter(
+        self.prepared_parameters = Vec::from_iter(
             //append self.prepared_parameters (can be set from RequestDefaults using recursive search)
             self.prepared_parameters
                 .iter()
@@ -251,8 +241,8 @@ impl Request {
                 )
         );
 
-        if self.injection_place != InjectionPlace::HeaderValue {
-            for (k, v) in self.custom_headers.iter() {
+        if self.defaults.injection_place != InjectionPlace::HeaderValue {
+            for (k, v) in self.defaults.custom_headers.iter() {
                 self.set_header(
                     k,
                     &v.replace("{{random}}", &random_line(5))
@@ -262,13 +252,13 @@ impl Request {
         self.path = self.path.replace("{{random}}", &random_line(5));
         self.body = self.body.replace("{{random}}", &random_line(5));
 
-       match self.injection_place {
+       match self.defaults.injection_place {
             InjectionPlace::Path => self.path = self.path.replace("%s", &self.make_query()),
             InjectionPlace::Body => {
                 self.body = self.body.replace("%s", &self.make_query());
 
-                if !self.custom_headers.contains_key("Content-Type") {
-                    if self.is_json {
+                if !self.defaults.custom_headers.contains_key("Content-Type") {
+                    if self.defaults.is_json {
                         self.set_header("Content-Type", "application/json");
                     } else {
                         self.set_header("Content-Type", "application/x-www-form-urlencoded");
@@ -276,7 +266,7 @@ impl Request {
                 }
             },
             InjectionPlace::HeaderValue => {
-                for (k, v) in self.custom_headers.iter() {
+                for (k, v) in self.defaults.custom_headers.iter() {
                     self.set_header(
                         k,
                         &v.replace("{{random}}", &random_line(5)).replace("%s", &self.make_query())
@@ -292,7 +282,7 @@ impl Request {
        }
     }
 
-    pub async fn send_by(self, clients: &Client) -> Result<Response, Box<dyn Error>> {
+    pub async fn send_by(self, clients: &Client) -> Result<Response<'a>, Box<dyn Error>> {
 
         match self.clone().request(clients).await {
             Ok(val) => Ok(val),
@@ -303,19 +293,19 @@ impl Request {
         }
     }
 
-    pub async fn send(self) -> Result<Response, Box<dyn Error>> {
-        let dc = &self.client;
+    pub async fn send(self) -> Result<Response<'a>, Box<dyn Error>> {
+        let dc = &self.defaults.client;
         self.send_by(dc).await
     }
 
-    async fn request(mut self, client: &Client) -> Result<Response, reqwest::Error> {
+    async fn request(mut self, client: &Client) -> Result<Response<'a>, reqwest::Error> {
 
         let additional_parameter = random_line(7);
 
         self.prepare(Some(&additional_parameter));
 
         let mut request = http::Request::builder()
-            .method(self.method.as_str())
+            .method(self.defaults.method.as_str())
             .uri(self.url());
 
         for (k, v) in &self.headers {
@@ -326,7 +316,7 @@ impl Request {
             .body(self.body.to_owned())
             .unwrap();
 
-        std::thread::sleep(self.delay);
+        std::thread::sleep(self.defaults.delay);
 
         let reqwest_req = reqwest::Request::try_from(request).unwrap();
 
@@ -368,7 +358,7 @@ impl Request {
     }
 
     /// the function is used when there was a error during the request
-    pub fn empty_response(mut self) -> Response {
+    pub fn empty_response(mut self) -> Response<'a> {
         self.prepare(None);
         Response {
             time: 0,
@@ -384,7 +374,7 @@ impl Request {
     pub fn print(&mut self) -> String {
         self.prepare(Some(&random_line(5)));
 
-        let mut str_req = format!("{} {} HTTP/x\nHost: {}\n", &self.method, self.path, self.host); //TODO identify HTTP version
+        let mut str_req = format!("{} {} HTTP/x\nHost: {}\n", &self.defaults.method, self.path, self.defaults.host); //TODO identify HTTP version
 
         for (k, v) in self.headers.iter().sorted() {
             str_req += &format!("{}: {}\n", k, v)
@@ -473,7 +463,7 @@ mod tests {
         let params = vec!["param".to_string()];
         let mut request = Request::new(&defaults, params);
         request.prepare(None);
-        assert!(request.path.starts_with("/?param="));
+        assert!(request.defaults.path.starts_with("/?param="));
         assert!(request.url().starts_with("https://example.com:443/?param="));
 
         template.injection_place = InjectionPlace::Body;
@@ -508,7 +498,7 @@ impl<'a> Default for RequestDefaults {
             is_json: false,
             encode: false,
             body: String::new(),
-            parameters: HashMap::new(),
+            parameters: Vec::new(),
             injection_place: InjectionPlace::Path,
             amount_of_reflections: 0
         }
@@ -563,7 +553,7 @@ impl<'a> RequestDefaults {
 
             amount_of_reflections: 0,
 
-            parameters: HashMap::new(),
+            parameters: Vec::new(),
         })
     }
 

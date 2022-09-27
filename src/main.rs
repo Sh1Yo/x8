@@ -125,7 +125,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
             local_recursion_depth += 1;
 
             //add found parameters to query
-            request_defaults.parameters = HashMap::from_iter(
+            request_defaults.parameters = Vec::from_iter(
                 //TODO check parameters that change code in a different loop
                 all_found_params
                     .iter()
@@ -133,7 +133,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
                     .map(|x: &FoundParameter| (x.name.to_owned(), random_line(5)))
             );
 
-            utils::info(&config, "recursion", format!("{}: repeat with: {}", local_recursion_depth, request_defaults.parameters.keys().join(", ")));
+            //utils::info(&config, "recursion", format!("{}: repeat with: {}", local_recursion_depth, request_defaults.parameters.keys().join(", ")));
 
             continue
         }

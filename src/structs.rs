@@ -18,7 +18,7 @@ pub struct RequestDefaults {
     pub custom_headers: Vec<(String, String)>,
 
     //how much to sleep between requests in millisecs
-    pub delay: Duration,
+    pub delay: Duration, //MOVE to config
 
     //the initial response to compare with.
     //can be None at the start when no requests were made yet
@@ -45,7 +45,7 @@ pub struct RequestDefaults {
 
     //parameters to add to every request
     //it is used in recursion search
-    pub parameters: HashMap<String, String>,
+    pub parameters: Vec<(String, String)>,
 
     //where the injection point is
     pub injection_place: InjectionPlace,
@@ -70,42 +70,41 @@ pub enum InjectionPlace {
 
 //TODO add references where possible because the request is often cloned
 #[derive(Debug, Clone)]
-pub struct Request {
-    pub path: String,
-    pub method: String,
-    pub scheme: String,
-    pub host: String,
-    pub port: u16,
+pub struct Request<'a> {
+    pub defaults: &'a RequestDefaults,
 
-    pub template: String,
-    pub joiner: String,
+    //vector of supplied parameters
+    pub parameters: Vec<String>,
 
-    pub encode: bool,
-    pub is_json: bool,
+    //parsed parameters (key, value)
+    pub prepared_parameters: Vec<(String, String)>,
 
-    pub injection_place: InjectionPlace,
-
-    //unprepared headers
-    pub custom_headers: Vec<(String, String)>,
+    //parameters with not random values
+    //we need this vector to ignore searching for reflections for these parameters
+    //for example admin=1 - its obvious that 1 can be reflected unpredictable amount of times
+    pub non_random_parameters: Vec<(String, String)>,
 
     pub headers: Vec<(String, String)>,
-    pub parameters: Vec<String>, //vector of supplied parameters
-    pub prepared_parameters: HashMap<String, String>, //parsed parameters
-    pub non_random_parameters: HashMap<String, String>, //parameters with not random values (in order to remove false positive reflections)
+
     pub body: String,
-    pub delay: Duration,
+
+    //we can't use defaults.path because there can be {{random}} variable that need to be replaced
+    pub path: String,
+
+    //whether the request was prepared
+    //{{random}} things replaced, prepared_parameters filled
     pub prepared: bool
 }
 
 #[derive(Debug, Clone)]
-pub struct Response {
+pub struct Response<'a> {
     pub time: u128,
     pub code: u16,
     pub headers: Vec<(String, String)>,
     pub text: String,
     pub reflected_parameters: HashMap<String, usize>, //<parameter, amount of reflections>
     pub additional_parameter: String,
-    pub request: Request,
+    pub request: Request<'a>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

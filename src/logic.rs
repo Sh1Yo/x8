@@ -23,7 +23,7 @@ pub async fn check_parameters(
     green_lines: &mut HashMap<String, usize>,
     remaining_params: &mut Vec<Vec<String>>,
     found_params: &mut Vec<FoundParameter>,
-    initial_response: &Response,
+    initial_response: &Response<'_>,
 ) -> Result<(), Box<dyn Error>> {
     //the amount of requests needed for process all the parameters
     let all = params.len() / max;

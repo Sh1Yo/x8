@@ -281,6 +281,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         Err("A target was not provided")?;
     }
 
+    //parse numbers
     let delay = Duration::from_millis(args.value_of("delay").unwrap().parse()?);
 
     let learn_requests_count = args.value_of("learn_requests_count").unwrap().parse()?;
@@ -289,6 +290,7 @@ Conflicts with --verify for now. Will be changed in the future.")
     let timeout = args.value_of("timeout").unwrap().parse()?;
     let recursion_depth = args.value_of("recursion_depth").unwrap().parse()?;
 
+    //try to read request file
     let request = match args.value_of("request") {
         Some(val) => fs::read_to_string(val)?,
         None => String::new(),
@@ -309,6 +311,7 @@ Conflicts with --verify for now. Will be changed in the future.")
             injection_place
         )
     ) = if !request.is_empty() {
+        //if the request file is specified - get protocol (https/http) from args, specify schema and port and parse request file
         let proto = args.value_of("proto").ok_or("--proto wasn't provided")?.to_string();
 
         let scheme = proto.replace("://", "");
@@ -412,6 +415,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         )
     };
 
+    //set default max amount of parameters per request
     let max: isize = if args.is_present("max") {
         args.value_of("max").unwrap().parse()?
     } else {
@@ -431,6 +435,7 @@ Conflicts with --verify for now. Will be changed in the future.")
 
     let url = format!("{}{}:{}{}", proto, host, port, path);
 
+    //generate custom param values like admin=true
     let custom_keys: Vec<String> = match args.values_of("custom-parameters") {
         Some(val) => {
             val.map(|x| x.to_string()).collect()
@@ -507,7 +512,6 @@ Conflicts with --verify for now. Will be changed in the future.")
         injection_place,
         &body,
     )?;
-
 
     Ok((config, request_defaults, max))
 }
