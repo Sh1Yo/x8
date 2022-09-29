@@ -1,4 +1,4 @@
-use crate::{structs::{Config, InjectionPlace, RequestDefaults, DataType}, utils::{parse_request, create_client}};
+use crate::{structs::{Config, InjectionPlace, DataType}, utils::{parse_request, create_client}, network::request::RequestDefaults};
 use clap::{crate_version, App, AppSettings, Arg};
 use std::{collections::HashMap, fs, time::Duration, error::Error};
 use url::Url;

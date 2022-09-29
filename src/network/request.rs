@@ -1,5 +1,5 @@
 use crate::{
-    structs::{Config, Stable, RequestDefaults, Request, FoundParameter, InjectionPlace, Response, Headers, DataType}, utils::{random_line, self, progress_bar},
+    structs::{InjectionPlace, Headers, DataType}, utils::{random_line},
 };
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -10,7 +10,7 @@ use std::{
     error::Error, collections::HashMap, iter::FromIterator, time::{Duration, Instant}, convert::TryFrom,
 };
 
-const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
+use super::response::Response;
 
 lazy_static! {
     //characters to encode
@@ -28,124 +28,81 @@ lazy_static! {
         .add(b'%');
 }
 
-///makes first requests and checks page behavior
-pub async fn empty_reqs(
-    config: &Config,
-    initial_response: &Response<'_>,
-    request_defaults: &RequestDefaults,
-    count: usize,
-    max: usize,
-) -> Result<(Vec<String>, Stable), Box<dyn Error>> {
-    let mut stable = Stable {
-        body: true,
-        reflections: true,
-    };
-    let mut diffs: Vec<String> = Vec::new();
+#[derive(Debug, Clone)]
+pub struct RequestDefaults {
+    //default request data
+    pub method: String,
+    pub scheme: String,
+    pub path: String,
+    pub host: String,
+    pub port: u16,
 
-    for i in 0..count {
-        let response =
-            Request::new_random(request_defaults, max)
-                .send()
-                .await?;
+    //custom user supplied headers or default ones
+    pub custom_headers: Vec<(String, String)>,
 
-        progress_bar(config, i, count);
+    //how much to sleep between requests in millisecs
+    pub delay: Duration, //MOVE to config
 
-        //do not check pages >25MB because usually its just a binary file or sth
-        if response.text.len() > MAX_PAGE_SIZE && !config.force {
-            Err("The page is too huge")?;
-        }
+    //the initial response to compare with.
+    //can be None at the start when no requests were made yet
+    //probably better to adjust the logic and keep just Response
+    //pub initial_response: Option<Response<'a>>,
 
-        //TODO i think it works wrong
-        if !response.reflected_parameters.is_empty() {
-            stable.reflections = false;
-        }
+    //default reqwest client
+    pub client: Client,
 
-        let (is_code_diff, mut new_diffs) = response.compare(initial_response, &diffs)?;
+    //parameter template, for example %k=%v
+    pub template: String,
 
-        if is_code_diff {
-            Err("The page is not stable (code)")?
-        }
+    //how to join parameters, for example '&'
+    pub joiner: String,
 
-        diffs.append(&mut new_diffs);
-    }
+    //whether to encode the query like param1=value1&param2=value2 -> param1%3dvalue1%26param2%3dvalue2
+    pub encode: bool,
 
-    //check the last time
-    let response =
-        Request::new_random(request_defaults, max)
-            .send()
-            .await?;
+    //to replace {"key": "false"} with {"key": false}
+    pub is_json: bool,
 
-    //in case the page is still different from other random ones - the body isn't stable
-    if !response.compare(initial_response, &diffs)?.1.is_empty() {
-        utils::info(config, "~", "The page is not stable (body)");
-        stable.body = false;
-    }
+    //default body
+    pub body: String,
 
-    Ok((diffs, stable))
+    //parameters to add to every request
+    //it is used in recursion search
+    pub parameters: Vec<(String, String)>,
+
+    //where the injection point is
+    pub injection_place: InjectionPlace,
+
+    //the default amount of reflection per non existing parameter
+    pub amount_of_reflections: usize
+
 }
 
-pub async fn verify<'a>(
-    initial_response: &'a Response<'a>,
-    request_defaults: &'a RequestDefaults,
-    found_params: &Vec<FoundParameter>,
-    diffs: &Vec<String>,
-    stable: &Stable
-) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
-    //TODO maybe implement sth like similar patters? At least for reflected parameters
-    //struct Pattern {kind: PatterKind, pattern: String}
-    //
-    //let mut similar_patters: HashMap<Pattern, Vec<String>> = HashMap::new();
-    //
-    //it would allow to fold parameters like '_anything1', '_anything2' (all that starts with _)
-    //to just one parameter in case they have the same diffs
-    //sth like a light version of --strict
+#[derive(Debug, Clone)]
+pub struct Request<'a> {
+    pub defaults: &'a RequestDefaults,
 
-    let mut filtered_params = Vec::with_capacity(found_params.len());
+    //vector of supplied parameters
+    pub parameters: Vec<String>,
 
-    for param in found_params {
+    //parsed parameters (key, value)
+    pub prepared_parameters: Vec<(String, String)>,
 
-        let mut response = Request::new(request_defaults, vec![param.name.clone()])
-                                    .send()
-                                    .await?;
+    //parameters with not random values
+    //we need this vector to ignore searching for reflections for these parameters
+    //for example admin=1 - its obvious that 1 can be reflected unpredictable amount of times
+    pub non_random_parameters: Vec<(String, String)>,
 
-        let (is_code_the_same, new_diffs) = response.compare(initial_response, &diffs)?;
-        let mut is_the_body_the_same = true;
+    pub headers: Vec<(String, String)>,
 
-        if !new_diffs.is_empty() {
-            is_the_body_the_same = false;
-        }
+    pub body: String,
 
-        response.fill_reflected_parameters(initial_response);
+    //we can't use defaults.path because there can be {{random}} variable that need to be replaced
+    pub path: String,
 
-        if !is_code_the_same || !(!stable.body || is_the_body_the_same) || !response.reflected_parameters.is_empty() {
-            filtered_params.push(param.clone());
-        }
-    }
-
-    Ok(filtered_params)
-}
-
-pub async fn replay<'a>(
-    config: &Config, request_defaults: &RequestDefaults, replay_client: &Client, found_params: &Vec<FoundParameter>
-) -> Result<(), Box<dyn Error>> {
-     //get cookies
-    Request::new(request_defaults, vec![])
-        .send_by(replay_client)
-        .await?;
-
-    if config.replay_once {
-        Request::new(request_defaults, found_params.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>())
-            .send_by(replay_client)
-            .await?;
-    } else {
-        for param in found_params {
-            Request::new(request_defaults, vec![param.name.to_string()])
-                .send_by(replay_client)
-                .await?;
-        }
-    }
-
-    Ok(())
+    //whether the request was prepared
+    //{{random}} things replaced, prepared_parameters filled
+    pub prepared: bool
 }
 
 impl<'a> Request<'a> {
@@ -206,7 +163,7 @@ impl<'a> Request<'a> {
     /// in case self.parameters contains parameter with "%=%"
     /// it gets splitted by %=%  and the default random value gets replaced with the right part:
     /// admin%=%true -> (admin, true) vs admin -> (admin, df32w)
-    fn prepare(&mut self, additional_param: Option<&String>) {
+    pub fn prepare(&mut self, additional_param: Option<&String>) {
         if self.prepared {
             return
         }
@@ -346,7 +303,7 @@ impl<'a> Request<'a> {
             headers,
             time: duration.as_millis(),
             text,
-            request: self,
+            request: Some(self),
             reflected_parameters: HashMap::new(),
             additional_parameter: additional_parameter
         };
@@ -367,7 +324,7 @@ impl<'a> Request<'a> {
             text: String::new(),
             reflected_parameters: HashMap::new(),
             additional_parameter: String::new(),
-            request: self,
+            request: Some(self),
         }
     }
 
@@ -383,102 +340,6 @@ impl<'a> Request<'a> {
         str_req += &format!("\n{}", self.body);
 
         str_req
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{collections::HashMap, time::Duration};
-
-    use crate::structs::{RequestDefaults, Request, InjectionPlace, DataType, Headers};
-
-    #[test]
-    fn query_creation() {
-        let mut l = RequestDefaults::default();
-        l.template = "{k}=payload".to_string();
-        l.joiner = "&".to_string();
-        let parameters = vec!["test1".to_string()];
-        let mut request = Request::new(&l, parameters);
-        request.prepare(None);
-
-        assert_eq!(request.make_query(), "test1=payload");
-    }
-
-    #[test]
-    fn request_defaults_generation() {
-        let defaults = RequestDefaults::new(
-            "GET",
-            "https://example.com:8443/path",
-            HashMap::from([("X-Header", "Value".to_string())]),
-            Duration::from_millis(0),
-            Default::default(),
-            None,
-            None,
-            false,
-            None,
-            super::InjectionPlace::Path,
-            ""
-        ).unwrap();
-
-        assert_eq!(defaults.scheme, "https");
-        assert_eq!(defaults.host, "example.com");
-        assert_eq!(defaults.port, 8443);
-        assert_eq!(defaults.path, "/path?%s");
-        assert_eq!(defaults.custom_headers.get_value("X-Header").unwrap(), "Value");
-        assert_eq!(defaults.template, "{k}={v}");
-        assert_eq!(defaults.joiner, "&");
-        assert_eq!(defaults.injection_place, InjectionPlace::Path);
-    }
-
-    #[test]
-    fn request_body_generation() {
-        let mut template = RequestDefaults::default();
-
-        template.injection_place = InjectionPlace::Body;
-        let defaults = template.recreate(Some(DataType::Json), None, None);
-        assert!(defaults.is_json);
-        assert_eq!(defaults.body, "{%s}");
-        assert_eq!(defaults.template, "\"{k}\": {v}");
-
-        template.body = "{\"something\":1}".to_string();
-        let defaults = template.recreate(None, None, None);
-        assert_eq!(defaults.body, "{\"something\":1, %s}");
-        assert_eq!(defaults.template, "\"{k}\": {v}");
-
-        template.body = String::new();
-        let defaults = template.recreate(None, None, None);
-        assert_eq!(defaults.body, "%s");
-
-        template.body = "a=b".to_string();
-        let defaults = template.recreate(None, None, None);
-        assert_eq!(defaults.body, "a=b&%s");
-    }
-
-    #[test]
-    fn request_generation() {
-        let mut template = RequestDefaults::default();
-
-        let defaults = template.recreate(None, None, None);
-        assert_eq!(defaults.path, "/?%s");
-        let params = vec!["param".to_string()];
-        let mut request = Request::new(&defaults, params);
-        request.prepare(None);
-        assert!(request.defaults.path.starts_with("/?param="));
-        assert!(request.url().starts_with("https://example.com:443/?param="));
-
-        template.injection_place = InjectionPlace::Body;
-        template.body = "{\"something\":[%s]}".to_string();
-        let defaults = template.recreate(None, Some("\"{k}\""), Some(", "));
-        let params = vec!["param1".to_string()];
-        let mut request = Request::new(&defaults, params.clone());
-        request.prepare(None);
-        assert_eq!(request.body, "{\"something\":[\"param1\"]}");
-
-        template.body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><note>%s</note>".to_string();
-        let defaults = template.recreate(None, Some("<{k}>sth</{k}>"), Some(""));
-        let mut request = Request::new(&defaults, params);
-        request.prepare(None);
-        assert_eq!(request.body, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><note><param1>sth</param1></note>");
     }
 }
 

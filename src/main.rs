@@ -8,14 +8,13 @@ use std::{
 
 use atty::Stream;
 
-use itertools::Itertools;
 use reqwest::Client;
 use x8::{
     args::get_config,
     logic::check_parameters,
-    requests::{empty_reqs, verify, replay},
-    structs::{Config, RequestDefaults, Request, FoundParameter, ReasonKind},
-    utils::{self, write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client, random_line}, //runner::Runner,
+    network::request::{Request, RequestDefaults},
+    structs::{Config, FoundParameter, ReasonKind},
+    utils::{self, replay, empty_reqs, verify, write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client, random_line}, //runner::Runner,
 };
 
 #[cfg(windows)]

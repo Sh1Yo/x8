@@ -11,9 +11,11 @@ use rand::Rng;
 use colored::*;
 use reqwest::Client;
 
-use crate::structs::{Config, Response, DataType, InjectionPlace, RequestDefaults, Request, Stable, FoundParameter, ReasonKind};
+use crate::structs::{Config, DataType, InjectionPlace, Stable, FoundParameter, ReasonKind};
+use crate::network::{request::{RequestDefaults, Request}, response::Response};
 
 static RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
+const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
 
 pub fn write_banner(config: &Config, request_defaults: &RequestDefaults) {
     writeln!(
@@ -217,6 +219,126 @@ pub fn parse_request<'a>(request: &'a str, as_body: bool) -> Result<(
     ))
 }
 
+///makes first requests and checks page behavior
+pub async fn empty_reqs(
+    config: &Config,
+    initial_response: &Response<'_>,
+    request_defaults: &RequestDefaults,
+    count: usize,
+    max: usize,
+) -> Result<(Vec<String>, Stable), Box<dyn Error>> {
+    let mut stable = Stable {
+        body: true,
+        reflections: true,
+    };
+    let mut diffs: Vec<String> = Vec::new();
+
+    for i in 0..count {
+        let response =
+            Request::new_random(request_defaults, max)
+                .send()
+                .await?;
+
+        progress_bar(config, i, count);
+
+        //do not check pages >25MB because usually its just a binary file or sth
+        if response.text.len() > MAX_PAGE_SIZE && !config.force {
+            Err("The page is too huge")?;
+        }
+
+        //TODO i think it works wrong
+        if !response.reflected_parameters.is_empty() {
+            stable.reflections = false;
+        }
+
+        let (is_code_diff, mut new_diffs) = response.compare(initial_response, &diffs)?;
+
+        if is_code_diff {
+            Err("The page is not stable (code)")?
+        }
+
+        diffs.append(&mut new_diffs);
+    }
+
+    //check the last time
+    let response =
+        Request::new_random(request_defaults, max)
+            .send()
+            .await?;
+
+    //in case the page is still different from other random ones - the body isn't stable
+    if !response.compare(initial_response, &diffs)?.1.is_empty() {
+        info(config, "~", "The page is not stable (body)");
+        stable.body = false;
+    }
+
+    Ok((diffs, stable))
+}
+
+pub async fn verify<'a>(
+    initial_response: &'a Response<'a>,
+    request_defaults: &'a RequestDefaults,
+    found_params: &Vec<FoundParameter>,
+    diffs: &Vec<String>,
+    stable: &Stable
+) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
+    //TODO maybe implement sth like similar patters? At least for reflected parameters
+    //struct Pattern {kind: PatterKind, pattern: String}
+    //
+    //let mut similar_patters: HashMap<Pattern, Vec<String>> = HashMap::new();
+    //
+    //it would allow to fold parameters like '_anything1', '_anything2' (all that starts with _)
+    //to just one parameter in case they have the same diffs
+    //sth like a light version of --strict
+
+    let mut filtered_params = Vec::with_capacity(found_params.len());
+
+    for param in found_params {
+
+        let mut response = Request::new(request_defaults, vec![param.name.clone()])
+                                    .send()
+                                    .await?;
+
+        let (is_code_the_same, new_diffs) = response.compare(initial_response, &diffs)?;
+        let mut is_the_body_the_same = true;
+
+        if !new_diffs.is_empty() {
+            is_the_body_the_same = false;
+        }
+
+        response.fill_reflected_parameters(initial_response);
+
+        if !is_code_the_same || !(!stable.body || is_the_body_the_same) || !response.reflected_parameters.is_empty() {
+            filtered_params.push(param.clone());
+        }
+    }
+
+    Ok(filtered_params)
+}
+
+pub async fn replay<'a>(
+    config: &Config, request_defaults: &RequestDefaults, replay_client: &Client, found_params: &Vec<FoundParameter>
+) -> Result<(), Box<dyn Error>> {
+     //get cookies
+    Request::new(request_defaults, vec![])
+        .send_by(replay_client)
+        .await?;
+
+    if config.replay_once {
+        Request::new(request_defaults, found_params.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>())
+            .send_by(replay_client)
+            .await?;
+    } else {
+        for param in found_params {
+            Request::new(request_defaults, vec![param.name.to_string()])
+                .send_by(replay_client)
+                .await?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where
     P: AsRef<Path>,
@@ -314,7 +436,7 @@ pub fn save_request(config: &Config, response: &Response, param_key: &str) -> Re
     let output = response.print();
 
     let filename = format!(
-        "{}/{}-{}-{}-{}", &config.save_responses, &response.request.defaults.host, response.request.defaults.method.to_lowercase(), param_key, random_line(3)
+        "{}/{}-{}-{}-{}", &config.save_responses, &response.request.as_ref().unwrap().defaults.host, response.request.as_ref().unwrap().defaults.method.to_lowercase(), param_key, random_line(3)
     );
 
     std::fs::write(

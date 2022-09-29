@@ -5,7 +5,29 @@ use itertools::Itertools;
 use regex::Regex;
 use lazy_static::lazy_static;
 
-use crate::{structs::{Status, ReasonKind, Config, Response, Headers}, diff::diff, utils::save_request};
+use crate::{structs::{ReasonKind, Config, Headers}, diff::diff, utils::save_request};
+
+use super::request::Request;
+
+#[derive(Debug, Clone)]
+pub struct Response<'a> {
+    pub time: u128,
+    pub code: u16,
+    pub headers: Vec<(String, String)>,
+    pub text: String,
+    pub reflected_parameters: HashMap<String, usize>, //<parameter, amount of reflections>
+    pub additional_parameter: String,
+    pub request: Option<Request<'a>>,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum Status {
+    Ok,             //2xx
+    Redirect,       //3xx
+    UserFault,      //4xx
+    ServerFault,    //5xx
+    Other,
+}
 
 impl<'a> Response<'a> {
 
@@ -79,15 +101,15 @@ impl<'a> Response<'a> {
         //let base_count = self.count(&self.request.prepared_parameters[additional_param]);
 
         //remove non random parameters from prepared parameters because they would cause false positives in this check
-        let prepated_parameters: Vec<&(String, String)> = if !self.request.non_random_parameters.is_empty() {
+        let prepated_parameters: Vec<&(String, String)> = if !self.request.as_ref().unwrap().non_random_parameters.is_empty() {
             Vec::from_iter(
-                self.request.prepared_parameters
+                self.request.as_ref().unwrap().prepared_parameters
                     .iter()
-                    .filter(|x| !self.request.non_random_parameters.contains_key(&x.0))
+                    .filter(|x| !self.request.as_ref().unwrap().non_random_parameters.contains_key(&x.0))
             )
         } else {
             Vec::from_iter(
-                self.request.prepared_parameters.iter()
+                self.request.as_ref().unwrap().prepared_parameters.iter()
             )
         };
 
@@ -95,7 +117,7 @@ impl<'a> Response<'a> {
             //TODO do sth about that initial_response because "unwrapping" it every time doesn't seem good
             let new_count = self.count(v) - initial_response.count(v);
 
-            if self.request.defaults.amount_of_reflections != new_count {
+            if self.request.as_ref().unwrap().defaults.amount_of_reflections != new_count {
                 self.reflected_parameters.insert(k.to_string(), new_count);
             }
         }
@@ -114,7 +136,7 @@ impl<'a> Response<'a> {
 
         // only one reflected parameter besides additional one - return it
         // this parameter caused other parameters to reflect different amount of times
-        if self.request.prepared_parameters.len() == 2 && self.reflected_parameters.len() == 2 {
+        if self.request.as_ref().unwrap().prepared_parameters.len() == 2 && self.reflected_parameters.len() == 2 {
             return (Some(self.reflected_parameters.keys().filter(|x| x != &&self.additional_parameter).next().unwrap()), false)
         }
 
@@ -253,6 +275,6 @@ impl<'a> Response<'a> {
 
     ///print the request and response
     pub fn print_all(&mut self) -> String {
-        self.request.print() + &self.print()
+        self.request.as_mut().unwrap().print() + &self.print()
     }
 }

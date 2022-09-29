@@ -1,5 +1,6 @@
 use crate::{
-    structs::{Config, Stable, FuturesData, Request, RequestDefaults, FoundParameter, ReasonKind, Response}, utils::{progress_bar, self},
+    structs::{Config, Stable, FuturesData, FoundParameter, ReasonKind}, utils::{progress_bar, self},
+    network::{request::{Request, RequestDefaults}, response::Response}
 };
 use futures::stream::StreamExt;
 use std::{sync::Arc, error::Error};
