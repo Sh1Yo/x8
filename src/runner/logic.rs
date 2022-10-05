@@ -1,9 +1,9 @@
 use crate::{
-    structs::{Config, Stable, FuturesData, FoundParameter, ReasonKind}, utils::{progress_bar, self},
-    network::{request::{Request, RequestDefaults}, response::Response}
+    structs::{FoundParameter, ReasonKind}, utils::{progress_bar, self},
+    network::{request::{Request}}
 };
-use futures::{stream::StreamExt, FutureExt, future::BoxFuture, Future};
-use std::{sync::Arc, error::Error, pin::Pin};
+use futures::{stream::StreamExt};
+use std::{sync::Arc, error::Error, cmp};
 use parking_lot::Mutex;
 use async_recursion::async_recursion;
 
@@ -30,11 +30,10 @@ impl<'a> Runner<'a> {
             Arc::clone(&shared_diffs),
             Arc::clone(&shared_green_lines),
             Arc::clone(&shared_found_params),
-            params,
-            false
+            params
         ).await?;
         self.check_parameters_recursion(
-            shared_diffs, shared_green_lines, shared_found_params, second_params_part, false
+            shared_diffs, shared_green_lines, shared_found_params, second_params_part
         ).await
     }
 
@@ -45,7 +44,6 @@ impl<'a> Runner<'a> {
         shared_green_lines: Arc<Mutex<&'a mut HashMap<String, usize>>>,
         shared_found_params: Arc<Mutex<&'a mut Vec<FoundParameter>>>,
         params: Vec<String>,
-        first: bool
     ) -> Result<(), Box<dyn Error>> {
 
         let request = Request::new(&self.request_defaults, params.clone());
@@ -246,10 +244,12 @@ impl<'a> Runner<'a> {
     pub async fn check_parameters(
         &self,
         params: &Vec<String>,
-        found_params: &mut Vec<FoundParameter>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(Vec<String>, Vec<FoundParameter>), Box<dyn Error>> {
+
+        let max = cmp::min(self.max, params.len());
+
         //the amount of requests needed for process all the parameters
-        let all = params.len() / self.max;
+        let all = params.len() / max;
 
         //just for progress bar - count chunks
         let mut count: usize = 0;
@@ -257,11 +257,13 @@ impl<'a> Runner<'a> {
         //make diffs and green_lines accessable by all futures
         let mut diffs = self.diffs.clone();
         let mut green_lines = HashMap::new();
+        let mut found_params = Vec::new();
+
         let shared_diffs = Arc::new(Mutex::new(&mut diffs));
         let shared_green_lines = Arc::new(Mutex::new(&mut green_lines));
-        let shared_found_params = Arc::new(Mutex::new(found_params));
+        let shared_found_params = Arc::new(Mutex::new(&mut found_params));
 
-        let _futures_data = futures::stream::iter(params.chunks(self.max).map(|chunk| {
+        let _futures_data = futures::stream::iter(params.chunks(max).map(|chunk| {
             count += 1;
 
             progress_bar(&self.config, count, all);
@@ -276,7 +278,6 @@ impl<'a> Runner<'a> {
                     shared_green_lines,
                     shared_found_params,
                     chunk.to_vec(),
-                    true
                 ).await
             }
 
@@ -285,6 +286,6 @@ impl<'a> Runner<'a> {
         .collect::<Vec<Result<(), Box<dyn Error>>>>()
         .await;
 
-        Ok(())
+        Ok((diffs, found_params))
     }
 }

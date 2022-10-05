@@ -134,6 +134,16 @@ impl FoundParameter {
     }
 }
 
+pub trait Parameters {
+    fn contains_key(&self, key: &str) -> bool;
+}
+
+impl Parameters for Vec<FoundParameter> {
+    fn contains_key(&self, key: &str) -> bool {
+        self.iter().any(|x| x.name == key)
+    }
+}
+
 pub trait Headers {
     fn contains_key(&self, key: &str) -> bool;
     fn get_value(&self, key: &str) -> Option<String>;

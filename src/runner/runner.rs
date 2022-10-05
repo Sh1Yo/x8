@@ -3,9 +3,7 @@ use std::{collections::HashMap, error::Error, iter::FromIterator, sync::Arc};
 use parking_lot::Mutex;
 use reqwest::Client;
 
-use crate::{structs::{Config, FoundParameter, InjectionPlace, Stable}, utils::{write_banner_response, empty_reqs, random_line}, network::{request::{RequestDefaults, Request}, response::Response}};
-
-use super::structs::SharedInfo;
+use crate::{structs::{Config, FoundParameter, InjectionPlace, Stable, Parameters}, utils::{write_banner_response, empty_reqs, random_line, verify, self, replay}, network::{request::{RequestDefaults, Request}, response::Response}};
 
 pub struct Runner<'a> {
     pub config: &'a Config,
@@ -112,14 +110,71 @@ impl<'a> Runner<'a> {
     }
 
     /// acually runs the runner
-    async fn run(mut self) -> Result<(), Box<dyn Error>> {
+    async fn run(mut self, params: &Vec<String>) -> Result<(), Box<dyn Error>> {
 
         self.stability_checker().await?;
+
+        let (diffs, mut found_params) = self.check_parameters(params).await?;
+
+        found_params.append(&mut self.check_non_random_parameters().await?);
+
+        //in case, for example, 'admin' param is found -- remove params like 'admin=true' or sth
+        //TODO maybe check for the kind of parameter as well
+        let mut found_params =
+            found_params.iter().filter(|x|
+                !(x.name.contains('=') && found_params.contains_key(x.name.split('=').next().unwrap()))
+            ).map(|x| x.to_owned()).collect();
+
+        //verify found parameters
+        if self.config.verify {
+            found_params = if let Ok(filtered_params)
+                = verify(&self.initial_response, &self.request_defaults, &found_params, &diffs, &self.stable).await {
+                filtered_params
+            } else {
+                utils::info(&self.config, "~", "was unable to verify found parameters");
+                found_params
+            };
+        }
+
+        if !self.config.replay_proxy.is_empty() {
+            if let Err(_) = replay(&self.config, &self.request_defaults, &self.replay_client, &found_params).await {
+                utils::info(&self.config, "~", "was unable to resend found parameters via different proxy");
+            }
+        }
 
         Ok(())
     }
 
-    /// makes several requests in order to learn how page behaves
+    //check parameters like admin=true
+    async fn check_non_random_parameters(&self) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
+
+        let mut found_parameters = Vec::new();
+
+        if !self.config.disable_custom_parameters {
+            let mut custom_parameters = self.config.custom_parameters.clone();
+            let mut params = Vec::new();
+
+            // in a loop check common parameters like debug, admin, .. with common values true, 1, false..
+            // until there's no values left
+            loop {
+                for (k, v) in custom_parameters.iter_mut() {
+                    if !v.is_empty() {
+                        params.push([k.as_str(), "=", v.pop().unwrap().as_str()].concat());
+                    }
+                }
+
+                if params.is_empty() {
+                    break;
+                }
+
+                found_parameters.append(&mut self.check_parameters(&params).await?.1);
+            }
+        }
+
+        Ok(found_parameters)
+    }
+
+    /// makes several requests in order to learn how the page behaves
     /// tries to increase the max amount of parameters per request in case the default value not changed
     async fn stability_checker(&mut self) -> Result<(), Box<dyn Error>> {
         //make a few requests and collect all persistent diffs, check for stability
@@ -184,129 +239,4 @@ impl<'a> Runner<'a> {
 
         Ok(())
     }
-
-    /*async fn run(mut self, first_run: bool) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
-
-        //let mut runner = Runner::new(config, request_defaults, replay_client, params, default_max);
-
-        //saves false-positive diffs
-        let mut green_lines: HashMap<String, usize> = HashMap::new();
-
-        //parameters like admin=true
-        let mut custom_parameters: HashMap<String, Vec<String>> = config.custom_parameters.clone();
-
-        //remaining sets of parameters where new parameters can be found
-        let mut remaining_params: Vec<Vec<String>> = Vec::new();
-
-        //all found parameters
-        let mut found_params: Vec<FoundParameter> = Vec::new();
-
-        //whether it's the first run. Changes some logic in check_parameters function
-        let mut first: bool = true;
-
-        //the initial size of parameters' sets (the amount of requests to be send in the one loop iteration)
-        let initial_size: usize = params.len() / max;
-
-        //how many times subsets of the same parameters were checked
-        //helps to detect infinity loops that can happen in rare cases
-        let mut count: usize = 0;
-
-        loop {
-            check_parameters(
-                first,
-                &config,
-                &request_defaults,
-                &mut diffs,
-                &params,
-                &stable,
-                max,
-                &mut green_lines,
-                &mut remaining_params,
-                &mut found_params,
-            ).await?;
-            first = false;
-            count += 1;
-
-            //some strange logic to detect infinity loops of requests
-            if count > 100
-                || (count > 50 && remaining_params.len() < 10)
-                || (count > 10 && remaining_params.len() > (initial_size / 2 + 5))
-                || (count > 1 && remaining_params.len() > (initial_size * 2 + 10))
-            {
-               Err("Infinity loop detected")?;
-            }
-
-            params = Vec::with_capacity(remaining_params.len() * max);
-            max /= 2;
-
-            if max == 0 {
-                max = 1;
-            }
-
-            //if there is a parameter in remaining_params that also exists in found_params - ignore it.
-            //TODO rewrite coz it looks a bit difficult
-            let mut found: bool = false;
-            for vector_remainig_params in remaining_params.iter() {
-                for remaining_param in vector_remainig_params {
-                    for found_param in found_params.iter() {
-                        //some strange logic in order to treat admin=1 and admin=something as the same parameters
-                        let param_key = if remaining_param.matches('=').count() == 1 {
-                            remaining_param.split('=').next().unwrap()
-                        } else {
-                            remaining_param
-                        };
-
-                        if found_param.name == param_key
-                            || found_param.name.matches('=').count() == 1
-                            && found_param.name.split('=').next().unwrap() == param_key {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if !found {
-                        params.push(remaining_param.to_string());
-                    }
-                    found = false;
-                }
-            }
-
-            //TODO move them somwhere else because they break recursion things
-            //check custom parameters like admin=true
-            if params.is_empty() && !config.disable_custom_parameters && first_run {
-                max = default_max.abs() as usize;
-                for (k, v) in custom_parameters.iter_mut() {
-                    if !v.is_empty() {
-                        params.push([k.as_str(), "=", v.pop().unwrap().as_str()].concat());
-                    }
-                }
-                if max > params.len() {
-                    max = params.len()
-                }
-            }
-
-            if params.is_empty() {
-                break;
-            }
-
-            remaining_params = Vec::new()
-        }
-
-        if config.verify {
-            found_params = if let Ok(filtered_params)
-                = verify(&request_defaults, &found_params, &diffs, &stable).await {
-                filtered_params
-            } else {
-                utils::info(&config, "~", "was unable to verify found parameters");
-                found_params
-            };
-        }
-
-        if !config.replay_proxy.is_empty() {
-            if let Err(_) = replay(&config, &request_defaults, &replay_client, &found_params).await {
-                utils::info(&config, "~", "was unable to resend found parameters via different proxy");
-            }
-        }
-
-        Ok(found_params)
-    }*/
 }
