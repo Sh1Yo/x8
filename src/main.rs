@@ -14,7 +14,7 @@ use x8::{
     logic::check_parameters,
     network::request::{Request, RequestDefaults},
     structs::{Config, FoundParameter, ReasonKind},
-    utils::{self, replay, empty_reqs, verify, write_banner, read_lines, read_stdin_lines, write_banner_response, try_to_increase_max, create_output, create_client, random_line}, //runner::Runner,
+    utils::{self, replay, empty_reqs, verify, write_banner, read_lines, read_stdin_lines, write_banner_response, create_output, create_client, random_line}, //runner::Runner,
 };
 
 #[cfg(windows)]
@@ -237,17 +237,6 @@ async fn run(
     }
 
     //check whether it is possible to use 192 or 256 params in a single request instead of 128 default
-    if default_max == -128  {
-        max = try_to_increase_max(&initial_response, &request_defaults, &diffs, max, &stable).await?;
-
-        if max != default_max.abs() as usize {
-            default_max = max as isize;
-            /*utils::info(&config, format!(
-                "the max amount of parameters in every request was increased to {}",
-                max
-            ));*/
-        }
-    }
 
     //parameters like admin=true
     let mut custom_parameters: HashMap<String, Vec<String>> = config.custom_parameters.clone();

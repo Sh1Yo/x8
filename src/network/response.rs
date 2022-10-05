@@ -9,7 +9,7 @@ use crate::{structs::{ReasonKind, Config, Headers}, diff::diff, utils::save_requ
 
 use super::request::Request;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Response<'a> {
     pub time: u128,
     pub code: u16,
@@ -19,6 +19,9 @@ pub struct Response<'a> {
     pub additional_parameter: String,
     pub request: Option<Request<'a>>,
 }
+
+//Owo
+unsafe impl Send for Response<'_> {}
 
 #[derive(PartialEq, Eq)]
 pub enum Status {
@@ -114,7 +117,6 @@ impl<'a> Response<'a> {
         };
 
         for (k, v) in prepated_parameters.iter() {
-            //TODO do sth about that initial_response because "unwrapping" it every time doesn't seem good
             let new_count = self.count(v) - initial_response.count(v);
 
             if self.request.as_ref().unwrap().defaults.amount_of_reflections != new_count {

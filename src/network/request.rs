@@ -250,6 +250,16 @@ impl<'a> Request<'a> {
         }
     }
 
+    //we need to somehow impl Send and Sync for error
+    //therefore we are wrapping the original call to send()
+    //not a good way tho, maybe someone can suggest a better one
+    pub async fn wrapped_send(self) -> Result<Response<'a>, Box<dyn Error + Send + Sync>> {
+        match self.send().await {
+            Err(err) => Err(err.to_string().into()),
+            Ok(val) => Ok(val),
+        }
+    }
+
     pub async fn send(self) -> Result<Response<'a>, Box<dyn Error>> {
         let dc = &self.defaults.client;
         self.send_by(dc).await

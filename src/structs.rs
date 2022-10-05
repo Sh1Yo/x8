@@ -2,8 +2,6 @@ use std::{
     collections::HashMap,
 };
 
-use crate::network::request::Request;
-
 pub enum DataType {
     Json,
     Urlencoded
