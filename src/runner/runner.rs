@@ -1,6 +1,5 @@
 use std::{collections::HashMap, error::Error, iter::FromIterator, sync::Arc};
 
-use parking_lot::Mutex;
 use reqwest::Client;
 
 use crate::{structs::{Config, FoundParameter, InjectionPlace, Stable, Parameters}, utils::{write_banner_response, empty_reqs, random_line, verify, self, replay}, network::{request::{RequestDefaults, Request}, response::Response}};
@@ -9,7 +8,7 @@ pub struct Runner<'a> {
     pub config: &'a Config,
     pub request_defaults: RequestDefaults,
     replay_client: &'a Client,
-    pub params: Vec<String>,
+    pub possible_params: Vec<String>,
     default_max: isize,
 
     pub max: usize,
@@ -27,13 +26,8 @@ impl<'a> Runner<'a> {
         config: &'a Config,
         request_defaults: &'a mut RequestDefaults,
         replay_client: &'a Client,
-        params: &'a mut Vec<String>,
-        mut default_max: isize
+        default_max: isize
     ) -> Result<Runner<'a>, Box<dyn Error>> {
-         //default_max can be negative in case guessed automatically.
-         let mut max = default_max.abs() as usize;
-
-
          //make first request and collect some information like code, reflections, possible parameters
          //we are making another request defaults because the original one will be changed right after
 
@@ -49,21 +43,10 @@ impl<'a> Runner<'a> {
                                                  .await?;
 
          //add possible parameters to the list of parameters in case the injection place is not headers
-         if request_defaults.injection_place != InjectionPlace::Headers {
-             for param in initial_response.get_possible_parameters() {
-                 if !params.contains(&param) {
-                     params.push(param)
-                 }
-             }
-         }
-
-         //in case the list is too small - change the max amount of parameters
-         if params.len() < max {
-             max = params.len();
-             default_max = params.len() as isize;
-             if max == 0 {
-                 Err("No parameters were provided.")?
-             }
+         let possible_params = if request_defaults.injection_place != InjectionPlace::Headers {
+            initial_response.get_possible_parameters()
+         } else {
+            Vec::new()
          };
 
          //find how many times reflected supplied
@@ -98,7 +81,7 @@ impl<'a> Runner<'a> {
                  config,
                  request_defaults: request_defaults.clone(),
                  replay_client,
-                 params: params.to_vec(),
+                 possible_params,
                  default_max,
                  max: default_max.abs() as usize,
                  stable: Default::default(),
@@ -110,13 +93,22 @@ impl<'a> Runner<'a> {
     }
 
     /// acually runs the runner
-    async fn run(mut self, params: &Vec<String>) -> Result<(), Box<dyn Error>> {
+    pub async fn run(mut self, params: &mut Vec<String>) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
 
         self.stability_checker().await?;
 
+        //add only unique possible params to the vec of all params (the tool works properly only with unique parameters)
+        //less efficient than making it within the sorted vec
+        //but I want to preserve order
+        for param in self.possible_params.iter() {
+            if !params.contains(&param) {
+                params.push(param.to_owned());
+            }
+        }
+
         let (diffs, mut found_params) = self.check_parameters(params).await?;
 
-        found_params.append(&mut self.check_non_random_parameters().await?);
+        self.check_non_random_parameters(&mut found_params).await?;
 
         //in case, for example, 'admin' param is found -- remove params like 'admin=true' or sth
         //TODO maybe check for the kind of parameter as well
@@ -142,14 +134,11 @@ impl<'a> Runner<'a> {
             }
         }
 
-        Ok(())
+        Ok(found_params)
     }
 
     //check parameters like admin=true
-    async fn check_non_random_parameters(&self) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
-
-        let mut found_parameters = Vec::new();
-
+    async fn check_non_random_parameters(&self, found_params: &mut Vec<FoundParameter>) -> Result<(), Box<dyn Error>> {
         if !self.config.disable_custom_parameters {
             let mut custom_parameters = self.config.custom_parameters.clone();
             let mut params = Vec::new();
@@ -158,6 +147,12 @@ impl<'a> Runner<'a> {
             // until there's no values left
             loop {
                 for (k, v) in custom_parameters.iter_mut() {
+
+                    //do not request parameters that already have been found
+                    if found_params.iter().map(|x| x.name.split("=").next().unwrap()).any(|x| x == k) {
+                        continue;
+                    }
+
                     if !v.is_empty() {
                         params.push([k.as_str(), "=", v.pop().unwrap().as_str()].concat());
                     }
@@ -167,11 +162,12 @@ impl<'a> Runner<'a> {
                     break;
                 }
 
-                found_parameters.append(&mut self.check_parameters(&params).await?.1);
+                found_params.append(&mut self.check_parameters(&params).await?.1);
+                params.clear();
             }
         }
 
-        Ok(found_parameters)
+        Ok(())
     }
 
     /// makes several requests in order to learn how the page behaves

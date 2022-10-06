@@ -43,7 +43,7 @@ impl<'a> Runner<'a> {
         shared_diffs: Arc<Mutex<&'a mut Vec<String>>>,
         shared_green_lines: Arc<Mutex<&'a mut HashMap<String, usize>>>,
         shared_found_params: Arc<Mutex<&'a mut Vec<FoundParameter>>>,
-        params: Vec<String>,
+        mut params: Vec<String>,
     ) -> Result<(), Box<dyn Error>> {
 
         let request = Request::new(&self.request_defaults, params.clone());
@@ -85,8 +85,11 @@ impl<'a> Runner<'a> {
                             reflected_parameter, &vec!["reflected".to_string()], "Different amount of reflections", kind.clone()
                         )
                     );
-
                     drop(found_params);
+
+                    //remove found parameter from the list
+                    params.remove(params.iter().position(|x| *x == reflected_parameter).unwrap());
+
 
                     response.write_and_save(&self.config, &self.initial_response, kind, &reflected_parameter, None)?;
                 }
@@ -223,6 +226,7 @@ impl<'a> Runner<'a> {
                                 ReasonKind::Text
                             )
                         );
+                        //println!("not repeat");
                         break;
                     //we don't know what parameter caused the difference in response yet
                     //so we are repeating
@@ -266,13 +270,12 @@ impl<'a> Runner<'a> {
         let _futures_data = futures::stream::iter(params.chunks(max).map(|chunk| {
             count += 1;
 
-            progress_bar(&self.config, count, all);
-
             let shared_diffs = Arc::clone(&shared_diffs);
             let shared_green_lines = Arc::clone(&shared_green_lines);
             let shared_found_params = Arc::clone(&shared_found_params);
 
             async move {
+                progress_bar(&self.config, count, all);
                 self.check_parameters_recursion(
                     shared_diffs,
                     shared_green_lines,

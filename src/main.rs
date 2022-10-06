@@ -14,7 +14,7 @@ use x8::{
     logic::check_parameters,
     network::request::{Request, RequestDefaults},
     structs::{Config, FoundParameter, ReasonKind},
-    utils::{self, replay, empty_reqs, verify, write_banner, read_lines, read_stdin_lines, write_banner_response, create_output, create_client, random_line}, //runner::Runner,
+    utils::{self, replay, empty_reqs, verify, write_banner, read_lines, read_stdin_lines, write_banner_response, create_output, create_client, random_line}, runner::runner::Runner, //runner::Runner,
 };
 
 #[cfg(windows)]
@@ -88,59 +88,39 @@ async fn init() -> Result<(), Box<dyn Error>> {
         return Ok(())
     }
 
-    let mut all_found_params = Vec::new();
-    let mut local_recursion_depth = 0;
+    run(&config, &mut request_defaults, &replay_client, &mut params, default_max).await?;
 
-    //run parameter discovery in a loop
-    //in case config.recursion_depth = 0 (default) it makes only one iteration
-    //otherwise till local_recursion_depth reaches  config.recursion_depth
-    let mut first_run = true;
-    loop {
-        let found_params = run(&config, request_defaults.clone(), &replay_client, params.clone(), default_max, first_run).await?;
-        first_run = false;
+    /*let output = create_output(&config, &request_defaults, all_found_params);
 
-        // to understand whether to make another iteration
-        // there's no sense in proceeding in case no new parameters were found in the previous iteration
-        let mut new_found = false;
+    if !config.output_file.is_empty() {
+        let mut file = OpenOptions::new();
 
-        //add new found_params to all_found_params
-        for param in found_params {
-            if !all_found_params.iter().any(|x: &FoundParameter| x.name == param.name) {
-                all_found_params.push(param);
-                new_found = true;
-            }
-        }
+        let file = if config.append {
+            file.write(true).append(true)
+        } else {
+            file.write(true).truncate(true)
+        };
 
-        //check recursion
-        if new_found && local_recursion_depth < config.recursion_depth {
+        let mut file = match file.open(&config.output_file) {
+            Ok(file) => file,
+            Err(_) => fs::File::create(&config.output_file)?
+        };
 
-            //remove found params from the initial params vec and run yet one iteration
-            for param in all_found_params.iter() {
-                if let Some(index) = params.iter().position(|value| value == &param.name) {
-                    params.swap_remove(index);
-                }
-            }
-
-            local_recursion_depth += 1;
-
-            //add found parameters to query
-            request_defaults.parameters = Vec::from_iter(
-                //TODO check parameters that change code in a different loop
-                all_found_params
-                    .iter()
-                    .filter(|x: &&FoundParameter| x.reason_kind != ReasonKind::Code)
-                    .map(|x: &FoundParameter| (x.name.to_owned(), random_line(5)))
-            );
-
-            //utils::info(&config, "recursion", format!("{}: repeat with: {}", local_recursion_depth, request_defaults.parameters.keys().join(", ")));
-
-            continue
-        }
-
-        break
+        write!(file, "{}" , output)?;
     }
+    write!(io::stdout(), "\n{}", &output).ok();*/
 
-    let output = create_output(&config, &request_defaults, all_found_params);
+    Ok(())
+}
+
+async fn run(
+    config: &Config, request_defaults: &mut RequestDefaults, replay_client: &Client, params: &mut Vec<String>, default_max: isize
+) -> Result<(), Box<dyn Error>> {
+    let runner = Runner::new(config, request_defaults, replay_client, default_max).await?;
+
+    let found_params = runner.run(params).await?;
+
+    let output = create_output(&config, &request_defaults, found_params);
 
     if !config.output_file.is_empty() {
         let mut file = OpenOptions::new();
@@ -163,7 +143,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn run(
+async fn _run(
     config: &Config,
     mut request_defaults: RequestDefaults,
     replay_client: &Client,

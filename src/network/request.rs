@@ -160,9 +160,9 @@ impl<'a> Request<'a> {
     /// replace templates ({{random}}) with random values
     /// additional param is for reflection counting
     ///
-    /// in case self.parameters contains parameter with "%=%"
-    /// it gets splitted by %=%  and the default random value gets replaced with the right part:
-    /// admin%=%true -> (admin, true) vs admin -> (admin, df32w)
+    /// in case self.parameters contains parameter with "="
+    /// it gets splitted by =  and the default random value gets replaced with the right part:
+    /// admin=true -> (admin, true) vs admin -> (admin, df32w)
     pub fn prepare(&mut self, additional_param: Option<&String>) {
         if self.prepared {
             return
@@ -172,8 +172,8 @@ impl<'a> Request<'a> {
         self.non_random_parameters = Vec::from_iter(
             self.parameters
                 .iter()
-                .filter(|x| x.contains("%=%"))
-                .map(|x| x.split("%=%"))
+                .filter(|x| x.contains("="))
+                .map(|x| x.split("="))
                 .map(|mut x| (x.next().unwrap().to_owned(), x.next().unwrap_or("").to_owned()))
         );
 
@@ -193,7 +193,7 @@ impl<'a> Request<'a> {
                     self.parameters
                         .iter()
                         .chain([additional_param.unwrap_or(&String::new())])
-                        .filter(|x| !x.is_empty() && !x.contains("%=%"))
+                        .filter(|x| !x.is_empty() && !x.contains("="))
                         .map(|x| (x.to_owned(), random_line(5)))
                 )
         );
