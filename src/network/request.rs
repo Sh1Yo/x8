@@ -13,6 +13,11 @@ use std::{
 pub const VALUE_LENGTH: usize = 5;
 const RANDOM_LENGTH: usize = 5;
 
+//in order to be able to use make_query() for headers as well
+const HEADERS_TEMPLATE: &'static str = "{k}\x00@%=%@\x00{v}";
+const HEADERS_MIDDLE: &'static str = "\x00@%=%@\x00";
+const HEADERS_JOINER: &'static str = "\x01@%&%@\x01";
+
 use super::response::Response;
 
 lazy_static! {
@@ -54,7 +59,7 @@ pub struct RequestDefaults {
     //default reqwest client
     pub client: Client,
 
-    //parameter template, for example %k=%v
+    //parameter template, for example {k}={v}
     pub template: String,
 
     //how to join parameters, for example '&'
@@ -132,7 +137,7 @@ impl<'a> Request<'a> {
         self.headers.push((key.into(), value.into()));
     }
 
-    pub fn set_headers(&mut self, headers: HashMap<String, String>) {
+    pub fn set_headers(&mut self, headers: Vec<(String, String)>) {
         for (k, v) in headers {
             self.headers.push((k, v));
         }
@@ -235,8 +240,10 @@ impl<'a> Request<'a> {
                 }
             },
             InjectionPlace::Headers => {
-                let headers: HashMap<String, String>
-                    = self.parameters.iter().map(|x| (x.to_string(), random_line(VALUE_LENGTH).to_string())).collect();
+                let headers: Vec<(String, String)>
+                    = self.make_query().split(&self.defaults.joiner).map(|x| x.split(HEADERS_MIDDLE)).map(
+                        |mut x| (x.next().unwrap().to_owned(), x.next().unwrap().to_owned()
+                    )).collect();
 
                 self.set_headers(headers);
             }
@@ -451,7 +458,7 @@ impl<'a> RequestDefaults {
                 },
                 InjectionPlace::HeaderValue => ("{k}={v}", ";", false, None),
                 InjectionPlace::Path => ("{k}={v}", "&", false, Some(DataType::Urlencoded)),
-                InjectionPlace::Headers => ("", "", false, None)
+                InjectionPlace::Headers => (HEADERS_TEMPLATE, HEADERS_JOINER, false, None)
             }
         }
     }
