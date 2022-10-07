@@ -28,7 +28,7 @@ pub fn write_banner_config(config: &Config, request_defaults: &RequestDefaults, 
         output += &format!(", replay proxy: {}", &config.proxy.magenta())
     }
 
-    if !config.recursion_depth != 0 {
+    if config.recursion_depth != 0 {
         output += &format!(", recursion depth: {}", &config.recursion_depth.to_string().yellow())
     }
 
