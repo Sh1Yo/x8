@@ -97,7 +97,7 @@ pub fn progress_bar(config: &Config, count: usize, all: usize) {
     }
 }
 
-pub fn parse_request<'a>(request: &'a str, as_body: bool) -> Result<(
+pub fn parse_request<'a>(request: &'a str, invert: bool) -> Result<(
     String, //method
     String, //host
     String, //path
@@ -109,8 +109,8 @@ pub fn parse_request<'a>(request: &'a str, as_body: bool) -> Result<(
     //request by lines
     //TODO maybe add option whether split lines only by '\r\n' instead of splitting by '\n' as well.
     let mut lines = request.lines();
+
     let mut data_type: Option<DataType> = None;
-    let mut injection_place: InjectionPlace = InjectionPlace::Path;
     let mut headers: HashMap<&'a str, String> = HashMap::new();
     let mut host = String::new();
 
@@ -119,6 +119,16 @@ pub fn parse_request<'a>(request: &'a str, as_body: bool) -> Result<(
     let method = firstline.next().ok_or("Unable to parse method")?.to_string();
     let path = firstline.next().ok_or("Unable to parse path")?.to_string(); //include ' ' in path too?
     let http2 = firstline.next().ok_or("Unable to parse http version")?.contains("HTTP/2");
+
+    //this behavior is explained within the --invert option help's line
+    let as_body =  ((method == "POST" || method == "PUT") && !invert)
+    || (method != "POST" && method != "PUT" && invert);
+
+    let mut injection_place: InjectionPlace = if as_body {
+        InjectionPlace::Body
+    } else {
+        InjectionPlace::Path
+    };
 
     //parse headers
     while let Some(line) = lines.next() {

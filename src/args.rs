@@ -120,15 +120,16 @@ pub fn get_config() -> Result<(Config, RequestDefaults, isize), Box<dyn Error>> 
                 .conflicts_with("request")
         )
         .arg(
-            Arg::with_name("as-body")
-                .long("as-body")
-                .help("Send parameters via body.\nBuilt in body types that can be detected automatically: json, urlencode")
+            Arg::with_name("invert")
+                .long("invert")
+                .help("By default parameters are sent within the body only in case PUT or POST methods are used.
+It's possible to overwrite this behaviour by specifying the option")
         )
         .arg(
             Arg::with_name("headers-discovery")
                 .long("headers")
                 .help("Switch to header discovery mode.\nForbidden chars would be automatically removed from headers names")
-                .conflicts_with("as-body")
+                .conflicts_with("indert")
                 .conflicts_with("param-template")
         )
         .arg(
@@ -331,13 +332,18 @@ Conflicts with --verify for now. Will be changed in the future.")
             port,
             parse_request(
                 &request,
-                args.is_present("as-body")
+                args.is_present("invert")
             )?
         )
 
     } else {
 
-        let mut injection_place = if args.is_present("as-body") {
+        let method = args.value_of("method").unwrap();
+
+        //this behavior is explained within the --invert option help's line
+        let mut injection_place = if
+            ((method == "POST" || method == "PUT") && !args.is_present("invert"))
+            || (method != "POST" && method != "PUT" && args.is_present("invert")) {
             InjectionPlace::Body
         } else if args.is_present("headers-discovery") {
             InjectionPlace::Headers
@@ -404,7 +410,7 @@ Conflicts with --verify for now. Will be changed in the future.")
             url.scheme().to_string()+"://",
             url.port_or_known_default().ok_or("Wrong scheme")?,
             (
-                args.value_of("method").unwrap().to_string(),
+                method.to_string(),
                 url.host_str().ok_or("Host missing")?.to_string(),
                 url[url::Position::BeforePath..].to_string(), //we need not only the path but query as well
                 headers,
