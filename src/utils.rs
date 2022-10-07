@@ -17,36 +17,37 @@ use crate::network::{request::{RequestDefaults, Request}, response::Response};
 static RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
 
-pub fn write_banner(config: &Config, request_defaults: &RequestDefaults) {
-    writeln!(
-        io::stdout(),
-        " _________  __ ___     _____\n|{} {}",
-        &request_defaults.method.blue(),
-        &config.url.green(),
-    ).ok();
+pub fn write_banner_config(config: &Config, request_defaults: &RequestDefaults, params: &Vec<String>) {
+    let mut output = format!("params len: {}", params.len().to_string().blue());
 
     if !config.proxy.is_empty() {
-        writeln!(
-            io::stdout(),
-            "|{} {}",
-            "Proxy".magenta(),
-            &config.proxy.green(),
-        ).ok();
+        output += &format!(", proxy: {}", &config.proxy.green())
     }
-}
 
-pub fn write_banner_response(initial_response: &Response, reflections_count: usize, params: &Vec<String>) {
+    if !config.replay_proxy.is_empty() {
+        output += &format!(", replay proxy: {}", &config.proxy.magenta())
+    }
+
+    if !config.recursion_depth != 0 {
+        output += &format!(", recursion depth: {}", &config.recursion_depth.to_string().yellow())
+    }
+
     writeln!(
         io::stdout(),
-        "|{} {}\n|{} {}\n|{} {}\n|{} {}\n",
-        &"Code".magenta(),
-        &initial_response.code.to_string().green(),
-        &"Response Len".magenta(),
+        "{}\n",
+        output
+    ).ok();
+}
+
+pub fn write_banner_url(request_defaults: &RequestDefaults, initial_response: &Response, amount_of_reflections: usize) {
+    writeln!(
+        io::stdout(),
+        "{} {} ({}) [{}] {{{}}}",
+        &request_defaults.method.blue(),
+        &request_defaults.url().green(),
+        &initial_response.code(),
         &initial_response.text.len().to_string().green(),
-        &"Reflections".magenta(),
-        &reflections_count.to_string().green(),
-        &"Words".magenta(),
-        &params.len().to_string().green(),
+        &amount_of_reflections.to_string().magenta()
     ).ok();
 }
 
@@ -94,46 +95,6 @@ pub fn progress_bar(config: &Config, count: usize, all: usize) {
 
         io::stdout().flush().ok();
     }
-}
-
-/// checks whether increasing the amount of parameters changes the page
-/// returns the max possible amount of parameters that possible to send without changing the page
-pub async fn try_to_increase_max(
-    initial_response: &Response<'_>, request_defaults: &RequestDefaults, diffs: &Vec<String>, mut max: usize, stable: &Stable
-) -> Result<usize, Box<dyn Error>> {
-    let response = Request::new_random(&request_defaults, max + 64)
-                                .send()
-                                .await?;
-
-    let (is_code_different, new_diffs) = response.compare(initial_response, &diffs)?;
-    let mut is_the_body_the_same = true;
-
-    if !new_diffs.is_empty() {
-        is_the_body_the_same = false;
-    }
-
-    //in case the page isn't different from previous one - try to increase max amount of parameters by 128
-    if !is_code_different && (!stable.body || is_the_body_the_same) {
-
-        let response =  Request::new_random(&request_defaults, max + 128)
-                .send()
-                .await?;
-
-        let (is_code_different, new_diffs) = response.compare(initial_response, &diffs)?;
-
-        if !new_diffs.is_empty() {
-            is_the_body_the_same = false;
-        }
-
-        if !is_code_different && (!stable.body || is_the_body_the_same) {
-            max += 128
-        } else {
-            max += 64
-        }
-
-    }
-
-    Ok(max)
 }
 
 pub fn parse_request<'a>(request: &'a str, as_body: bool) -> Result<(
@@ -376,7 +337,7 @@ pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_
         }
         //TODO maybe use external lib :think:
         //don't want to use serde for such a simple task
-        "json" => {
+        /*"json" => {
             format!(
                 r#"{{"method": "{}", "url": "{}", "parameters": [{}]}}"#,
                 &request_defaults.method,
@@ -387,7 +348,7 @@ pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_
                     .collect::<Vec<String>>()
                     .join(", ")
             )
-        },
+        },*/
 
         "request" => {
             req.print()+"\n"

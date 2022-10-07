@@ -10,6 +10,9 @@ use std::{
     error::Error, collections::HashMap, iter::FromIterator, time::{Duration, Instant}, convert::TryFrom,
 };
 
+pub const VALUE_LENGTH: usize = 5;
+const RANDOM_LENGTH: usize = 5;
+
 use super::response::Response;
 
 lazy_static! {
@@ -114,14 +117,14 @@ impl<'a> Request<'a> {
             headers: Vec::new(),
             body: String::new(),
             parameters: parameters,
-            prepared_parameters: l.parameters.clone(),
+            prepared_parameters: Vec::new(),//l.parameters.clone(),
             non_random_parameters: Vec::new(),
             prepared: false,
         }
     }
 
     pub fn new_random(l: &'a RequestDefaults, max: usize) -> Self {
-        let parameters = Vec::from_iter((0..max).map(|_| random_line(5)));
+        let parameters = Vec::from_iter((0..max).map(|_| random_line(VALUE_LENGTH)));
         Request::new(l, parameters)
     }
 
@@ -142,6 +145,7 @@ impl<'a> Request<'a> {
     pub fn make_query(&self) -> String {
         let query = self.prepared_parameters
             .iter()
+            .chain(self.defaults.parameters.iter())
             .map(|(k, v)| self.defaults.template
                                     .replace("{k}", k)
                                     .replace("{v}", v)
@@ -194,7 +198,7 @@ impl<'a> Request<'a> {
                         .iter()
                         .chain([additional_param.unwrap_or(&String::new())])
                         .filter(|x| !x.is_empty() && !x.contains("="))
-                        .map(|x| (x.to_owned(), random_line(5)))
+                        .map(|x| (x.to_owned(), random_line(VALUE_LENGTH)))
                 )
         );
 
@@ -202,12 +206,12 @@ impl<'a> Request<'a> {
             for (k, v) in self.defaults.custom_headers.iter() {
                 self.set_header(
                     k,
-                    &v.replace("{{random}}", &random_line(5))
+                    &v.replace("{{random}}", &random_line(RANDOM_LENGTH))
                 );
             }
         }
-        self.path = self.path.replace("{{random}}", &random_line(5));
-        self.body = self.body.replace("{{random}}", &random_line(5));
+        self.path = self.path.replace("{{random}}", &random_line(RANDOM_LENGTH));
+        self.body = self.body.replace("{{random}}", &random_line(RANDOM_LENGTH));
 
        match self.defaults.injection_place {
             InjectionPlace::Path => self.path = self.path.replace("%s", &self.make_query()),
@@ -226,13 +230,13 @@ impl<'a> Request<'a> {
                 for (k, v) in self.defaults.custom_headers.iter() {
                     self.set_header(
                         k,
-                        &v.replace("{{random}}", &random_line(5)).replace("%s", &self.make_query())
+                        &v.replace("{{random}}", &random_line(RANDOM_LENGTH)).replace("%s", &self.make_query())
                     );
                 }
             },
             InjectionPlace::Headers => {
                 let headers: HashMap<String, String>
-                    = self.parameters.iter().map(|x| (x.to_string(), random_line(5).to_string())).collect();
+                    = self.parameters.iter().map(|x| (x.to_string(), random_line(VALUE_LENGTH).to_string())).collect();
 
                 self.set_headers(headers);
             }
@@ -339,7 +343,7 @@ impl<'a> Request<'a> {
     }
 
     pub fn print(&mut self) -> String {
-        self.prepare(Some(&random_line(5)));
+        self.prepare(Some(&random_line(VALUE_LENGTH)));
 
         let mut str_req = format!("{} {} HTTP/x\nHost: {}\n", &self.defaults.method, self.path, self.defaults.host); //TODO identify HTTP version
 

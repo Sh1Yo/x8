@@ -2,7 +2,7 @@ use std::{collections::HashMap, error::Error, iter::FromIterator, sync::Arc};
 
 use reqwest::Client;
 
-use crate::{structs::{Config, FoundParameter, InjectionPlace, Stable, Parameters}, utils::{write_banner_response, empty_reqs, random_line, verify, self, replay}, network::{request::{RequestDefaults, Request}, response::Response}};
+use crate::{structs::{Config, FoundParameter, InjectionPlace, Stable, Parameters}, utils::{empty_reqs, random_line, verify, self, replay}, network::{request::{RequestDefaults, Request}, response::Response}};
 
 pub struct Runner<'a> {
     pub config: &'a Config,
@@ -34,9 +34,9 @@ impl<'a> Runner<'a> {
          let mut temp_request_defaults = request_defaults.clone();
 
          //we need a random_parameter with a long value in order to increase accuracy while determining the default amount of reflections
-         let random_parameters = vec![(random_line(10), random_line(10))];
+         let mut random_parameters = vec![(random_line(10), random_line(10))];
 
-         temp_request_defaults.parameters = random_parameters;
+         temp_request_defaults.parameters.append(&mut random_parameters);
 
          let initial_response = Request::new(&temp_request_defaults, vec![])
                                                  .send()
@@ -50,7 +50,7 @@ impl<'a> Runner<'a> {
          };
 
          //find how many times reflected supplied
-         request_defaults.amount_of_reflections = initial_response.count(&temp_request_defaults.parameters.iter().next().unwrap().0);
+         request_defaults.amount_of_reflections = initial_response.count(&temp_request_defaults.parameters.iter().next().unwrap().1);
 
          //TODO move to main whether to write or not
          /*if config.verbose > 0 && first_run {

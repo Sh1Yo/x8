@@ -82,7 +82,7 @@ impl<'a> Runner<'a> {
 
                     found_params.push(
                         FoundParameter::new(
-                            reflected_parameter, &vec!["reflected".to_string()], "Different amount of reflections", kind.clone()
+                            reflected_parameter, &vec![], response.code, response.text.len(), kind.clone()
                         )
                     );
                     drop(found_params);
@@ -149,7 +149,8 @@ impl<'a> Runner<'a> {
                     FoundParameter::new(
                         &params[0],
                         &vec![format!("{} -> {}", &self.initial_response.code, response.code)],
-                        &format!("Changes code: {} -> {}", &self.initial_response.code, response.code),
+                        response.code,
+                        response.text.len(),
                         ReasonKind::Code
                     )
                 );
@@ -222,11 +223,11 @@ impl<'a> Runner<'a> {
                             FoundParameter::new(
                                 &params[0],
                                 &new_diffs,
-                                &format!("Changes page: {} -> {}", &self.initial_response.text.len(), response.text.len()),
+                                response.code,
+                                response.text.len(),
                                 ReasonKind::Text
                             )
                         );
-                        //println!("not repeat");
                         break;
                     //we don't know what parameter caused the difference in response yet
                     //so we are repeating

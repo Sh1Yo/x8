@@ -2,6 +2,8 @@ use std::{
     collections::HashMap,
 };
 
+use crate::{utils::random_line, network::request::VALUE_LENGTH};
+
 pub enum DataType {
     Json,
     Urlencoded
@@ -115,22 +117,44 @@ pub struct Stable {
     pub reflections: bool,
 }
 
+//maybe add value as an option?
 #[derive(Debug, Clone)]
 pub struct FoundParameter {
     pub name: String,
+
+    //is None in case the random parameter name is used
+    pub value: Option<String>,
     pub diffs: String,
-    pub reason: String,
+    pub status: u16,
+    pub size: usize,
     pub reason_kind: ReasonKind
 }
 
 impl FoundParameter {
-    pub fn new<S: Into<String>>(name: S, diffs: &Vec<String>, reason: S, reason_kind: ReasonKind) -> Self {
+    pub fn new<S: Into<String>>(name: S, diffs: &Vec<String>, status: u16, size: usize, reason_kind: ReasonKind) -> Self {
+
+        let name = name.into();
+
+        let (name, value) = if name.contains("=") {
+            let mut name = name.split("=");
+            (name.next().unwrap().to_string(), Some(name.next().unwrap().to_string()))
+        } else {
+            (name, None)
+        };
+
         Self {
-            name: name.into(),
+            name,
+            value,
             diffs: diffs.join("|"),
-            reason: reason.into(),
+            status,
+            size,
             reason_kind
         }
+    }
+
+    //just returns (Key, Value) pair
+    pub fn get(&self) -> (String, String) {
+        (self.name.clone(), self.value.clone().unwrap_or(random_line(VALUE_LENGTH)))
     }
 }
 
