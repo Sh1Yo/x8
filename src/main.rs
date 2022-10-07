@@ -12,7 +12,7 @@ use reqwest::Client;
 use x8::{
     args::get_config,
     network::request::{Request, RequestDefaults},
-    structs::{Config, FoundParameter, ReasonKind, Parameters},
+    structs::{Config, FoundParameter, ReasonKind, Parameters, Headers},
     utils::{self, replay, empty_reqs, verify, write_banner_config, read_lines, read_stdin_lines, write_banner_url, create_output, create_client, random_line}, runner::runner::Runner, //runner::Runner,
 };
 
@@ -100,38 +100,54 @@ async fn run(
         write_banner_url(&runner.request_defaults, &runner.initial_response, runner.request_defaults.amount_of_reflections);
     }
 
-    let mut found_params = runner.run(params).await?;
+    let mut runner_output = runner.run(params).await?;
 
-    if !found_params.is_empty() {
+    if !runner_output.found_params.is_empty() {
         for depth in 1..config.recursion_depth+1 {
-            params.retain(|x| !found_params.contains_key(x));
+            params.retain(|x| !runner_output.found_params.contains_key(x));
 
             //custom parameters work badly with recursion enabled
             config.disable_custom_parameters = true;
 
             //so we are keeping parameters that don't change pages' code
             //or change it to 200
-            request_defaults.parameters = Vec::from_iter(
-                found_params.iter().filter(|x| x.reason_kind != ReasonKind::Code || x.status == 200).map(|x| (x.get()))
-            );
+            //we cant simply overwrite request_defaults.parameters because there's user-supplied parameters as well.
+            request_defaults.parameters.append(&mut Vec::from_iter(
+                runner_output.found_params.iter().filter(
+                    |x|
+                    !request_defaults.parameters.contains_key(&x.name)
+                    &&
+                    (x.reason_kind != ReasonKind::Code || x.status == 200)).map(|x| (x.get())
+                )
+            ));
 
             utils::info(config, "recursion", format!(
                 "({}) repeating with {}", depth, request_defaults.parameters.iter().map(|x| x.0.as_str()).collect::<Vec<&str>>().join(", ")
             ));
 
             let mut new_found_params = Runner::new(config, request_defaults, replay_client, default_max).await?
-                .run(params).await?;
+                .run(params).await?.found_params;
 
             // no new params where found - just quit the loop
-            if !new_found_params.iter().any(|x| !found_params.contains_key(&x.name)) {
+            if !new_found_params.iter().any(|x| !runner_output.found_params.contains_key(&x.name)) {
                 break
             }
 
-            found_params.append(&mut new_found_params);
+            runner_output.found_params.append(&mut new_found_params);
         }
     }
 
-    let output = create_output(&config, &request_defaults, found_params);
+    //we probably changed request_defaults.parameters within the loop above
+    //so we are removing all of the added parameters in there
+    //leaving only user-supplied ones
+    //(to not cause double parameters in some output types)
+    request_defaults.parameters = request_defaults.parameters
+        .iter()
+        .filter(|x| !runner_output.found_params.contains_key(&x.0))
+        .map(|x| x.to_owned())
+        .collect();
+
+    let output = runner_output.parse(config, request_defaults);//create_output(&config, &request_defaults, found_params);
 
     if !config.output_file.is_empty() {
         let mut file = OpenOptions::new();

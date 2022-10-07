@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
 };
-
+use serde::Serialize;
 use crate::{utils::random_line, network::request::VALUE_LENGTH};
 
 pub enum DataType {
@@ -17,7 +17,7 @@ pub enum InjectionPlace {
     HeaderValue
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ReasonKind {
     Code,
     Text,
@@ -117,8 +117,7 @@ pub struct Stable {
     pub reflections: bool,
 }
 
-//maybe add value as an option?
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FoundParameter {
     pub name: String,
 

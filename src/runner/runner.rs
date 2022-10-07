@@ -4,6 +4,8 @@ use reqwest::Client;
 
 use crate::{structs::{Config, FoundParameter, InjectionPlace, Stable, Parameters}, utils::{empty_reqs, random_line, verify, self, replay}, network::{request::{RequestDefaults, Request}, response::Response}};
 
+use super::output::RunnerOutput;
+
 pub struct Runner<'a> {
     pub config: &'a Config,
     pub request_defaults: RequestDefaults,
@@ -93,7 +95,7 @@ impl<'a> Runner<'a> {
     }
 
     /// acually runs the runner
-    pub async fn run(mut self, params: &mut Vec<String>) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
+    pub async fn run(mut self, params: &mut Vec<String>) -> Result<RunnerOutput, Box<dyn Error>> {
 
         self.stability_checker().await?;
 
@@ -134,7 +136,7 @@ impl<'a> Runner<'a> {
             }
         }
 
-        Ok(found_params)
+        Ok(RunnerOutput::new(&self.request_defaults, &self.initial_response, found_params))
     }
 
     //check parameters like admin=true

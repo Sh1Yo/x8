@@ -313,7 +313,7 @@ pub fn read_stdin_lines() -> Vec<String> {
     stdin.lock().lines().filter_map(|x| x.ok()).collect()
 }
 
-pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_params: Vec<FoundParameter>) -> String {
+pub fn create_output(config: &Config, request_defaults: &RequestDefaults, initial_response: &Response, found_params: Vec<FoundParameter>) -> String {
 
     //for internal methods like .url()
     let mut req = Request::new(request_defaults, found_params.iter().map(|x| x.name.to_owned()).collect());
@@ -334,20 +334,17 @@ pub fn create_output(config: &Config, request_defaults: &RequestDefaults, found_
             };
 
             (line+"\n").replace("%s", &req.make_query())
-        }
-        //TODO maybe use external lib :think:
-        //don't want to use serde for such a simple task
+        },
+
         /*"json" => {
-            format!(
-                r#"{{"method": "{}", "url": "{}", "parameters": [{}]}}"#,
-                &request_defaults.method,
-                &config.url,
-                found_params
-                    .iter()
-                    .map(|x| format!(r#""name": "{}", "reason": "{}""#, x.name.replace("\"", "\\\""), x.reason))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            )
+            let output = Output{
+                method: request_defaults.method.clone(),
+                url: request_defaults.url(),
+                status: initial_response.code,
+                size: initial_response.text.len(),
+                parameters: found_params
+            };
+            serde_json::to_string(&output).unwrap()
         },*/
 
         "request" => {
