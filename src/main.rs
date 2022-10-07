@@ -13,7 +13,7 @@ use x8::{
     args::get_config,
     network::request::{Request, RequestDefaults},
     structs::{Config, FoundParameter, ReasonKind, Parameters, Headers},
-    utils::{self, replay, empty_reqs, verify, write_banner_config, read_lines, read_stdin_lines, write_banner_url, create_output, create_client, random_line}, runner::runner::Runner, //runner::Runner,
+    utils::{self, replay, empty_reqs, verify, write_banner_config, read_lines, read_stdin_lines, write_banner_url, create_client, random_line}, runner::runner::Runner, //runner::Runner,
 };
 
 #[cfg(windows)]

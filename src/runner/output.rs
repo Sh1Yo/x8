@@ -4,10 +4,9 @@ use crate::{structs::{FoundParameter, Config, InjectionPlace}, network::{request
 
 #[derive(Debug, Serialize)]
 pub struct RunnerOutput {
-    //request method
     pub method: String,
 
-    //request url
+    //request url without injection point
     pub url: String,
 
     //initial response code
@@ -16,8 +15,9 @@ pub struct RunnerOutput {
     //initial response size (body + headers)
     pub size: usize,
 
-    //found parameters
     pub found_params: Vec<FoundParameter>,
+
+    pub injection_place: InjectionPlace,
 }
 
 impl RunnerOutput {
@@ -32,6 +32,7 @@ impl RunnerOutput {
             status: initial_response.code,
             size: initial_response.text.len(),
             found_params,
+            injection_place: request_defaults.injection_place
         }
     }
 

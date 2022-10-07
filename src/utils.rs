@@ -18,7 +18,7 @@ static RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
 
 pub fn write_banner_config(config: &Config, request_defaults: &RequestDefaults, params: &Vec<String>) {
-    let mut output = format!("params len: {}", params.len().to_string().blue());
+    let mut output = format!("wordlist len: {}", params.len().to_string().blue());
 
     if !config.proxy.is_empty() {
         output += &format!(", proxy: {}", &config.proxy.green())
@@ -313,54 +313,6 @@ pub fn read_stdin_lines() -> Vec<String> {
     stdin.lock().lines().filter_map(|x| x.ok()).collect()
 }
 
-pub fn create_output(config: &Config, request_defaults: &RequestDefaults, initial_response: &Response, found_params: Vec<FoundParameter>) -> String {
-
-    //for internal methods like .url()
-    let mut req = Request::new(request_defaults, found_params.iter().map(|x| x.name.to_owned()).collect());
-
-    match config.output_format.as_str() {
-        "url" => {
-            let url = req.url();
-
-            //make line an url with injection point
-            let line = if !found_params.is_empty() && !url.contains("%s")  {
-                if !url.contains("?") {
-                    url + "%s"
-                } else {
-                    url + "?%s"
-                }
-            } else {
-                url
-            };
-
-            (line+"\n").replace("%s", &req.make_query())
-        },
-
-        /*"json" => {
-            let output = Output{
-                method: request_defaults.method.clone(),
-                url: request_defaults.url(),
-                status: initial_response.code,
-                size: initial_response.text.len(),
-                parameters: found_params
-            };
-            serde_json::to_string(&output).unwrap()
-        },*/
-
-        "request" => {
-            req.print()+"\n"
-        },
-
-        _ => {
-            format!(
-                "{} {} % {}\n",
-                &request_defaults.method,
-                &config.url,
-                found_params.iter().map(|x| x.name.as_str()).collect::<Vec<&str>>().join(", ")
-            )
-        },
-    }
-}
 
 pub fn create_client(proxy: &str, follow_redirects: bool, http: &str, timeout: usize) -> Result<Client, Box<dyn Error>> {
     let mut client = Client::builder()
