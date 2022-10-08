@@ -255,7 +255,7 @@ impl<'a> Request<'a> {
         match self.clone().request(clients).await {
             Ok(val) => Ok(val),
             Err(_) => {
-                std::thread::sleep(Duration::from_secs(10));
+                tokio::time::sleep(Duration::from_secs(10)).await;
                 Ok(self.clone().request(clients).await?)
             }
         }
@@ -277,7 +277,6 @@ impl<'a> Request<'a> {
     }
 
     async fn request(mut self, client: &Client) -> Result<Response<'a>, reqwest::Error> {
-
         let additional_parameter = random_line(7);
 
         self.prepare(Some(&additional_parameter));
@@ -294,7 +293,7 @@ impl<'a> Request<'a> {
             .body(self.body.to_owned())
             .unwrap();
 
-        std::thread::sleep(self.defaults.delay);
+        tokio::time::sleep(self.defaults.delay).await;
 
         let reqwest_req = reqwest::Request::try_from(request).unwrap();
 
@@ -314,6 +313,7 @@ impl<'a> Request<'a> {
         }
 
         let code = res.status().as_u16();
+        let http_version = Some(res.version());
 
         let body_bytes = res.bytes().await?.to_vec();
 
@@ -326,7 +326,8 @@ impl<'a> Request<'a> {
             text,
             request: Some(self),
             reflected_parameters: HashMap::new(),
-            additional_parameter: additional_parameter
+            additional_parameter: additional_parameter,
+            http_version,
         };
 
         response.beautify_body();
@@ -346,6 +347,7 @@ impl<'a> Request<'a> {
             reflected_parameters: HashMap::new(),
             additional_parameter: String::new(),
             request: Some(self),
+            http_version: None,
         }
     }
 

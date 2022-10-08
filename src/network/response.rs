@@ -11,13 +11,27 @@ use super::request::Request;
 
 #[derive(Debug, Clone, Default)]
 pub struct Response<'a> {
+    //time from the sent request to response headers
     pub time: u128,
+
     pub code: u16,
+
     pub headers: Vec<(String, String)>,
+
+    //headers + body
     pub text: String,
-    pub reflected_parameters: HashMap<String, usize>, //<parameter, amount of reflections>
+
+    //<parameter, amount of reflections>
+    pub reflected_parameters: HashMap<String, usize>,
+
+    //loooks like it's being used only as a cachebuster so far? TODO maybe I need to remove it or make an option of it at least?
     pub additional_parameter: String,
+
+    //None only in initial_request due to some lifetime issues
     pub request: Option<Request<'a>>,
+
+    //None only when the request failed
+    pub http_version: Option<http::Version>,
 }
 
 //Owo
@@ -272,7 +286,19 @@ impl<'a> Response<'a> {
 
     ///print the whole response
     pub fn print(&self) -> String {
-        format!("HTTP/x {} \n{}", self.code, self.text)
+        let http_version = match self.http_version {
+            Some(val) => match val {
+                http::Version::HTTP_09 => "HTTP/0.9",
+                http::Version::HTTP_10 => "HTTP/1.0",
+                http::Version::HTTP_11 => "HTTP/1.1",
+                http::Version::HTTP_2 => "HTTP/2",
+                http::Version::HTTP_3 => "HTTP/3",
+                _ => "HTTP/x",
+            },
+            None => "HTTP/x"
+        };
+
+        format!("{} {} \n{}", http_version, self.code, self.text)
     }
 
     ///print the request and response

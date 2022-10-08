@@ -36,9 +36,9 @@ impl<'a> Runner<'a> {
          let mut temp_request_defaults = request_defaults.clone();
 
          //we need a random_parameter with a long value in order to increase accuracy while determining the default amount of reflections
-         let mut random_parameters = vec![(random_line(10), random_line(10))];
+         let mut random_parameter = vec![(random_line(10), random_line(10))];
 
-         temp_request_defaults.parameters.append(&mut random_parameters);
+         temp_request_defaults.parameters.append(&mut random_parameter);
 
          let initial_response = Request::new(&temp_request_defaults, vec![])
                                                  .send()
@@ -51,13 +51,8 @@ impl<'a> Runner<'a> {
             Vec::new()
          };
 
-         //find how many times reflected supplied
+         //find how many times reflected our random parameter
          request_defaults.amount_of_reflections = initial_response.count(&temp_request_defaults.parameters.iter().next().unwrap().1);
-
-         //TODO move to main whether to write or not
-         /*if config.verbose > 0 && first_run {
-             write_banner_response(&initial_response, self.request_defaults.amount_of_reflections, &self.params);
-         }*/
 
          //some "magic" to be able to return initial_response
          //turns out you can't simple do 'initial_response.request = None'.
@@ -69,14 +64,9 @@ impl<'a> Runner<'a> {
              text: initial_response.text,
              reflected_parameters: initial_response.reflected_parameters,
              additional_parameter: initial_response.additional_parameter,
-             request: None
+             request: None,
+             http_version: initial_response.http_version
          };
-
-         /*let shared_info = SharedInfo{
-            diffs: Arc::new(Mutex::new(&mut Vec::new())),
-            found_params: Arc::new(Mutex::new(&mut Vec::new())),
-            green_lines: Arc::new(Mutex::new(&mut Vec::new())),
-         };*/
 
          Ok(
              Runner{
@@ -88,7 +78,6 @@ impl<'a> Runner<'a> {
                  max: default_max.abs() as usize,
                  stable: Default::default(),
                  initial_response: initial_response,
-                 //shared_info,
                  diffs: Vec::new(),
              }
          )
@@ -112,12 +101,8 @@ impl<'a> Runner<'a> {
 
         self.check_non_random_parameters(&mut found_params).await?;
 
-        //in case, for example, 'admin' param is found -- remove params like 'admin=true' or sth
-        //TODO maybe check for the kind of parameter as well
-        let mut found_params =
-            found_params.iter().filter(|x|
-                !(x.name.contains('=') && found_params.contains_key(x.name.split('=').next().unwrap()))
-            ).map(|x| x.to_owned()).collect();
+        //remove duplicates
+        let mut found_params = found_params.process(self.request_defaults.injection_place);
 
         //verify found parameters
         if self.config.verify {

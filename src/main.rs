@@ -104,7 +104,7 @@ async fn run(
 
     if !runner_output.found_params.is_empty() {
         for depth in 1..config.recursion_depth+1 {
-            params.retain(|x| !runner_output.found_params.contains_key(x));
+            params.retain(|x| !runner_output.found_params.contains_name(x));
 
             //custom parameters work badly with recursion enabled
             config.disable_custom_parameters = true;
@@ -129,7 +129,7 @@ async fn run(
                 .run(params).await?.found_params;
 
             // no new params where found - just quit the loop
-            if !new_found_params.iter().any(|x| !runner_output.found_params.contains_key(&x.name)) {
+            if !new_found_params.iter().any(|x| !runner_output.found_params.contains_name(&x.name)) {
                 break
             }
 
@@ -143,7 +143,7 @@ async fn run(
     //(to not cause double parameters in some output types)
     request_defaults.parameters = request_defaults.parameters
         .iter()
-        .filter(|x| !runner_output.found_params.contains_key(&x.0))
+        .filter(|x| !runner_output.found_params.contains_name(&x.0))
         .map(|x| x.to_owned())
         .collect();
 
