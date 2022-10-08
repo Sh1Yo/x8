@@ -1,6 +1,7 @@
 use crate::{
-    structs::{FoundParameter, ReasonKind}, utils::{progress_bar, self},
-    network::{request::{Request}}
+    utils::{progress_bar, self},
+    network::{request::Request},
+    runner::found_parameters::{FoundParameter, ReasonKind}
 };
 use futures::{stream::StreamExt};
 use std::{sync::Arc, error::Error, cmp};

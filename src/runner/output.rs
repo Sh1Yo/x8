@@ -1,6 +1,8 @@
 use serde::Serialize;
 
-use crate::{structs::{FoundParameter, Config, InjectionPlace}, network::{request::{RequestDefaults, Request}, response::Response}};
+use crate::{structs::{Config, InjectionPlace}, network::{request::{RequestDefaults, Request}, response::Response}};
+
+use super::found_parameters::FoundParameter;
 
 #[derive(Debug, Serialize)]
 pub struct RunnerOutput {

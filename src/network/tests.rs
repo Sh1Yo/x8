@@ -2,7 +2,7 @@
 mod tests {
     use std::{collections::HashMap, time::Duration};
 
-    use crate::{structs::{InjectionPlace, DataType, Headers}, network::request::{RequestDefaults, Request}};
+    use crate::{structs::{InjectionPlace, DataType}, network::{request::{RequestDefaults, Request}, headers::Headers}};
 
     #[test]
     fn query_creation() {

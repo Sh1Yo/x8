@@ -1,10 +1,10 @@
-use std::{collections::HashMap, error::Error, iter::FromIterator, sync::Arc};
+use std::error::Error;
 
 use reqwest::Client;
 
-use crate::{structs::{Config, FoundParameter, InjectionPlace, Stable, Parameters}, utils::{empty_reqs, random_line, verify, self, replay}, network::{request::{RequestDefaults, Request}, response::Response}};
+use crate::{structs::{Config, InjectionPlace, Stable}, utils::{empty_reqs, random_line, verify, self, replay}, network::{request::{RequestDefaults, Request}, response::Response}};
 
-use super::output::RunnerOutput;
+use super::{output::RunnerOutput, found_parameters::{FoundParameter, Parameters}};
 
 pub struct Runner<'a> {
     pub config: &'a Config,

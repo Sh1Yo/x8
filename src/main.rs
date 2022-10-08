@@ -1,6 +1,5 @@
 extern crate x8;
 use std::{
-    collections::HashMap,
     fs::{self, OpenOptions},
     io::{self, Write},
     error::Error, iter::FromIterator,
@@ -11,9 +10,10 @@ use atty::Stream;
 use reqwest::Client;
 use x8::{
     args::get_config,
-    network::request::{Request, RequestDefaults},
-    structs::{Config, FoundParameter, ReasonKind, Parameters, Headers},
-    utils::{self, replay, empty_reqs, verify, write_banner_config, read_lines, read_stdin_lines, write_banner_url, create_client, random_line}, runner::runner::Runner, //runner::Runner,
+    network::{request::{Request, RequestDefaults}, headers::Headers},
+    structs::Config,
+    runner::{runner::Runner, found_parameters::{ReasonKind, Parameters}},
+    utils::{self, write_banner_config, read_lines, read_stdin_lines, write_banner_url, create_client},
 };
 
 #[cfg(windows)]
@@ -67,7 +67,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
 
     //write banner
     if config.verbose > 0 && !config.test {
-        write_banner_config(&config, &request_defaults, &params);
+        write_banner_config(&config, &params);
     }
 
     //get cookies

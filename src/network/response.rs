@@ -5,9 +5,9 @@ use itertools::Itertools;
 use regex::Regex;
 use lazy_static::lazy_static;
 
-use crate::{structs::{ReasonKind, Config, Headers}, diff::diff, utils::save_request};
+use crate::{structs::Config, diff::diff, utils::save_request, runner::found_parameters::ReasonKind};
 
-use super::request::Request;
+use super::{request::Request, headers::Headers};
 
 #[derive(Debug, Clone, Default)]
 pub struct Response<'a> {

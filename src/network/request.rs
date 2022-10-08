@@ -1,5 +1,5 @@
 use crate::{
-    structs::{InjectionPlace, Headers, DataType}, utils::{random_line},
+    structs::{InjectionPlace, DataType}, utils::{random_line},
 };
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -18,7 +18,7 @@ const HEADERS_TEMPLATE: &'static str = "{k}\x00@%=%@\x00{v}";
 const HEADERS_MIDDLE: &'static str = "\x00@%=%@\x00";
 const HEADERS_JOINER: &'static str = "\x01@%&%@\x01";
 
-use super::response::Response;
+use super::{response::Response, headers::Headers};
 
 lazy_static! {
     //characters to encode

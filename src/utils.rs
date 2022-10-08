@@ -11,13 +11,14 @@ use rand::Rng;
 use colored::*;
 use reqwest::Client;
 
-use crate::structs::{Config, DataType, InjectionPlace, Stable, FoundParameter, ReasonKind};
+use crate::structs::{Config, DataType, InjectionPlace, Stable};
 use crate::network::{request::{RequestDefaults, Request}, response::Response};
+use crate::runner::found_parameters::{FoundParameter, ReasonKind};
 
 static RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
 
-pub fn write_banner_config(config: &Config, request_defaults: &RequestDefaults, params: &Vec<String>) {
+pub fn write_banner_config(config: &Config, params: &Vec<String>) {
     let mut output = format!("wordlist len: {}", params.len().to_string().blue());
 
     if !config.proxy.is_empty() {
