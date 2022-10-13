@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, time::Duration};
+    use std::{collections::HashMap};
+    use tokio::time::Duration;
 
     use crate::{structs::{InjectionPlace, DataType}, network::{request::{RequestDefaults, Request}, headers::Headers}};
 
@@ -29,7 +30,8 @@ mod tests {
             false,
             None,
             InjectionPlace::Path,
-            ""
+            "",
+            false
         ).unwrap();
 
         assert_eq!(defaults.scheme, "https");

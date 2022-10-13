@@ -1,9 +1,10 @@
-use crate::{structs::{Config, InjectionPlace, DataType}, utils::{parse_request, create_client}, network::request::RequestDefaults};
+use crate::{structs::{Config, InjectionPlace, DataType}, utils::parse_request};
 use clap::{crate_version, App, AppSettings, Arg};
-use std::{collections::HashMap, fs, time::Duration, error::Error};
+use std::{collections::HashMap, fs, error::Error};
+use tokio::time::Duration;
 use url::Url;
 
-pub fn get_config() -> Result<(Config, RequestDefaults, isize), Box<dyn Error>> {
+pub fn get_config() -> Result<Config, Box<dyn Error>> {
 
     let app = App::new("x8")
         .setting(AppSettings::ArgRequiredElseHelp)
@@ -422,15 +423,10 @@ Conflicts with --verify for now. Will be changed in the future.")
     };
 
     //set default max amount of parameters per request
-    let max: isize = if args.is_present("max") {
-        args.value_of("max").unwrap().parse()?
+    let max: Option<usize> = if args.is_present("max") {
+        Some(args.value_of("max").unwrap().parse()?)
     } else {
-        match injection_place {
-            InjectionPlace::Body => -512,
-            InjectionPlace::Path => -128,
-            InjectionPlace::Headers => -64,
-            InjectionPlace::HeaderValue => -64,
-        }
+        None
     };
 
     let body = if args.is_present("keep-newlines") {
@@ -478,6 +474,7 @@ Conflicts with --verify for now. Will be changed in the future.")
     //TODO maybe replace empty with None
     let config = Config {
         url: args.value_of("url").unwrap_or(&url).to_string(),
+        methods: vec![method.clone()],
         wordlist: args.value_of("wordlist").unwrap_or("").to_string(),
         custom_parameters,
         proxy: args.value_of("proxy").unwrap_or("").to_string(),
@@ -489,7 +486,6 @@ Conflicts with --verify for now. Will be changed in the future.")
         append: args.is_present("append"),
         force: args.is_present("force"),
         strict: args.is_present("strict"),
-        disable_custom_parameters: args.is_present("disable-custom-parameters"),
         disable_progress_bar: args.is_present("disable-progress-bar"),
         follow_redirects: args.is_present("follow-redirects"),
         test: args.is_present("test"),
@@ -501,23 +497,26 @@ Conflicts with --verify for now. Will be changed in the future.")
         verify: args.is_present("verify"),
         reflected_only: args.is_present("reflected-only"),
         http: args.value_of("output").unwrap_or("").to_string(),
+        template: convert_to_string_if_some(args.value_of("parameter_template")),
+        joiner: convert_to_string_if_some(args.value_of("joiner")),
+        encode: args.is_present("encode"),
+        disable_custom_parameters: args.is_present("disable-custom-parameters"),
+        body,
+        delay,
+        custom_headers: headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+        injection_place,
+        data_type,
+        max
     };
 
-    let client = create_client(&config.proxy, config.follow_redirects, &config.http, config.timeout)?;
+    Ok(config)
+}
 
-    let request_defaults = RequestDefaults::new(
-        &method,
-        &url,
-        headers,
-        delay,
-        client,
-        args.value_of("parameter_template"),
-        args.value_of("joiner"),
-        args.is_present("encode"),
-        data_type,
-        injection_place,
-        &body,
-    )?;
-
-    Ok((config, request_defaults, max))
+//shorcut to convert Option<&str> to Option<String> to be able to return it from the function
+fn convert_to_string_if_some(el: Option<&str>) -> Option<String> {
+    if el.is_some() {
+        Some(el.unwrap().to_string())
+    } else {
+        None
+    }
 }

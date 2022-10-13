@@ -59,7 +59,8 @@ impl<'a> Runner<'a> {
                                 //we don't return the actual response because it was a random request without original parameters
                                 //instead we return an empty response from the original request
                                 Ok(_) => request.empty_response(),
-                                Err(err) => return Ok(()) //TODO a better handling
+                                //looks like either server or network is down
+                                Err(err) => Err(format!("Unable to reach server ({})", err))?
                 }
         };
 

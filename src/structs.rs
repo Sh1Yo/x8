@@ -1,8 +1,9 @@
 use std::{
-    collections::HashMap,
+    collections::HashMap, time::Duration,
 };
 use serde::Serialize;
 
+#[derive(Debug, Clone)]
 pub enum DataType {
     Json,
     Urlencoded
@@ -21,8 +22,41 @@ pub struct Config {
     //default url without any changes (except from when used from request file, maybe change this logic TODO)
     pub url: String,
 
+    //a list of methods to check parameters with
+    pub methods: Vec<String>,
+
+    //custom user supplied headers or default ones
+    pub custom_headers: Vec<(String, String)>,
+
+    //how much to sleep between requests in millisecs
+    pub delay: Duration,
+
     //user supplied wordlist file
     pub wordlist: String,
+
+    //max amount of parameters to send per request. Can be specified by user otherwise detects automatically based on request method
+    pub max: Option<usize>,
+
+    //parameter template, for example {k}={v}
+    pub template: Option<String>,
+
+    //how to join parameters, for example '&'
+    pub joiner: Option<String>,
+
+    //whether to encode the query like param1=value1&param2=value2 -> param1%3dvalue1%26param2%3dvalue2
+    pub encode: bool,
+
+    //default body
+    pub body: String,
+
+    //where the injection point is
+    pub injection_place: InjectionPlace,
+
+    //Json type handles differently because values like null, true, ints needs to be sent without quotes
+    pub data_type: Option<DataType>,
+
+    //whether to include parameters like debug=true to the list
+    pub disable_custom_parameters: bool,
 
     //proxy server with schema or http:// by default.
     pub proxy: String,
@@ -47,7 +81,6 @@ pub struct Config {
 
     //custom parameters to check like <admin, [true, 1, false, ..]>
     pub custom_parameters: HashMap<String, Vec<String>>,
-    pub disable_custom_parameters: bool,
 
     //disable progress bar for high verbosity
     pub disable_progress_bar: bool,

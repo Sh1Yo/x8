@@ -11,7 +11,6 @@ pub struct Runner<'a> {
     pub request_defaults: RequestDefaults,
     replay_client: &'a Client,
     pub possible_params: Vec<String>,
-    default_max: isize,
 
     pub max: usize,
     pub stable: Stable,
@@ -28,7 +27,6 @@ impl<'a> Runner<'a> {
         config: &'a Config,
         request_defaults: &'a mut RequestDefaults,
         replay_client: &'a Client,
-        default_max: isize
     ) -> Result<Runner<'a>, Box<dyn Error>> {
          //make first request and collect some information like code, reflections, possible parameters
          //we are making another request defaults because the original one will be changed right after
@@ -74,8 +72,7 @@ impl<'a> Runner<'a> {
                  request_defaults: request_defaults.clone(),
                  replay_client,
                  possible_params,
-                 default_max,
-                 max: default_max.abs() as usize,
+                 max: 0, //to be filled later, in stability-checker()
                  stable: Default::default(),
                  initial_response: initial_response,
                  diffs: Vec::new(),
@@ -126,7 +123,7 @@ impl<'a> Runner<'a> {
 
     //check parameters like admin=true
     async fn check_non_random_parameters(&self, found_params: &mut Vec<FoundParameter>) -> Result<(), Box<dyn Error>> {
-        if !self.config.disable_custom_parameters {
+        if !self.request_defaults.disable_custom_parameters {
             let mut custom_parameters = self.config.custom_parameters.clone();
             let mut params = Vec::new();
 
@@ -160,6 +157,22 @@ impl<'a> Runner<'a> {
     /// makes several requests in order to learn how the page behaves
     /// tries to increase the max amount of parameters per request in case the default value not changed
     async fn stability_checker(&mut self) -> Result<(), Box<dyn Error>> {
+
+        //guess or get from the user the amount of parameters to send per request
+        let default_max = match self.config.max {
+            Some(var) => var as isize,
+            None => {
+                match self.config.injection_place {
+                    InjectionPlace::Body => -512,
+                    InjectionPlace::Path => -128,
+                    InjectionPlace::Headers => -64,
+                    InjectionPlace::HeaderValue => -64,
+                }
+            }
+        };
+
+        self.max = default_max.abs() as usize;
+
         //make a few requests and collect all persistent diffs, check for stability
         (self.diffs, self.stable) = empty_reqs(
             self.config,
@@ -174,12 +187,8 @@ impl<'a> Runner<'a> {
         }
 
         //check whether it is possible to use 192 or 256 params in a single request instead of 128 default
-        if self.default_max == -128  {
+        if default_max == -128  {
             self.try_to_increase_max().await?;
-
-            if self.max != self.default_max.abs() as usize {
-                self.default_max = self.max as isize;
-            }
         }
 
         Ok(())

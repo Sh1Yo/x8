@@ -44,7 +44,7 @@ async fn main() {
 async fn init() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let (mut config, mut request_defaults, default_max): (Config, RequestDefaults, isize) = get_config()?;
+    let config: Config = get_config()?;
 
     if !config.save_responses.is_empty() {
         fs::create_dir_all(&config.save_responses)?;
@@ -70,31 +70,40 @@ async fn init() -> Result<(), Box<dyn Error>> {
         write_banner_config(&config, &params);
     }
 
-    //get cookies
-    Request::new(&request_defaults, Vec::new())
-        .send()
-        .await?;
+    for method in config.methods.clone() {
 
-    //if --test option is used - print request/response and quit
-    if config.test {
-        writeln!(
-            io::stdout(),
-            "{}",
-            Request::new(&request_defaults, Vec::new())
-                .send()
-                .await?
-                .print_all()
-        ).ok();
-        return Ok(())
+        let mut request_defaults = RequestDefaults::from_config(&config, method.as_str(), config.url.as_str())?;
+
+        //get cookies
+        Request::new(&request_defaults, Vec::new())
+            .send()
+            .await?;
+
+        //if --test option is used - print request/response and quit
+        if config.test {
+            //TODO move to func
+            writeln!(
+                io::stdout(),
+                "{}",
+                Request::new(&request_defaults, Vec::new())
+                    .send()
+                    .await?
+                    .print_all()
+            ).ok();
+        } else {
+
+            run(&config, &mut request_defaults, &replay_client, &mut params).await?;
+
+        }
     }
 
-    run(&mut config, &mut request_defaults, &replay_client, &mut params, default_max).await
+    Ok(())
 }
 
 async fn run(
-    config: &mut Config, request_defaults: &mut RequestDefaults, replay_client: &Client, params: &mut Vec<String>, default_max: isize
+    config: &Config, request_defaults: &mut RequestDefaults, replay_client: &Client, params: &mut Vec<String>
 ) -> Result<(), Box<dyn Error>> {
-    let runner = Runner::new(config, request_defaults, replay_client, default_max).await?;
+    let runner = Runner::new(config, request_defaults, replay_client).await?;
 
     if config.verbose > 0 {
         write_banner_url(&runner.request_defaults, &runner.initial_response, runner.request_defaults.amount_of_reflections);
@@ -107,7 +116,7 @@ async fn run(
             params.retain(|x| !runner_output.found_params.contains_name(x));
 
             //custom parameters work badly with recursion enabled
-            config.disable_custom_parameters = true;
+            request_defaults.disable_custom_parameters = true;
 
             //so we are keeping parameters that don't change pages' code
             //or change it to 200
@@ -125,7 +134,7 @@ async fn run(
                 "({}) repeating with {}", depth, request_defaults.parameters.iter().map(|x| x.0.as_str()).collect::<Vec<&str>>().join(", ")
             ));
 
-            let mut new_found_params = Runner::new(config, request_defaults, replay_client, default_max).await?
+            let mut new_found_params = Runner::new(config, request_defaults, replay_client).await?
                 .run(params).await?.found_params;
 
             // no new params where found - just quit the loop

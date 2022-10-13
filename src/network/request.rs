@@ -1,5 +1,5 @@
 use crate::{
-    structs::{InjectionPlace, DataType}, utils::{random_line},
+    structs::{InjectionPlace, DataType, Config}, utils::{random_line},
 };
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -51,11 +51,6 @@ pub struct RequestDefaults {
     //how much to sleep between requests in millisecs
     pub delay: Duration, //MOVE to config
 
-    //the initial response to compare with.
-    //can be None at the start when no requests were made yet
-    //probably better to adjust the logic and keep just Response
-    //pub initial_response: Option<Response<'a>>,
-
     //default reqwest client
     pub client: Client,
 
@@ -73,6 +68,9 @@ pub struct RequestDefaults {
 
     //default body
     pub body: String,
+
+    //whether to include parameters like debug=true to the list
+    pub disable_custom_parameters: bool,
 
     //parameters to add to every request
     //it is used in recursion search
@@ -366,6 +364,7 @@ impl<'a> Request<'a> {
     }
 }
 
+//for test purposes only I guess
 impl<'a> Default for RequestDefaults {
     fn default() -> RequestDefaults {
         RequestDefaults {
@@ -381,6 +380,7 @@ impl<'a> Default for RequestDefaults {
             joiner: "&".to_string(),
             is_json: false,
             encode: false,
+            disable_custom_parameters: false,
             body: String::new(),
             parameters: Vec::new(),
             injection_place: InjectionPlace::Path,
@@ -390,34 +390,78 @@ impl<'a> Default for RequestDefaults {
 }
 
 impl<'a> RequestDefaults {
-    pub fn new(
+
+    fn create_client(config: &Config) -> Result<Client, Box<dyn Error>> {
+        let mut client = Client::builder()
+            .danger_accept_invalid_certs(true)
+            .timeout(Duration::from_secs(config.timeout as u64))
+            .http1_title_case_headers()
+            .cookie_store(true)
+            .use_rustls_tls();
+
+        if !config.proxy.is_empty() {
+            client = client.proxy(reqwest::Proxy::all(&config.proxy)?);
+        }
+        if !config.follow_redirects {
+            client = client.redirect(reqwest::redirect::Policy::none());
+        }
+
+        if !config.http.is_empty() {
+            match config.http.as_str() {
+                "1.1" =>  client = client.http1_only(),
+                "2" => client = client.http2_prior_knowledge(),
+                _ => Err("Incorrect http version provided")?,
+            }
+        }
+
+        Ok(client.build()?)
+    }
+
+    pub fn from_config<S: Into<String>>(config: &Config, method: S, url: S) -> Result<Self, Box<dyn Error>> {
+        Self::new(
+            method.into().as_str(), //method needs to be set explicitly via .set_method()
+            url.into().as_str(), //as well as url
+            config.custom_headers.clone(),
+            config.delay,
+            Self::create_client(config)?,
+            config.template.clone(),
+            config.joiner.clone(),
+            config.encode,
+            config.data_type.clone(),
+            config.injection_place,
+            &config.body,
+            config.disable_custom_parameters
+        )
+    }
+
+    pub fn new<S: Into<String>+From<String>>(
         method: &str,
         url: &str,
-        custom_headers: HashMap<&str, String>,
+        custom_headers: Vec<(String, String)>,
         delay: Duration,
         client: Client,
-        template: Option<&str>,
-        joiner: Option<&str>,
+        template: Option<S>,
+        joiner: Option<S>,
         encode: bool,
         data_type: Option<DataType>,
         injection_place: InjectionPlace,
-        body: &str
+        body: &str,
+        disable_custom_parameters: bool
     ) -> Result<Self, Box<dyn Error>> {
 
         let (guessed_template, guessed_joiner, is_json, data_type) =
             RequestDefaults::guess_data_format(body, &injection_place, data_type);
 
-        let (template, joiner) = (template.unwrap_or(guessed_template), joiner.unwrap_or(guessed_joiner));
+        let (template, joiner) =
+            (template.unwrap_or(guessed_template.to_string().into()).into(), joiner.unwrap_or(guessed_joiner.to_string().into()).into());
 
         let url = Url::parse(url)?;
 
         let (path, body) = if data_type.is_some() {
-            RequestDefaults::fix_path_and_body(url.path(), body, joiner, &injection_place, data_type.unwrap())
+            RequestDefaults::fix_path_and_body(url.path(), body, &joiner, &injection_place, data_type.unwrap())
         } else { //injection within headers
             (url.path().to_string(), body.to_owned())
         };
-
-        let custom_headers: Vec<(String, String)> = custom_headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
 
         Ok(Self{
             method: method.to_string(),
@@ -433,6 +477,7 @@ impl<'a> RequestDefaults {
             encode,
             is_json,
             body,
+            disable_custom_parameters,
             injection_place,
 
             amount_of_reflections: 0,
@@ -511,14 +556,12 @@ impl<'a> RequestDefaults {
     }
 
     /// for testing purposes only
-    pub fn recreate(&self, data_type: Option<DataType>, template: Option<&str>, joiner: Option<&str>) -> Self {
-
-        let custom_headers: HashMap<&str, String> = HashMap::from_iter(self.custom_headers.iter().map(|(k, v)| (k.as_str(), v.to_owned())));
+    pub fn recreate<S: Into<String>+From<String>>(&self, data_type: Option<DataType>, template: Option<S>, joiner: Option<S>) -> Self {
 
         RequestDefaults::new(
             &self.method,
             &format!("{}://{}:{}{}", &self.scheme, &self.host, self.port, &self.path),
-            custom_headers,
+            self.custom_headers.clone(),
             self.delay,
             self.client.clone(),
             template,
@@ -526,7 +569,8 @@ impl<'a> RequestDefaults {
             self.encode,
             data_type,
             self.injection_place.clone(),
-            &self.body
+            &self.body,
+            self.disable_custom_parameters
         ).unwrap()
     }
 }
