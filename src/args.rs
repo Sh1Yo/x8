@@ -1,4 +1,4 @@
-use crate::{structs::{Config, InjectionPlace, DataType}, utils::parse_request};
+use crate::{structs::{Config, DataType}, utils::parse_request};
 use clap::{crate_version, App, AppSettings, Arg};
 use std::{collections::HashMap, fs, error::Error};
 use tokio::time::Duration;
@@ -16,6 +16,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
             .long("url")
             .help("You can add a custom injection point with %s.")
             .takes_value(true)
+            .min_values(1)
             .conflicts_with("request")
         )
         .arg(Arg::with_name("request")
@@ -64,7 +65,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
         )
         .arg(
             Arg::with_name("data-type")
-                .short("t")
+                .short("T")
                 .long("data-type")
                 .help("Available: urlencode, json\nCan be detected automatically if --body is specified (default is \"urlencode\")")
                 .value_name("data-type")
@@ -110,6 +111,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
                 .value_name("method")
                 .default_value("GET")
                 .takes_value(true)
+                .min_values(1)
                 .conflicts_with("request")
         )
         .arg(
@@ -256,7 +258,14 @@ Conflicts with --verify for now. Will be changed in the future.")
         .arg(
             Arg::with_name("concurrency")
                 .short("c")
-                .help("The number of concurrent requests")
+                .help("The number of concurrent requests per url")
+                .default_value("1")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("threads")
+                .short("t")
+                .help("The number of concurrent url checks")
                 .default_value("1")
                 .takes_value(true)
         )
@@ -288,6 +297,7 @@ Conflicts with --verify for now. Will be changed in the future.")
 
     let learn_requests_count = args.value_of("learn_requests_count").unwrap().parse()?;
     let concurrency = args.value_of("concurrency").unwrap().parse()?;
+    let threads = args.value_of("threads").unwrap().parse()?;
     let verbose = args.value_of("verbose").unwrap().parse()?;
     let timeout = args.value_of("timeout").unwrap().parse()?;
     let recursion_depth = args.value_of("recursion_depth").unwrap().parse()?;
@@ -301,17 +311,11 @@ Conflicts with --verify for now. Will be changed in the future.")
     //parse default request information
     //either via request file or via provided parameters
     let (
-        proto,
-        port,
-        (
-            method,
-            host,
-            path,
-            headers,
-            body,
-            data_type,
-            injection_place
-        )
+        methods,
+        urls,
+        headers,
+        body,
+        data_type,
     ) = if !request.is_empty() {
         //if the request file is specified - get protocol (https/http) from args, specify schema and port and parse request file
         let proto = args.value_of("proto").ok_or("--proto wasn't provided")?.to_string();
@@ -328,29 +332,14 @@ Conflicts with --verify for now. Will be changed in the future.")
             }
         };
 
-        (
-            scheme,
+        parse_request(
+            &request,
+            &scheme,
             port,
-            parse_request(
-                &request,
-                args.is_present("invert")
-            )?
-        )
-
+        )?
     } else {
 
-        let method = args.value_of("method").unwrap();
-
-        //this behavior is explained within the --invert option help's line
-        let mut injection_place = if
-            ((method == "POST" || method == "PUT") && !args.is_present("invert"))
-            || (method != "POST" && method != "PUT" && args.is_present("invert")) {
-            InjectionPlace::Body
-        } else if args.is_present("headers-discovery") {
-            InjectionPlace::Headers
-        } else {
-            InjectionPlace::Path
-        };
+        let methods = args.values_of("method").unwrap().map(|x| x.to_string()).collect::<Vec<String>>();
 
         let mut headers: HashMap<&str, String> = HashMap::new();
 
@@ -368,10 +357,6 @@ Conflicts with --verify for now. Will be changed in the future.")
                     },
                     k_v.map(|x| ":".to_owned() + x).collect(),
                 ].concat();
-
-                if value.contains("%s") {
-                    injection_place = InjectionPlace::HeaderValue;
-                }
 
                 headers.insert(key, value);
             }
@@ -401,25 +386,31 @@ Conflicts with --verify for now. Will be changed in the future.")
             } else if val == "urlencoded" {
                 Some(DataType::Urlencoded)
             } else {
-                None
+                Err("Incorrect --data-type specified")?
             },
             None => None
         };
 
-        let url = Url::parse(args.value_of("url").unwrap())?;
-        (
-            url.scheme().to_string()+"://",
-            url.port_or_known_default().ok_or("Wrong scheme")?,
+        let urls =
+            args.values_of("url")
+                .unwrap()
+                .map(|x| Url::parse(x)).collect::<Vec<Result<Url, url::ParseError>>>();
+
+        // in case there's at least a single wrong url -- return with an error
+        if urls.iter().any(|x| x.is_err()) {
+            for err_url in urls.iter().filter(|x| x.is_err()) {
+                err_url.to_owned()?;
+            };
+            unreachable!();
+        } else {
             (
-                method.to_string(),
-                url.host_str().ok_or("Host missing")?.to_string(),
-                url[url::Position::BeforePath..].to_string(), //we need not only the path but query as well
+                methods,
+                urls.iter().map(|x| x.as_ref().unwrap().to_string()).collect::<Vec<String>>(),
                 headers,
                 args.value_of("body").unwrap_or("").to_string(),
                 data_type,
-                injection_place
             )
-        )
+        }
     };
 
     //set default max amount of parameters per request
@@ -434,8 +425,6 @@ Conflicts with --verify for now. Will be changed in the future.")
     } else {
         body
     };
-
-    let url = format!("{}{}:{}{}", proto, host, port, path);
 
     //generate custom param values like admin=true
     let custom_keys: Vec<String> = match args.values_of("custom-parameters") {
@@ -471,10 +460,13 @@ Conflicts with --verify for now. Will be changed in the future.")
         colored::control::set_override(false);
     }
 
+    println!("{:?}", urls);
+    println!("{:?}", methods);
+
     //TODO maybe replace empty with None
     let config = Config {
-        url: args.value_of("url").unwrap_or(&url).to_string(),
-        methods: vec![method.clone()],
+        urls,
+        methods,
         wordlist: args.value_of("wordlist").unwrap_or("").to_string(),
         custom_parameters,
         proxy: args.value_of("proxy").unwrap_or("").to_string(),
@@ -492,6 +484,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         verbose,
         learn_requests_count,
         concurrency,
+        threads,
         timeout,
         recursion_depth,
         verify: args.is_present("verify"),
@@ -501,12 +494,13 @@ Conflicts with --verify for now. Will be changed in the future.")
         joiner: convert_to_string_if_some(args.value_of("joiner")),
         encode: args.is_present("encode"),
         disable_custom_parameters: args.is_present("disable-custom-parameters"),
+        invert: args.is_present("invert"),
+        headers_discovery: args.is_present("headers-discovery"),
         body,
         delay,
         custom_headers: headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
-        injection_place,
         data_type,
-        max
+        max,
     };
 
     Ok(config)

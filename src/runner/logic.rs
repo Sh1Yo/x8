@@ -16,7 +16,7 @@ use super::runner::Runner;
 
 impl<'a> Runner<'a> {
 
-    //just splits params into two parts and runs check_parameters_recursion for every part
+    /// just splits params into two parts and runs check_parameters_recursion for every part
     async fn repeat(
         &self,
         shared_diffs: Arc<Mutex<&'a mut Vec<String>>>,
@@ -129,7 +129,7 @@ impl<'a> Runner<'a> {
                                 .unwrap_or_default();
 
                             if check_response.code != self.initial_response.code {
-                                return Err(format!("{} The page became unstable (code)", &self.config.url))?
+                                return Err(format!("{} The page became unstable (code)", self.request_defaults.url()))?
                             } else {
                                 let mut green_lines = shared_green_lines.lock();
                                 green_lines.insert(response.code.to_string(), 0);

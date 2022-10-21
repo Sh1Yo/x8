@@ -3,10 +3,16 @@ use std::{
 };
 use serde::Serialize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DataType {
     Json,
-    Urlencoded
+    Urlencoded,
+
+    //that's from parsed request's content-type header
+    //needs to be ignored in case the injection points not within the body
+    //to exclude false positive /?{"ZXxZPLN":"ons9XDZ", ..} or Cookie: {"ZXxZPLN":"ons9XDZ", ..} queries
+    //it still can be bypassed with the --data-type argument
+    ProbablyJson,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Copy)]
@@ -20,7 +26,7 @@ pub enum InjectionPlace {
 #[derive(Debug, Clone)]
 pub struct Config {
     //default url without any changes (except from when used from request file, maybe change this logic TODO)
-    pub url: String,
+    pub urls: Vec<String>,
 
     //a list of methods to check parameters with
     pub methods: Vec<String>,
@@ -49,9 +55,6 @@ pub struct Config {
     //default body
     pub body: String,
 
-    //where the injection point is
-    pub injection_place: InjectionPlace,
-
     //Json type handles differently because values like null, true, ints needs to be sent without quotes
     pub data_type: Option<DataType>,
 
@@ -63,6 +66,7 @@ pub struct Config {
 
     //file to output
     pub output_file: String,
+
     //whether to append to the output file or overwrite
     pub append: bool,
 
@@ -107,8 +111,11 @@ pub struct Config {
     //conflicts with --verify for now. Will be changed in the future.
     pub recursion_depth: usize,
 
-    //amount of concurrent requests
+    //amount of concurrent requests per url
     pub concurrency: usize,
+
+    //amount of concurrent url checks
+    pub threads: usize,
 
     //http request timeout in seconds
     pub timeout: usize,
@@ -125,6 +132,13 @@ pub struct Config {
     //http version. 1.1 or 2
     //TODO replace with enum
     pub http: String,
+
+    //by default parameters are sent within the body only in case PUT or POST methods are used.
+    //it's possible to overwrite this behaviour by specifying this option
+    pub invert: bool,
+
+    //true in case the injection points is within the header or the headers are injection point itself
+    pub headers_discovery: bool,
 
     pub follow_redirects: bool,
 }

@@ -11,7 +11,7 @@ use rand::Rng;
 use colored::*;
 use reqwest::Client;
 
-use crate::structs::{Config, DataType, InjectionPlace, Stable};
+use crate::structs::{Config, DataType, Stable};
 use crate::network::{request::{RequestDefaults, Request}, response::Response};
 use crate::runner::found_parameters::{FoundParameter, ReasonKind};
 
@@ -43,7 +43,7 @@ pub fn write_banner_config(config: &Config, params: &Vec<String>) {
 pub fn write_banner_url(request_defaults: &RequestDefaults, initial_response: &Response, amount_of_reflections: usize) {
     writeln!(
         io::stdout(),
-        "{} {} ({}) [{}] {{{}}}",
+        "\n{} {} ({}) [{}] {{{}}}",
         &request_defaults.method.blue(),
         &request_defaults.url().green(),
         &initial_response.code(),
@@ -80,8 +80,12 @@ pub fn info<S: Into<String>, T: std::fmt::Display>(config: &Config, word: S, msg
     }
 }
 
-pub fn error<T: std::fmt::Display>(msg: T) {
-    writeln!(io::stderr(), "{} {}", "[#]".red(), msg).ok();
+pub fn error<T: std::fmt::Display>(msg: T, url: Option<&str>) {
+    if url.is_none() {
+        writeln!(io::stderr(), "{} {}", "[#]".red(), msg).ok();
+    } else {
+        writeln!(io::stderr(), "{} [{}] {}", "[#]".red(), url.unwrap(), msg).ok();
+    }
 }
 
 pub fn progress_bar(config: &Config, count: usize, all: usize) {
@@ -98,14 +102,12 @@ pub fn progress_bar(config: &Config, count: usize, all: usize) {
     }
 }
 
-pub fn parse_request<'a>(request: &'a str, invert: bool) -> Result<(
-    String, //method
-    String, //host
-    String, //path
+pub fn parse_request<'a>(request: &'a str, scheme: &str, port: u16) -> Result<(
+    Vec<String>, //method
+    Vec<String>, //url
     HashMap<&'a str, String>, //headers
     String, //body
     Option<DataType>,
-    InjectionPlace,
 ), Box<dyn Error>> {
     //request by lines
     //TODO maybe add option whether split lines only by '\r\n' instead of splitting by '\n' as well.
@@ -121,16 +123,6 @@ pub fn parse_request<'a>(request: &'a str, invert: bool) -> Result<(
     let path = firstline.next().ok_or("Unable to parse path")?.to_string(); //include ' ' in path too?
     let http2 = firstline.next().ok_or("Unable to parse http version")?.contains("HTTP/2");
 
-    //this behavior is explained within the --invert option help's line
-    let as_body =  ((method == "POST" || method == "PUT") && !invert)
-    || (method != "POST" && method != "PUT" && invert);
-
-    let mut injection_place: InjectionPlace = if as_body {
-        InjectionPlace::Body
-    } else {
-        InjectionPlace::Path
-    };
-
     //parse headers
     while let Some(line) = lines.next() {
         if line.is_empty() {
@@ -144,18 +136,13 @@ pub fn parse_request<'a>(request: &'a str, invert: bool) -> Result<(
             k_v.map(|x| ":".to_owned() + x).collect(),
         ].concat();
 
-        if value.contains("%s") {
-            injection_place = InjectionPlace::HeaderValue;
-        }
-
         match key.to_lowercase().as_str() {
-            "content-type" => if as_body {
-                if value.contains("json") {
+            //TODO don't forget to ignore it if the injection point decided to be in query
+            "content-type" =>  if value.contains("json") {
                     data_type = Some(DataType::Json)
                 } else if value.contains("urlencoded") {
                     data_type = Some(DataType::Urlencoded)
-                }
-            },
+                },
             "host" => {
                 host = value.clone();
                 // host header in http2 breaks the h2 lib for now
@@ -181,13 +168,11 @@ pub fn parse_request<'a>(request: &'a str, invert: bool) -> Result<(
     }
 
     Ok((
-        method,
-        host,
-        path,
+        vec![method],
+        vec![format!("{}://{}:{}{}", scheme, host, port, path)],
         headers,
         body,
         data_type,
-        injection_place
     ))
 }
 

@@ -428,13 +428,14 @@ impl<'a> RequestDefaults {
             config.joiner.clone(),
             config.encode,
             config.data_type.clone(),
-            config.injection_place,
+            config.invert,
+            config.headers_discovery,
             &config.body,
             config.disable_custom_parameters
         )
     }
 
-    pub fn new<S: Into<String>+From<String>>(
+    pub fn new<S: Into<String>+From<String> + std::fmt::Debug>(
         method: &str,
         url: &str,
         custom_headers: Vec<(String, String)>,
@@ -444,10 +445,37 @@ impl<'a> RequestDefaults {
         joiner: Option<S>,
         encode: bool,
         data_type: Option<DataType>,
-        injection_place: InjectionPlace,
+        invert: bool,
+        headers_discovery: bool,
         body: &str,
         disable_custom_parameters: bool
     ) -> Result<Self, Box<dyn Error>> {
+
+        //TODO recheck logic
+        let mut injection_place = if
+            (method == "POST" || method == "PUT") && !invert
+            || (method != "POST" && method != "PUT" && invert) {
+            InjectionPlace::Body
+        } else if headers_discovery {
+            InjectionPlace::Headers
+        } else {
+            InjectionPlace::Path
+        };
+
+        if headers_discovery && custom_headers.iter().any(|x| x.1.contains("%s")) {
+            injection_place = InjectionPlace::HeaderValue;
+        }
+
+        let data_type = if data_type.is_some() && data_type != Some(DataType::ProbablyJson) {
+            data_type
+
+        //explained in DataType enum comments
+        //tl.dr. data_type was taken from a parsed request's content-type so we are not 100% sure what did a user mean
+        } else if data_type == Some(DataType::ProbablyJson) && injection_place == InjectionPlace::Body {
+            Some(DataType::Json)
+        } else {
+            Some(DataType::Urlencoded)
+        };
 
         let (guessed_template, guessed_joiner, is_json, data_type) =
             RequestDefaults::guess_data_format(body, &injection_place, data_type);
@@ -494,7 +522,8 @@ impl<'a> RequestDefaults {
             match data_type.unwrap() {
                 //{v} isn't within quotes because not every json value needs to be in quotes
                 DataType::Json => ("\"{k}\": {v}", ", ", true, Some(DataType::Json)),
-                DataType::Urlencoded => ("{k}={v}", "&", false, Some(DataType::Urlencoded))
+                DataType::Urlencoded => ("{k}={v}", "&", false, Some(DataType::Urlencoded)),
+                _ => unreachable!()
             }
         } else {
             match injection_place {
@@ -522,7 +551,8 @@ impl<'a> RequestDefaults {
                 } else if body.is_empty() {
                     match data_type {
                         DataType::Urlencoded => (path.to_string(), format!("%s")),
-                        DataType::Json => (path.to_string(), format!("{{%s}}"))
+                        DataType::Json => (path.to_string(), format!("{{%s}}")),
+                        _ => unreachable!()
                     }
                 } else {
                     match data_type {
@@ -531,7 +561,8 @@ impl<'a> RequestDefaults {
                             let mut body = body.to_owned();
                             body.pop(); //remove the last '}'
                             (path.to_string(), format!("{}, %s}}", body))
-                        }
+                        },
+                        _ => unreachable!()
                     }
                 }
             },
@@ -553,24 +584,5 @@ impl<'a> RequestDefaults {
     /// recreates url
     pub fn url(&self) -> String {
         format!("{}://{}:{}{}", self.scheme, self.host, self.port, self.path)
-    }
-
-    /// for testing purposes only
-    pub fn recreate<S: Into<String>+From<String>>(&self, data_type: Option<DataType>, template: Option<S>, joiner: Option<S>) -> Self {
-
-        RequestDefaults::new(
-            &self.method,
-            &format!("{}://{}:{}{}", &self.scheme, &self.host, self.port, &self.path),
-            self.custom_headers.clone(),
-            self.delay,
-            self.client.clone(),
-            template,
-            joiner,
-            self.encode,
-            data_type,
-            self.injection_place.clone(),
-            &self.body,
-            self.disable_custom_parameters
-        ).unwrap()
     }
 }

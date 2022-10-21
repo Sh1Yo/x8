@@ -1,22 +1,18 @@
 use std::error::Error;
 
-use reqwest::Client;
-
-use crate::{structs::{Config, InjectionPlace, Stable}, utils::{empty_reqs, random_line, verify, self, replay}, network::{request::{RequestDefaults, Request}, response::Response}};
+use crate::{structs::{Config, InjectionPlace, Stable}, utils::{empty_reqs, random_line, verify, self, replay, create_client}, network::{request::{RequestDefaults, Request}, response::Response}};
 
 use super::{output::RunnerOutput, found_parameters::{FoundParameter, Parameters}};
 
 pub struct Runner<'a> {
     pub config: &'a Config,
     pub request_defaults: RequestDefaults,
-    replay_client: &'a Client,
     pub possible_params: Vec<String>,
 
     pub max: usize,
     pub stable: Stable,
     pub initial_response: Response<'a>,
 
-    //shared_info: SharedInfo<'a>,
     pub diffs: Vec<String>,
 }
 
@@ -26,7 +22,6 @@ impl<'a> Runner<'a> {
     pub async fn new(
         config: &'a Config,
         request_defaults: &'a mut RequestDefaults,
-        replay_client: &'a Client,
     ) -> Result<Runner<'a>, Box<dyn Error>> {
          //make first request and collect some information like code, reflections, possible parameters
          //we are making another request defaults because the original one will be changed right after
@@ -70,7 +65,6 @@ impl<'a> Runner<'a> {
              Runner{
                  config,
                  request_defaults: request_defaults.clone(),
-                 replay_client,
                  possible_params,
                  max: 0, //to be filled later, in stability-checker()
                  stable: Default::default(),
@@ -113,7 +107,13 @@ impl<'a> Runner<'a> {
         }
 
         if !self.config.replay_proxy.is_empty() {
-            if let Err(_) = replay(&self.config, &self.request_defaults, &self.replay_client, &found_params).await {
+
+            if let Err(_) = replay(
+                &self.config,
+                &self.request_defaults,
+                &create_client(&self.config.replay_proxy, self.config.follow_redirects, &self.config.http, self.config.timeout)?,
+                &found_params
+            ).await {
                 utils::info(&self.config, "~", "was unable to resend found parameters via different proxy");
             }
         }
@@ -162,7 +162,7 @@ impl<'a> Runner<'a> {
         let default_max = match self.config.max {
             Some(var) => var as isize,
             None => {
-                match self.config.injection_place {
+                match self.request_defaults.injection_place {
                     InjectionPlace::Body => -512,
                     InjectionPlace::Path => -128,
                     InjectionPlace::Headers => -64,
