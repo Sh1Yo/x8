@@ -24,7 +24,7 @@ async fn main() {
     std::process::exit(match init().await {
         Ok(_) => 0,
         Err(err) => {
-            utils::error(err);
+            utils::error(err, None, None);
             1
         }
     });
@@ -36,7 +36,7 @@ async fn main() {
     std::process::exit(match init().await {
         Ok(_) => 0,
         Err(err) => {
-            utils::error(err, None);
+            utils::error(err, None, None);
             1
         }
     });
@@ -88,8 +88,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
         params = read_stdin_lines();
     }
 
-    //write banner
-    if config.verbose > 0 && !config.test {
+    if config.verbose > 0 {
         write_banner_config(&config, &params);
     }
 
@@ -111,7 +110,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
                 let mut request_defaults = match RequestDefaults::from_config(config, method.as_str(), url.as_str()) {
                     Ok(val) => val,
                     Err(err) => {
-                        utils::error(err, Some(url));
+                        utils::error(err, Some(url), Some(progress_bar));
                         continue
                     },
                 };
@@ -120,13 +119,13 @@ async fn init() -> Result<(), Box<dyn Error>> {
                 if let Err(err) = Request::new(&request_defaults, Vec::new())
                     .send()
                     .await {
-                        utils::error(err, Some(url));
+                        utils::error(err, Some(url), Some(progress_bar));
                         continue
                 };
 
                 match run(config, &mut request_defaults, &mut params, &progress_bar, id).await {
                     Ok(val) => runner_outputs.push(val),
-                    Err(err) => utils::error(err, Some(url)),
+                    Err(err) => utils::error(err, Some(url), Some(progress_bar)),
                 }
             };
 
@@ -194,7 +193,7 @@ async fn run(
                 )
             ));
 
-            utils::info(config, "recursion", format!(
+            utils::info(config, id, progress_bar, "recursion", format!(
                 "({}) repeating with {}", depth, request_defaults.parameters.iter().map(|x| x.0.as_str()).collect::<Vec<&str>>().join(", ")
             ));
 

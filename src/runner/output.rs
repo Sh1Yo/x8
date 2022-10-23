@@ -48,7 +48,7 @@ impl RunnerOutput {
         }
     }
 
-    ///f ill self.request and self.query if they're needed for output
+    /// fills self.request and self.query if they're needed for output
     pub fn prepare(&mut self, config: &Config, request_defaults: &RequestDefaults) {
         if config.output_format == "url" || config.output_format == "request" {
             let mut request = Request::new(request_defaults, self.found_params.iter().map(

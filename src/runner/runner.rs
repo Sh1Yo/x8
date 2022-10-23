@@ -8,16 +8,22 @@ use crate::{structs::{Config, InjectionPlace, Stable}, utils::{random_line, veri
 use super::{output::RunnerOutput, found_parameters::{FoundParameter, Parameters}};
 
 pub struct Runner<'a> {
+    //unique id of the runner to distinguish output between different urls
     pub id: usize,
 
     pub config: &'a Config,
     pub request_defaults: RequestDefaults,
+
+    //parameters found by scraping words from the page
     pub possible_params: Vec<String>,
 
+    //the max amount of parameters to send per request
     pub max: usize,
+
     pub stable: Stable,
     pub initial_response: Response<'a>,
 
+    //page's diffs for the current url|method pair
     pub diffs: Vec<String>,
 
     pub progress_bar: &'a ProgressBar
@@ -34,7 +40,6 @@ impl<'a> Runner<'a> {
     ) -> Result<Runner<'a>, Box<dyn Error>> {
          //make first request and collect some information like code, reflections, possible parameters
          //we are making another request defaults because the original one will be changed right after
-
          let mut temp_request_defaults = request_defaults.clone();
 
          //we need a random_parameter with a long value in order to increase accuracy while determining the default amount of reflections
@@ -85,7 +90,7 @@ impl<'a> Runner<'a> {
          )
     }
 
-    /// acually runs the runner
+    /// actually runs the runner
     pub async fn run(mut self, params: &mut Vec<String>) -> Result<RunnerOutput, Box<dyn Error>> {
 
         if self.config.verbose > 0 {
@@ -95,8 +100,7 @@ impl<'a> Runner<'a> {
         self.stability_checker().await?;
 
         //add only unique possible params to the vec of all params (the tool works properly only with unique parameters)
-        //less efficient than making it within the sorted vec
-        //but I want to preserve order
+        //less efficient than making it within the sorted vec but I want to preserve the order
         for param in self.possible_params.iter() {
             if !params.contains(&param) {
                 params.push(param.to_owned());
@@ -116,27 +120,26 @@ impl<'a> Runner<'a> {
                 = verify(&self.initial_response, &self.request_defaults, &found_params, &diffs, &self.stable).await {
                 filtered_params
             } else {
-                utils::info(&self.config, "~", "was unable to verify found parameters");
+                utils::info(&self.config, self.id, self.progress_bar,"~", "was unable to verify found parameters");
                 found_params
             };
         }
 
         if !self.config.replay_proxy.is_empty() {
-
             if let Err(_) = replay(
                 &self.config,
                 &self.request_defaults,
                 &create_client(&self.config.replay_proxy, self.config.follow_redirects, &self.config.http, self.config.timeout)?,
                 &found_params
             ).await {
-                utils::info(&self.config, "~", "was unable to resend found parameters via different proxy");
+                utils::info(&self.config, self.id, self.progress_bar, "~", "was unable to resend found parameters via different proxy");
             }
         }
 
         Ok(RunnerOutput::new(&self.request_defaults, &self.initial_response, found_params))
     }
 
-    //check parameters like admin=true
+    /// check parameters with non random values
     async fn check_non_random_parameters(
         &self, found_params: &mut Vec<FoundParameter>
     ) -> Result<(), Box<dyn Error>> {
@@ -235,10 +238,9 @@ impl<'a> Runner<'a> {
 
             //do not check pages >25MB because usually its just a binary file or sth
             if response.text.len() > MAX_PAGE_SIZE && !self.config.force {
-                Err("The page is too huge")?;
+                Err("The page's size > 25MB. Use --force flag to disable this error")?;
             }
 
-            //TODO i think it works wrong
             if !response.reflected_parameters.is_empty() {
                 stable.reflections = false;
             }
@@ -260,7 +262,7 @@ impl<'a> Runner<'a> {
 
         //in case the page is still different from other random ones - the body isn't stable
         if !response.compare(&self.initial_response, &diffs)?.1.is_empty() {
-            utils::info(&self.config, "~", "The page is not stable (body)");
+            utils::info(&self.config, self.id, self.progress_bar, "~", "The page is not stable (body)");
             stable.body = false;
         }
 

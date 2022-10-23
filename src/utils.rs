@@ -17,7 +17,7 @@ use crate::network::{request::{RequestDefaults, Request}, response::Response};
 use crate::runner::found_parameters::{FoundParameter, ReasonKind};
 
 pub fn write_banner_config(config: &Config, params: &Vec<String>) {
-    let mut output = format!("wordlist len: {}", params.len().to_string().blue());
+    let mut output = format!("urls: {}, methods: {}, wordlist len: {}", config.urls.len(), config.methods.join(" "), params.len().to_string().blue());
 
     if !config.proxy.is_empty() {
         output += &format!(", proxy: {}", &config.proxy.green())
@@ -62,17 +62,25 @@ pub fn notify(progress_bar: &ProgressBar, config: &Config, reason_kind: ReasonKi
     }
 }
 
-pub fn info<S: Into<String>, T: std::fmt::Display>(config: &Config, word: S, msg: T) {
+/// prints informative messages/non critical errors
+pub fn info<S: Into<String>, T: std::fmt::Display>(config: &Config, id: usize, progress_bar: &ProgressBar, word: S, msg: T) {
     if config.verbose > 0 {
-        writeln!(io::stdout(), "[{}] {}", word.into().yellow(), msg).ok();
+        progress_bar.println(format!("{} [{}] {}", color_id(id), word.into().yellow(), msg));
     }
 }
 
-pub fn error<T: std::fmt::Display>(msg: T, url: Option<&str>) {
-    if url.is_none() {
-        writeln!(io::stderr(), "{} {}", "[#]".red(), msg).ok();
+/// prints errors. Progress_bar may be null in case the error happened too early (before requests)
+pub fn error<T: std::fmt::Display>(msg: T, url: Option<&str>, progress_bar: Option<&ProgressBar>) {
+    let message = if url.is_none() {
+        format!("{} {}", "[#]".red(), msg)
     } else {
-        writeln!(io::stderr(), "{} [{}] {}", "[#]".red(), url.unwrap(), msg).ok();
+        format!("{} [{}] {}", "[#]".red(), url.unwrap(), msg)
+    };
+
+    if progress_bar.is_none() {
+        writeln!(io::stdout(), "{}", message).ok();
+    } else {
+        progress_bar.unwrap().println(message);
     }
 }
 
