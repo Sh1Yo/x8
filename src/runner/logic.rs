@@ -1,9 +1,10 @@
 use crate::{
-    utils::{progress_bar, self},
+    utils,
     network::{request::Request},
-    runner::found_parameters::{FoundParameter, ReasonKind}
+    runner::found_parameters::{FoundParameter, ReasonKind},
 };
 use futures::{stream::StreamExt};
+use indicatif::ProgressStyle;
 use std::{sync::Arc, error::Error, cmp};
 use parking_lot::Mutex;
 use async_recursion::async_recursion;
@@ -22,7 +23,7 @@ impl<'a> Runner<'a> {
         shared_diffs: Arc<Mutex<&'a mut Vec<String>>>,
         shared_green_lines: Arc<Mutex<&'a mut HashMap<String, usize>>>,
         shared_found_params: Arc<Mutex<&'a mut Vec<FoundParameter>>>,
-        mut params: Vec<String>
+        mut params: Vec<String>,
     ) -> Result<(), Box<dyn Error>> {
 
         let second_params_part = params.split_off(params.len()/2);
@@ -31,7 +32,7 @@ impl<'a> Runner<'a> {
             Arc::clone(&shared_diffs),
             Arc::clone(&shared_green_lines),
             Arc::clone(&shared_found_params),
-            params
+            params,
         ).await?;
         self.check_parameters_recursion(
             shared_diffs, shared_green_lines, shared_found_params, second_params_part
@@ -93,7 +94,15 @@ impl<'a> Runner<'a> {
                     params.remove(params.iter().position(|x| *x == reflected_parameter).unwrap());
 
 
-                    response.write_and_save(&self.config, &self.initial_response, kind, &reflected_parameter, None)?;
+                    response.write_and_save(
+                        self.id,
+                        &self.config,
+                        &self.initial_response,
+                        kind,
+                        &reflected_parameter,
+                        None,
+                        self.progress_bar
+                    )?;
                 }
             }
 
@@ -109,7 +118,7 @@ impl<'a> Runner<'a> {
         }
 
         if self.initial_response.code != response.code {
-            utils::notify(&self.config, ReasonKind::Code, &response, None);
+            utils::notify(self.progress_bar, &self.config, ReasonKind::Code, &response, None);
 
             //increase the specific response code counter
             //helps to notice whether the page's completely changed
@@ -144,7 +153,15 @@ impl<'a> Runner<'a> {
 
             //there's only 1 parameter left that's changing the page's code
             if params.len() == 1 {
-                response.write_and_save(&self.config, &self.initial_response, ReasonKind::Code, &params[0], None)?;
+                response.write_and_save(
+                    self.id,
+                    &self.config,
+                    &self.initial_response,
+                    ReasonKind::Code,
+                    &params[0],
+                    None,
+                    self.progress_bar
+                )?;
 
                 let mut found_params = shared_found_params.lock();
                 found_params.push(
@@ -203,7 +220,7 @@ impl<'a> Runner<'a> {
             //check whether the page still(after making a random request and storing it's diffs) has an unique diffs
             for diff in new_diffs.iter() {
                 if !diffs.contains(&diff) {
-                    utils::notify(&self.config, ReasonKind::Text, &response, Some(&diff));
+                    utils::notify(self.progress_bar, &self.config, ReasonKind::Text, &response, Some(&diff));
 
                     let mut found_params = shared_found_params.lock();
 
@@ -219,7 +236,15 @@ impl<'a> Runner<'a> {
                             }
                         }
 
-                        response.write_and_save(&self.config, &self.initial_response, ReasonKind::Text, &params[0], Some(&diff))?;
+                        response.write_and_save(
+                            self.id,
+                            &self.config,
+                            &self.initial_response,
+                            ReasonKind::Text,
+                            &params[0],
+                            Some(&diff),
+                            self.progress_bar
+                        )?;
 
                         found_params.push(
                             FoundParameter::new(
@@ -258,10 +283,16 @@ impl<'a> Runner<'a> {
         //the amount of requests needed for process all the parameters
         let all = params.len() / max;
 
-        //just for progress bar - count chunks
-        let mut count: usize = 0;
+        //changind and resetting the progress bar
+        let sty = ProgressStyle::with_template(
+            "{prefix} {bar:26.cyan/blue} {pos:>7}/{len:7}",
+        )
+        .unwrap()
+        .progress_chars("##-");
 
-        //make diffs and green_lines accessable by all futures
+        self.prepare_progress_bar(sty, all+1);
+
+        //wrapping the variables to share them between futures
         let mut diffs = self.diffs.clone();
         let mut green_lines = HashMap::new();
         let mut found_params = Vec::new();
@@ -271,14 +302,13 @@ impl<'a> Runner<'a> {
         let shared_found_params = Arc::new(Mutex::new(&mut found_params));
 
         let _futures_data = futures::stream::iter(params.chunks(max).map(|chunk| {
-            count += 1;
-
             let shared_diffs = Arc::clone(&shared_diffs);
             let shared_green_lines = Arc::clone(&shared_green_lines);
             let shared_found_params = Arc::clone(&shared_found_params);
 
             async move {
-                progress_bar(&self.config, count, all);
+                self.progress_bar.inc(1);
+
                 self.check_parameters_recursion(
                     shared_diffs,
                     shared_green_lines,

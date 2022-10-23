@@ -8,12 +8,13 @@ use std::{
 use atty::Stream;
 
 use futures::StreamExt;
+use indicatif::ProgressBar;
 use x8::{
     args::get_config,
     network::{request::{Request, RequestDefaults}, headers::Headers},
     structs::Config,
-    runner::{runner::Runner, found_parameters::{ReasonKind, Parameters}},
-    utils::{self, write_banner_config, read_lines, read_stdin_lines, write_banner_url},
+    runner::{runner::Runner, found_parameters::{ReasonKind, Parameters}, output::{RunnerOutput, ParseOutputs}},
+    utils::{self, write_banner_config, read_lines, read_stdin_lines, init_progress},
 };
 
 #[cfg(windows)]
@@ -41,10 +42,34 @@ async fn main() {
     });
 }
 
+/// initializes runners and passes them to run()
+/// also manages outputs. Probably better to rename?
 async fn init() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     let config: Config = get_config()?;
+
+    //if --test option is used - print request/response and quit
+    if config.test {
+        if config.urls.len() != 1 {
+            Err("--test option works only with 1 url")?;
+        } else if config.methods.len() != 1 {
+            Err("--test option works only with 1 method")?;
+        }
+        //TODO move to func?
+        writeln!(
+            io::stdout(),
+            "{}",
+            Request::new(
+                &RequestDefaults::from_config(
+                    &config, config.methods[0].as_str(), config.urls[0].as_str()
+                )?,
+                Vec::new()
+            ).send()
+            .await?
+            .print_all()
+        ).ok();
+    }
 
     if !config.save_responses.is_empty() {
         fs::create_dir_all(&config.save_responses)?;
@@ -68,7 +93,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
         write_banner_config(&config, &params);
     }
 
-    futures::stream::iter(config.urls.iter().map(|url| {
+    let runner_outputs = futures::stream::iter(init_progress(&config).iter().enumerate().skip(1).map(|(id, (url, progress_bar))| {
 
         //each url should have each own list of parameters
         let params = params.clone();
@@ -77,66 +102,81 @@ async fn init() -> Result<(), Box<dyn Error>> {
         let config = &config;
 
         async move {
-            for method in &config.methods.clone() {
+            let mut runner_outputs = Vec::new();
 
+            for method in &config.methods.clone() {
                 //each method should have each own list of parameters (we're changing this list through the run)
                 let mut params = params.clone();
 
-                let mut request_defaults = RequestDefaults::from_config(config, method.as_str(), url.as_str())?;
+                let mut request_defaults = match RequestDefaults::from_config(config, method.as_str(), url.as_str()) {
+                    Ok(val) => val,
+                    Err(err) => {
+                        utils::error(err, Some(url));
+                        continue
+                    },
+                };
 
                 //get cookies
-                Request::new(&request_defaults, Vec::new())
+                if let Err(err) = Request::new(&request_defaults, Vec::new())
                     .send()
-                    .await?;
+                    .await {
+                        utils::error(err, Some(url));
+                        continue
+                };
 
-                //if --test option is used - print request/response and quit
-                if config.test {
-                    //TODO move to func
-                    writeln!(
-                        io::stdout(),
-                        "{}",
-                        Request::new(&request_defaults, Vec::new())
-                            .send()
-                            .await?
-                            .print_all()
-                    ).ok();
-                } else {
-
-                    run(config, &mut request_defaults, &mut params).await?;
-
+                match run(config, &mut request_defaults, &mut params, &progress_bar, id).await {
+                    Ok(val) => runner_outputs.push(val),
+                    Err(err) => utils::error(err, Some(url)),
                 }
             };
 
-            Ok::<(), Box<dyn Error>>(())
+            runner_outputs
         }
     }))
     .buffer_unordered(config.threads)
-    .map(|x| {
-        //TODO make a custom error type or something so we can access the actual url from here..
-        if x.is_err() {
-            utils::error(x.as_ref().err().unwrap(), Some("url"));
-        }
-        x
-    })
-    .collect::<Vec<Result<(), Box<dyn Error>>>>()
+    .collect::<Vec<Vec<RunnerOutput>>>()
     .await;
+
+
+
+    let output = runner_outputs.into_iter().flatten().collect::<Vec<RunnerOutput>>().parse_output(&config);
+
+    if !config.output_file.is_empty() {
+        let mut file = OpenOptions::new();
+
+        let file = if config.append {
+            file.write(true).append(true)
+        } else {
+            file.write(true).truncate(true)
+        };
+
+        let mut file = match file.open(&config.output_file) {
+            Ok(file) => file,
+            Err(_) => fs::File::create(&config.output_file)?
+        };
+
+        write!(file, "{}" , output)?;
+    }
+
+    write!(io::stdout(), "\n{}", output).ok();
 
     Ok(())
 }
 
 async fn run(
-    config: &Config, request_defaults: &mut RequestDefaults, params: &mut Vec<String>
-) -> Result<(), Box<dyn Error>> {
-    let runner = Runner::new(config, request_defaults).await?;
+    config: &Config, request_defaults: &mut RequestDefaults, params: &mut Vec<String>, progress_bar: &ProgressBar, id: usize
+) -> Result<RunnerOutput, Box<dyn Error>> {
 
-    if config.verbose > 0 {
-        write_banner_url(&runner.request_defaults, &runner.initial_response, runner.request_defaults.amount_of_reflections);
-    }
+    let mut runner_output = Runner::new(
+        config, request_defaults, progress_bar, id
+    ).await?
+    .run(params).await?;
 
-    let mut runner_output = runner.run(params).await?;
-
+    //the whole block related to the recursive searching
     if !runner_output.found_params.is_empty() {
         for depth in 1..config.recursion_depth+1 {
+
+            //remove already found parameters from the list to prevent duplicates
             params.retain(|x| !runner_output.found_params.contains_name(x));
 
             //custom parameters work badly with recursion enabled
@@ -158,7 +198,7 @@ async fn run(
                 "({}) repeating with {}", depth, request_defaults.parameters.iter().map(|x| x.0.as_str()).collect::<Vec<&str>>().join(", ")
             ));
 
-            let mut new_found_params = Runner::new(config, request_defaults).await?
+            let mut new_found_params = Runner::new(config, request_defaults, progress_bar, id).await?
                 .run(params).await?.found_params;
 
             // no new params where found - just quit the loop
@@ -180,25 +220,7 @@ async fn run(
         .map(|x| x.to_owned())
         .collect();
 
-    let output = runner_output.parse(config, request_defaults);//create_output(&config, &request_defaults, found_params);
+    runner_output.prepare(config, request_defaults);
 
-    if !config.output_file.is_empty() {
-        let mut file = OpenOptions::new();
-
-        let file = if config.append {
-            file.write(true).append(true)
-        } else {
-            file.write(true).truncate(true)
-        };
-
-        let mut file = match file.open(&config.output_file) {
-            Ok(file) => file,
-            Err(_) => fs::File::create(&config.output_file)?
-        };
-
-        write!(file, "{}" , output)?;
-    }
-    write!(io::stdout(), "\n{}", &output).ok();
-
-    Ok(())
+    Ok(runner_output)
 }

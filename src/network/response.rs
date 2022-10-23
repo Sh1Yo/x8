@@ -1,11 +1,12 @@
-use std::{error::Error, collections::HashMap, io::{self, Write}, iter::FromIterator};
+use std::{error::Error, collections::HashMap, iter::FromIterator};
 
 use colored::Colorize;
+use indicatif::ProgressBar;
 use itertools::Itertools;
 use regex::Regex;
 use lazy_static::lazy_static;
 
-use crate::{structs::Config, diff::diff, utils::save_request, runner::found_parameters::ReasonKind};
+use crate::{structs::Config, diff::diff, utils::{save_request, color_id}, runner::found_parameters::ReasonKind};
 
 use super::{request::Request, headers::Headers};
 
@@ -191,24 +192,35 @@ impl<'a> Response<'a> {
     }
 
     /// write about found parameter to stdout and save when needed
-    pub fn write_and_save(&self, config: &Config, initial_response: &Response, reason_kind: ReasonKind, parameter: &str, diff: Option<&str>) -> Result<(), Box<dyn Error>> {
+    pub fn write_and_save(
+        &self,
+        id: usize,
+        config: &Config,
+        initial_response: &Response,
+        reason_kind: ReasonKind,
+        parameter: &str,
+        diff: Option<&str>,
+        progress_bar: &ProgressBar
+) -> Result<(), Box<dyn Error>> {
 
         let mut message = match reason_kind {
             ReasonKind::Code => format!(
-                "{}: code {} -> {}",
+                "{}) {}: code {} -> {}",
+                color_id(id),
                 &parameter,
-               initial_response.code(),
-                &self.code(),
+                initial_response.code(),
+                self.code(),
             ),
             ReasonKind::Text => format!(
-                "{}: page {} -> {} ({})",
+                "{}) {}: page {} -> {} ({})",
+                color_id(id),
                 &parameter,
-               initial_response.text.len(),
-                &self.text.len().to_string().bright_yellow(),
+                initial_response.text.len(),
+                self.text.len().to_string().bright_yellow(),
                 diff.unwrap()
             ),
-            ReasonKind::Reflected => format!("{}: {}", "reflects".bright_blue(), parameter),
-            ReasonKind::NotReflected => format!("{}: {}", "not reflected one".bright_cyan(), parameter),
+            ReasonKind::Reflected => format!("{}) {}: {}", color_id(id), "reflects".bright_blue(), parameter),
+            ReasonKind::NotReflected => format!("{}) {}: {}", color_id(id), "not reflected one".bright_cyan(), parameter),
         };
 
         if config.verbose > 0 {
@@ -216,7 +228,7 @@ impl<'a> Response<'a> {
                 message += &format!(" [saved to {}]", save_request(config, self, parameter)?);
             }
 
-            writeln!(io::stdout(), "{}", message).ok();
+            progress_bar.println(message);
         } else if !config.save_responses.is_empty() {
             save_request(config, self, parameter)?;
         }

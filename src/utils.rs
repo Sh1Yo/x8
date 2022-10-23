@@ -7,16 +7,14 @@ use std::{
     time::Duration,
 };
 
+use indicatif::{ProgressBar, MultiProgress, ProgressStyle};
 use rand::Rng;
 use colored::*;
 use reqwest::Client;
 
-use crate::structs::{Config, DataType, Stable};
+use crate::{structs::{Config, DataType, Stable}, RANDOM_CHARSET};
 use crate::network::{request::{RequestDefaults, Request}, response::Response};
 use crate::runner::found_parameters::{FoundParameter, ReasonKind};
-
-static RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
-const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024; //25MB usually
 
 pub fn write_banner_config(config: &Config, params: &Vec<String>) {
     let mut output = format!("wordlist len: {}", params.len().to_string().blue());
@@ -40,35 +38,25 @@ pub fn write_banner_config(config: &Config, params: &Vec<String>) {
     ).ok();
 }
 
-pub fn write_banner_url(request_defaults: &RequestDefaults, initial_response: &Response, amount_of_reflections: usize) {
-    writeln!(
-        io::stdout(),
-        "\n{} {} ({}) [{}] {{{}}}",
-        &request_defaults.method.blue(),
-        &request_defaults.url().green(),
-        &initial_response.code(),
-        &initial_response.text.len().to_string().green(),
-        &amount_of_reflections.to_string().magenta()
-    ).ok();
-}
-
 /// notify about found parameters
-pub fn notify(config: &Config, reason_kind: ReasonKind, response: &Response, diffs: Option<&String>) {
+pub fn notify(progress_bar: &ProgressBar, config: &Config, reason_kind: ReasonKind, response: &Response, diffs: Option<&String>) {
     if config.verbose > 1 {
         match reason_kind {
-            ReasonKind::Code => writeln!(
-                io::stdout(),
-                "{} {}     ", //a few spaces to remove some chars of progress bar
-                response.code(),
-                response.text.len()
-            ).unwrap_or(()),
-            ReasonKind::Text => writeln!(
-                io::stdout(),
-                "{} {} ({})", //a few spaces to remove some chars of progress bar
-                response.code,
-                response.text.len().to_string().bright_yellow(),
-                diffs.unwrap()
-            ).unwrap_or(()),
+            ReasonKind::Code => progress_bar.println(
+            format!(
+                    "{} {}",
+                    response.code(),
+                    response.text.len()
+                )
+            ),
+            ReasonKind::Text => progress_bar.println(
+            format!(
+                    "{} {} ({})", //a few spaces to remove some chars of progress bar
+                    response.code,
+                    response.text.len().to_string().bright_yellow(),
+                    diffs.unwrap()
+                )
+            ),
             _ => unreachable!()
         }
     }
@@ -85,20 +73,6 @@ pub fn error<T: std::fmt::Display>(msg: T, url: Option<&str>) {
         writeln!(io::stderr(), "{} {}", "[#]".red(), msg).ok();
     } else {
         writeln!(io::stderr(), "{} [{}] {}", "[#]".red(), url.unwrap(), msg).ok();
-    }
-}
-
-pub fn progress_bar(config: &Config, count: usize, all: usize) {
-    if config.verbose > 0 && !config.disable_progress_bar {
-        write!(
-            io::stdout(),
-            "{} {}/{}         \r",
-            &"-> ".bright_yellow(),
-            count,
-            all
-        ).ok();
-
-        io::stdout().flush().ok();
     }
 }
 
@@ -176,62 +150,6 @@ pub fn parse_request<'a>(request: &'a str, scheme: &str, port: u16) -> Result<(
     ))
 }
 
-///makes first requests and checks page behavior
-pub async fn empty_reqs(
-    config: &Config,
-    initial_response: &Response<'_>,
-    request_defaults: &RequestDefaults,
-    count: usize,
-    max: usize,
-) -> Result<(Vec<String>, Stable), Box<dyn Error>> {
-    let mut stable = Stable {
-        body: true,
-        reflections: true,
-    };
-    let mut diffs: Vec<String> = Vec::new();
-
-    for i in 0..count {
-        let response =
-            Request::new_random(request_defaults, max)
-                .send()
-                .await?;
-
-        progress_bar(config, i, count);
-
-        //do not check pages >25MB because usually its just a binary file or sth
-        if response.text.len() > MAX_PAGE_SIZE && !config.force {
-            Err("The page is too huge")?;
-        }
-
-        //TODO i think it works wrong
-        if !response.reflected_parameters.is_empty() {
-            stable.reflections = false;
-        }
-
-        let (is_code_diff, mut new_diffs) = response.compare(initial_response, &diffs)?;
-
-        if is_code_diff {
-            Err("The page is not stable (code)")?
-        }
-
-        diffs.append(&mut new_diffs);
-    }
-
-    //check the last time
-    let response =
-        Request::new_random(request_defaults, max)
-            .send()
-            .await?;
-
-    //in case the page is still different from other random ones - the body isn't stable
-    if !response.compare(initial_response, &diffs)?.1.is_empty() {
-        info(config, "~", "The page is not stable (body)");
-        stable.body = false;
-    }
-
-    Ok((diffs, stable))
-}
-
 pub async fn verify<'a>(
     initial_response: &'a Response<'a>,
     request_defaults: &'a RequestDefaults,
@@ -294,6 +212,48 @@ pub async fn replay<'a>(
     }
 
     Ok(())
+}
+
+/// returns last n chars of an url
+pub fn fold_url(url: &str, n: usize) -> String {
+    if url.len() <= n+2 {
+        //we need to add some spaces to align the progress bars
+        url.to_string() + &" ".repeat(2+n-url.len())
+    } else {
+        "..".to_owned()+&url[url.len()-n..].to_string()
+    }
+}
+
+/// initialize progress bars for every url
+pub fn init_progress(config: &Config) -> Vec<(String, ProgressBar)> {
+    let mut url_to_progress = Vec::new();
+    let m = MultiProgress::new();
+
+    //we're creating an empty progress bar to make one empty line between progress bars and the tool's output
+    let empty_line = m.add(ProgressBar::new(128));
+    let sty = ProgressStyle::with_template(" ",).unwrap();
+    empty_line.set_style(sty);
+    empty_line.inc(1);
+    url_to_progress.push((String::new(), empty_line));
+
+    //append progress bars one after another and push them to url_to_progress
+    for url in config.urls.iter() {
+        let pb = m.insert_from_back(
+                0,
+                if config.disable_progress_bar || config.verbose < 1 {
+                    ProgressBar::new(128)
+                } else {
+                    ProgressBar::hidden()
+                }
+        );
+
+        url_to_progress.push((
+            url.to_owned(),
+            pb.clone()
+        ));
+    }
+
+    url_to_progress
 }
 
 pub fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
@@ -360,4 +320,24 @@ pub fn random_line(size: usize) -> String {
             RANDOM_CHARSET[idx] as char
         })
         .collect()
+}
+
+pub fn color_id(id: usize) -> String {
+    if id % 7 == 0 {
+        id.to_string().white()
+    } else if id % 6 == 0 {
+        id.to_string().bright_red()
+    } else if id % 5 == 0 {
+        id.to_string().bright_cyan()
+    } else if id % 4 == 0 {
+        id.to_string().bright_blue()
+    } else if id % 3 == 0 {
+        id.to_string().yellow()
+    } else if id % 2 == 0 {
+        id.to_string().bright_green()
+    } else if id % 1 == 0 {
+        id.to_string().magenta()
+    } else {
+        unreachable!()
+    }.to_string()
 }

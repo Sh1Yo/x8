@@ -1,10 +1,15 @@
 use std::error::Error;
 
-use crate::{structs::{Config, InjectionPlace, Stable}, utils::{empty_reqs, random_line, verify, self, replay, create_client}, network::{request::{RequestDefaults, Request}, response::Response}};
+use colored::Colorize;
+use indicatif::{ProgressBar, ProgressStyle};
+
+use crate::{structs::{Config, InjectionPlace, Stable}, utils::{random_line, verify, self, replay, create_client, fold_url, color_id}, network::{request::{RequestDefaults, Request}, response::Response}, DEFAULT_PROGRESS_URL_MAX_LEN, MAX_PAGE_SIZE};
 
 use super::{output::RunnerOutput, found_parameters::{FoundParameter, Parameters}};
 
 pub struct Runner<'a> {
+    pub id: usize,
+
     pub config: &'a Config,
     pub request_defaults: RequestDefaults,
     pub possible_params: Vec<String>,
@@ -14,6 +19,8 @@ pub struct Runner<'a> {
     pub initial_response: Response<'a>,
 
     pub diffs: Vec<String>,
+
+    pub progress_bar: &'a ProgressBar
 }
 
 impl<'a> Runner<'a> {
@@ -22,6 +29,8 @@ impl<'a> Runner<'a> {
     pub async fn new(
         config: &'a Config,
         request_defaults: &'a mut RequestDefaults,
+        progress_bar: &'a ProgressBar,
+        id: usize,
     ) -> Result<Runner<'a>, Box<dyn Error>> {
          //make first request and collect some information like code, reflections, possible parameters
          //we are making another request defaults because the original one will be changed right after
@@ -68,14 +77,20 @@ impl<'a> Runner<'a> {
                  possible_params,
                  max: 0, //to be filled later, in stability-checker()
                  stable: Default::default(),
-                 initial_response: initial_response,
+                 initial_response,
                  diffs: Vec::new(),
+                 progress_bar,
+                 id,
              }
          )
     }
 
     /// acually runs the runner
     pub async fn run(mut self, params: &mut Vec<String>) -> Result<RunnerOutput, Box<dyn Error>> {
+
+        if self.config.verbose > 0 {
+            self.write_banner_url();
+        }
 
         self.stability_checker().await?;
 
@@ -122,7 +137,9 @@ impl<'a> Runner<'a> {
     }
 
     //check parameters like admin=true
-    async fn check_non_random_parameters(&self, found_params: &mut Vec<FoundParameter>) -> Result<(), Box<dyn Error>> {
+    async fn check_non_random_parameters(
+        &self, found_params: &mut Vec<FoundParameter>
+    ) -> Result<(), Box<dyn Error>> {
         if !self.request_defaults.disable_custom_parameters {
             let mut custom_parameters = self.config.custom_parameters.clone();
             let mut params = Vec::new();
@@ -174,13 +191,7 @@ impl<'a> Runner<'a> {
         self.max = default_max.abs() as usize;
 
         //make a few requests and collect all persistent diffs, check for stability
-        (self.diffs, self.stable) = empty_reqs(
-            self.config,
-            &self.initial_response,
-            &self.request_defaults,
-            self.config.learn_requests_count,
-            self.max,
-        ).await?;
+        self.empty_reqs().await?;
 
         if self.config.reflected_only && !self.stable.reflections {
             Err("Reflections are not stable")?;
@@ -190,6 +201,70 @@ impl<'a> Runner<'a> {
         if default_max == -128  {
             self.try_to_increase_max().await?;
         }
+
+        Ok(())
+    }
+
+    /// makes first requests and checks page behavior
+    /// fills self.diffs and self.stable
+    pub async fn empty_reqs(
+        &mut self,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut stable = Stable {
+            body: true,
+            reflections: true,
+        };
+        let mut diffs: Vec<String> = Vec::new();
+
+        //set up progress bar
+        let sty = ProgressStyle::with_template(
+            "{prefix} {bar:26.cyan/green} {pos:>7}/{len:7}",
+        ).unwrap()
+        .progress_chars("**-");
+
+        self.prepare_progress_bar(sty, self.config.learn_requests_count);
+        // --
+
+        for _ in 0..self.config.learn_requests_count {
+            let response =
+                Request::new_random(&self.request_defaults, self.max)
+                    .send()
+                    .await?;
+
+            self.progress_bar.inc(1);
+
+            //do not check pages >25MB because usually its just a binary file or sth
+            if response.text.len() > MAX_PAGE_SIZE && !self.config.force {
+                Err("The page is too huge")?;
+            }
+
+            //TODO i think it works wrong
+            if !response.reflected_parameters.is_empty() {
+                stable.reflections = false;
+            }
+
+            let (is_code_diff, mut new_diffs) = response.compare(&self.initial_response, &diffs)?;
+
+            if is_code_diff {
+                Err("The page is not stable (code)")?
+            }
+
+            diffs.append(&mut new_diffs);
+        }
+
+        //check the last time
+        let response =
+            Request::new_random(&self.request_defaults, self.max)
+                .send()
+                .await?;
+
+        //in case the page is still different from other random ones - the body isn't stable
+        if !response.compare(&self.initial_response, &diffs)?.1.is_empty() {
+            utils::info(&self.config, "~", "The page is not stable (body)");
+            stable.body = false;
+        }
+
+        (self.diffs, self.stable) = (diffs, stable);
 
         Ok(())
     }
@@ -230,5 +305,44 @@ impl<'a> Runner<'a> {
         }
 
         Ok(())
+    }
+
+    pub fn prepare_progress_bar(&self, sty: ProgressStyle, length: usize) {
+        self.progress_bar.reset();
+        self.progress_bar.set_prefix(self.make_progress_prefix());
+        self.progress_bar.set_style(sty);
+        self.progress_bar.set_length(length as u64);
+    }
+
+    fn make_progress_prefix(&self) -> String {
+
+        //to align all the progress bars
+        let mut id = self.id.to_string()+":";
+        id += &" ".repeat(1+self.config.urls.len().to_string().len()-id.to_string().len());
+        id = id.replace(&self.id.to_string(), &color_id(self.id));
+
+        let mut method = self.request_defaults.method.clone();
+        method += &" ".repeat(self.config.methods.iter().map(|x| x.len()).max().unwrap()-method.len());
+
+        format!(
+            "{} {} {}",
+            id,
+            method.blue(),
+            fold_url(&self.request_defaults.url_without_default_port(), DEFAULT_PROGRESS_URL_MAX_LEN).green()
+        )
+    }
+
+    pub fn write_banner_url(&self) {
+        self.progress_bar.println(
+            format!(
+                "[{}] {} {} ({}) [{}] {{{}}}",
+                color_id(self.id),
+                self.request_defaults.method.blue(),
+                self.request_defaults.url().green(),
+                self.initial_response.code(),
+                self.initial_response.text.len().to_string().green(),
+                self.request_defaults.amount_of_reflections.to_string().magenta()
+            )
+        );
     }
 }

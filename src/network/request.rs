@@ -585,4 +585,16 @@ impl<'a> RequestDefaults {
     pub fn url(&self) -> String {
         format!("{}://{}:{}{}", self.scheme, self.host, self.port, self.path)
     }
+
+    /// recreates url without default port
+    pub fn url_without_default_port(&self) -> String {
+
+        let port = if self.port == 443 || self.port == 80 {
+            String::new()
+        } else {
+            format!(":{}", self.port)
+        };
+
+        format!("{}://{}{}{}", self.scheme, self.host, port, self.path)
+    }
 }
