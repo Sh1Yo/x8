@@ -2,6 +2,7 @@ use crate::{structs::{Config, DataType}, utils::parse_request};
 use clap::{crate_version, App, AppSettings, Arg};
 use std::{collections::HashMap, fs, error::Error};
 use tokio::time::Duration;
+use snailquote::unescape;
 use url::Url;
 
 pub fn get_config() -> Result<Config, Box<dyn Error>> {
@@ -153,11 +154,6 @@ It's possible to overwrite this behaviour by specifying the option")
             Arg::with_name("disable-progress-bar")
                 .long("disable-progress-bar")
         )
-        .arg(
-            Arg::with_name("keep-newlines")
-                .long("keep-newlines")
-                .help("--body 'a\\r\\nb' -> --body 'a{{new_line}}b'.\nWorks with body only.")
-            )
         .arg(
             Arg::with_name("replay-once")
                 .long("replay-once")
@@ -407,7 +403,7 @@ Conflicts with --verify for now. Will be changed in the future.")
                 methods,
                 urls.iter().map(|x| x.as_ref().unwrap().to_string()).collect::<Vec<String>>(),
                 headers,
-                args.value_of("body").unwrap_or("").to_string(),
+                unescape(&args.value_of("body").unwrap_or("").to_string())?,
                 data_type,
             )
         }
@@ -418,12 +414,6 @@ Conflicts with --verify for now. Will be changed in the future.")
         Some(args.value_of("max").unwrap().parse()?)
     } else {
         None
-    };
-
-    let body = if args.is_present("keep-newlines") {
-        body.replace("\\n", "\n").replace("\\r", "\r")
-    } else {
-        body
     };
 
     //generate custom param values like admin=true

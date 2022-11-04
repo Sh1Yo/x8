@@ -4,7 +4,6 @@ use std::{
 use regex::Regex;
 use serde::Serialize;
 use lazy_static::lazy_static;
-use crate::utils::random_line;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataType {
@@ -28,7 +27,7 @@ pub enum InjectionPlace {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    //default url without any changes (except from when used from request file, maybe change this logic TODO)
+    //default urls without any changes (except from when used from request file, maybe change this logic TODO)
     pub urls: Vec<String>,
 
     //a list of methods to check parameters with
