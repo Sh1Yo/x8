@@ -1,4 +1,4 @@
-use crate::{structs::{Config, DataType}, utils::parse_request};
+use crate::{config::{structs::Config, utils::{parse_request, convert_to_string_if_some}}, network::utils::DataType};
 use clap::{crate_version, App, AppSettings, Arg};
 use std::{collections::HashMap, fs, error::Error};
 use tokio::time::Duration;
@@ -502,13 +502,4 @@ Conflicts with --verify for now. Will be changed in the future.")
     };
 
     Ok(config)
-}
-
-//shorcut to convert Option<&str> to Option<String> to be able to return it from the function
-fn convert_to_string_if_some(el: Option<&str>) -> Option<String> {
-    if el.is_some() {
-        Some(el.unwrap().to_string())
-    } else {
-        None
-    }
 }

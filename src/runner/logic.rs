@@ -1,7 +1,7 @@
 use crate::{
     utils,
     network::{request::Request},
-    runner::found_parameters::{FoundParameter, ReasonKind},
+    runner::utils::{FoundParameter, ReasonKind},
 };
 use futures::{stream::StreamExt};
 use indicatif::ProgressStyle;
@@ -15,6 +15,7 @@ use std::{
 
 use super::runner::Runner;
 
+/// impl logic for checking parameters
 impl<'a> Runner<'a> {
 
     /// just splits params into two parts and runs check_parameters_recursion for every part
@@ -90,7 +91,7 @@ impl<'a> Runner<'a> {
                     );
                     drop(found_params);
 
-                    //remove found parameter from the list
+                    // remove found parameter from the list
                     params.remove(params.iter().position(|x| *x == reflected_parameter).unwrap());
 
 
@@ -120,9 +121,9 @@ impl<'a> Runner<'a> {
         if self.initial_response.code != response.code {
             utils::notify(self.progress_bar, &self.config, ReasonKind::Code, &response, None);
 
-            //increase the specific response code counter
-            //helps to notice whether the page's completely changed
-            //like for example when the IP got banned by the server
+            // increases the specific response code counter
+            // helps to notice whether the page's completely changed
+            // like for example when the IP got banned by the server
             {
                 let mut green_lines = shared_green_lines.lock();
                 match green_lines.get(&response.code.to_string()) {
@@ -151,7 +152,7 @@ impl<'a> Runner<'a> {
                 }
             }
 
-            //there's only 1 parameter left that's changing the page's code
+            // there's only 1 parameter left that's changing the page's code
             if params.len() == 1 {
                 response.write_and_save(
                     self.id,
@@ -173,7 +174,7 @@ impl<'a> Runner<'a> {
                         ReasonKind::Code
                     )
                 );
-            //there's more than 1 parameter left - split the list and repeat
+            // there's more than 1 parameter left - split the list and repeat
             } else {
                 return self.repeat(
                     shared_diffs, shared_green_lines, shared_found_params, params.clone()
@@ -182,13 +183,13 @@ impl<'a> Runner<'a> {
 
         } else if self.stable.body {
 
-            //check whether the new_diff has at least 1 unique diff compared to stored diffs
+            // check whether the new_diff has at least 1 unique diff compared to stored diffs
             let (_, new_diffs) = {
                 let diffs = shared_diffs.lock();
                 response.compare(&self.initial_response, &diffs)?
             };
 
-            //and then make a new request to check whether it's a permament diff or not
+            // and then make a new request to check whether it's a permament diff or not
             if !new_diffs.is_empty()  {
 
                 if self.config.strict {
@@ -198,8 +199,8 @@ impl<'a> Runner<'a> {
                     }
                 }
 
-                //just request the page with random parameters and store it's diffs
-                //maybe I am overcheking this, but still to be sure..
+                // just request the page with random parameters and store it's diffs
+                // maybe I am overcheking this, but still to be sure..
                 let tmp_resp = Request::new_random(&self.request_defaults, params.len())
                                             .send()
                                             .await?;
@@ -217,19 +218,19 @@ impl<'a> Runner<'a> {
 
             let diffs = shared_diffs.lock();
 
-            //check whether the page still(after making a random request and storing it's diffs) has an unique diffs
+            // check whether the page still(after making a random request and storing it's diffs) has an unique diffs
             for diff in new_diffs.iter() {
                 if !diffs.contains(&diff) {
                     utils::notify(self.progress_bar, &self.config, ReasonKind::Text, &response, Some(&diff));
 
                     let mut found_params = shared_found_params.lock();
 
-                    //there's only one parameter left that changing the page
+                    // there's only one parameter left that changing the page
                     if params.len() == 1
                     && !found_params.iter().any(|x| x.name == params[0]) {
 
-                        //repeating --strict checks. We need to do it twice because we're usually running in parallel
-                        //and some parameters may be found after the first check
+                        // repeating --strict checks. We need to do it twice because we're usually running in parallel
+                        // and some parameters may be found after the first check
                         if self.config.strict {
                             if found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
                                 return Ok(());
@@ -256,8 +257,8 @@ impl<'a> Runner<'a> {
                             )
                         );
                         break;
-                    //we don't know what parameter caused the difference in response yet
-                    //so we are repeating
+                    // we don't know what parameter caused the difference in response yet
+                    // so we are repeating
                     } else {
                         drop(diffs);
                         drop(found_params);
@@ -280,10 +281,10 @@ impl<'a> Runner<'a> {
 
         let max = cmp::min(self.max, params.len());
 
-        //the amount of requests needed for process all the parameters
+        // the amount of requests needed for process all the parameters
         let all = params.len() / max;
 
-        //changind and resetting the progress bar
+        // change and reset the progress bar
         let sty = ProgressStyle::with_template(
             "{prefix} {bar:26.cyan/blue} {pos:>7}/{len:7}",
         )
@@ -292,7 +293,7 @@ impl<'a> Runner<'a> {
 
         self.prepare_progress_bar(sty, all+1);
 
-        //wrapping the variables to share them between futures
+        // wrap the variables to share them between futures
         let mut diffs = self.diffs.clone();
         let mut green_lines = HashMap::new();
         let mut found_params = Vec::new();

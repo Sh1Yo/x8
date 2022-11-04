@@ -6,35 +6,39 @@ use itertools::Itertools;
 use regex::Regex;
 use lazy_static::lazy_static;
 
-use crate::{structs::Config, diff::diff, utils::{save_request, color_id}, runner::found_parameters::ReasonKind};
+use crate::{config::structs::Config, diff::diff, utils::color_id, runner::utils::ReasonKind};
 
-use super::{request::Request, headers::Headers};
+use super::{request::Request, utils::{save_request, Headers}};
 
 #[derive(Debug, Clone, Default)]
 pub struct Response<'a> {
-    //time from the sent request to response headers
+    /// time from the sent request to response headers
     pub time: u128,
 
+    /// response's status code
     pub code: u16,
 
+    /// headers with order preserved
     pub headers: Vec<(String, String)>,
 
-    //headers + body
+    /// headers + body
     pub text: String,
 
-    //<parameter, amount of reflections>
+    /// hashmap<parameter, amount of reflections> that fills later with possible reflected parameters
     pub reflected_parameters: HashMap<String, usize>,
 
-    //None only in initial_request due to some lifetime issues
+    /// the sent request struct itself
+    /// None only in initial_request due to lifetime issues
     pub request: Option<Request<'a>>,
 
-    //None only when the request failed
+    /// None only when the request failed
     pub http_version: Option<http::Version>,
 }
 
 //Owo
 unsafe impl Send for Response<'_> {}
 
+/// helps manage response codes
 #[derive(PartialEq, Eq)]
 pub enum Status {
     Ok,             //2xx
@@ -61,19 +65,20 @@ impl<'a> Response<'a> {
             is_code_diff = true
         }
 
-        //just push every found diff to the vector of diffs
+        // just push every found diff to the vector of diffs
         for diff in diff(
             &self.print(),
             &initial_response.print(),
         )? {
             if !diffs.contains(&diff) && !old_diffs.contains(&diff) {
                 diffs.push(diff);
+            // sometimes returns a few same diffs. They should be considered as well
             } else if !old_diffs.contains(&diff) {
                 let mut c = 1;
-                while diffs.contains(&[&diff, "(", &c.to_string(), ")"].concat()) {
+                while diffs.contains(&format!("{} ({})", &diff, c)) {
                     c += 1
                 }
-                diffs.push([&diff, " (", &c.to_string(), ")"].concat());
+                diffs.push(format!("{} ({})", &diff, c));
             }
         }
 
@@ -111,11 +116,10 @@ impl<'a> Response<'a> {
         }
     }
 
-    /// find parameters with the different amount of reflections and add them to self.reflected_parameters
+    /// finds parameters with the different amount of reflections and adds them to self.reflected_parameters
     pub fn fill_reflected_parameters(&mut self, initial_response: &Response) {
-        //let base_count = self.count(&self.request.prepared_parameters[additional_param]);
 
-        //remove non random parameters from prepared parameters because they would cause false positives in this check
+        // remove non random parameters from prepared parameters because they would cause false positives in this check
         let prepated_parameters: Vec<&(String, String)> = if !self.request.as_ref().unwrap().non_random_parameters.is_empty() {
             Vec::from_iter(
                 self.request.as_ref().unwrap().prepared_parameters
@@ -153,7 +157,7 @@ impl<'a> Response<'a> {
             return (Some(self.reflected_parameters.keys().next().unwrap()), false)
         }
 
-        //save parameters by their amount of reflections
+        // save parameters by their amount of reflections
         let mut parameters_by_reflections: HashMap<usize, Vec<&str>> = HashMap::new();
 
         for (k, v) in self.reflected_parameters.iter() {
@@ -164,7 +168,7 @@ impl<'a> Response<'a> {
             }
         }
 
-        //try to find a parameter with different amount of reflections between all of them
+        // try to find a parameter with different amount of reflections between all of them
         if parameters_by_reflections.len() == 2 {
             for (_, v) in parameters_by_reflections.iter() {
                 if v.len() == 1 {
@@ -197,7 +201,7 @@ impl<'a> Response<'a> {
         parameter: &str,
         diff: Option<&str>,
         progress_bar: &ProgressBar
-) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error>> {
 
         let mut message = match reason_kind {
             ReasonKind::Code => format!(
@@ -248,6 +252,7 @@ impl<'a> Response<'a> {
         }
     }
 
+    /// returns self.code but with colors
     pub fn code(&self) -> String {
         match self.kind() {
             Status::Ok => self.code.to_string().bright_green().to_string(),
@@ -292,7 +297,7 @@ impl<'a> Response<'a> {
         found
     }
 
-    ///print the whole response
+    /// print the whole response
     pub fn print(&self) -> String {
         let http_version = match self.http_version {
             Some(val) => match val {
@@ -309,7 +314,7 @@ impl<'a> Response<'a> {
         format!("{} {} \n{}", http_version, self.code, self.text)
     }
 
-    ///print the request and response
+    /// print the request and response
     pub fn print_all(&mut self) -> String {
         self.request.as_mut().unwrap().print() + &self.print()
     }

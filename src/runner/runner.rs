@@ -3,29 +3,36 @@ use std::error::Error;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 
-use crate::{structs::{Config, InjectionPlace, Stable}, utils::{random_line, verify, self, replay, create_client, fold_url, color_id}, network::{request::{RequestDefaults, Request}, response::Response}, DEFAULT_PROGRESS_URL_MAX_LEN, MAX_PAGE_SIZE};
+use crate::{config::structs::Config, utils::{random_line, self, color_id}, network::{request::{RequestDefaults, Request}, response::Response, utils::InjectionPlace}, DEFAULT_PROGRESS_URL_MAX_LEN, MAX_PAGE_SIZE};
 
-use super::{output::RunnerOutput, found_parameters::{FoundParameter, Parameters}};
+use super::{output::RunnerOutput, utils::{fold_url, FoundParameter, Parameters, create_client, replay, verify, Stable}};
 
 pub struct Runner<'a> {
-    //unique id of the runner to distinguish output between different urls
+
+    /// unique id of the runner to distinguish output between different urls
     pub id: usize,
 
     pub config: &'a Config,
+
+    /// request data to create the request object
     pub request_defaults: RequestDefaults,
 
-    //parameters found by scraping words from the page
+    /// parameters found by scraping words from the page
     pub possible_params: Vec<String>,
 
-    //the max amount of parameters to send per request
+    /// the max amount of parameters to send per request
     pub max: usize,
 
+    /// whether body or/and reflections are stable
     pub stable: Stable,
+
+    /// initial response to compare with
     pub initial_response: Response<'a>,
 
-    //page's diffs for the current url|method pair
+    /// page's diffs for the current url|method pair
     pub diffs: Vec<String>,
 
+    /// progress bar object to print progress bar & found parameters
     pub progress_bar: &'a ProgressBar
 }
 
@@ -38,11 +45,11 @@ impl<'a> Runner<'a> {
         progress_bar: &'a ProgressBar,
         id: usize,
     ) -> Result<Runner<'a>, Box<dyn Error>> {
-         //make first request and collect some information like code, reflections, possible parameters
-         //we are making another request defaults because the original one will be changed right after
+         // make first request and collect some information like code, reflections, possible parameters
+         // we are making another request defaults because the original one will be changed right after
          let mut temp_request_defaults = request_defaults.clone();
 
-         //we need a random_parameter with a long value in order to increase accuracy while determining the default amount of reflections
+         // we need a random_parameter with a long value in order to increase accuracy while determining the default amount of reflections
          let mut random_parameter = vec![(random_line(10), random_line(10))];
 
          temp_request_defaults.parameters.append(&mut random_parameter);
@@ -51,19 +58,19 @@ impl<'a> Runner<'a> {
                                                  .send()
                                                  .await?;
 
-         //add possible parameters to the list of parameters in case the injection place is not headers
+         // add possible parameters to the list of parameters in case the injection place is not headers
          let possible_params = if request_defaults.injection_place != InjectionPlace::Headers {
             initial_response.get_possible_parameters()
          } else {
             Vec::new()
          };
 
-         //find how many times reflected our random parameter
+         // find how many times was the random parameter reflected
          request_defaults.amount_of_reflections = initial_response.count(&temp_request_defaults.parameters.iter().next().unwrap().1);
 
-         //some "magic" to be able to return initial_response
-         //turns out you can't simple do 'initial_response.request = None'.
-         //otherwise throws lifetime errors
+         // some "magic" to be able to return initial_response
+         // otherwise throws lifetime errors
+         // turns out you can't simple do 'initial_response.request = None'.
          let initial_response = Response{
              time: initial_response.time,
              code: initial_response.code,
@@ -74,19 +81,17 @@ impl<'a> Runner<'a> {
              http_version: initial_response.http_version
          };
 
-         Ok(
-             Runner{
-                 config,
-                 request_defaults: request_defaults.clone(),
-                 possible_params,
-                 max: 0, //to be filled later, in stability-checker()
-                 stable: Default::default(),
-                 initial_response,
-                 diffs: Vec::new(),
-                 progress_bar,
-                 id,
-             }
-         )
+         Ok(Runner{
+            config,
+            request_defaults: request_defaults.clone(),
+            possible_params,
+            max: 0, //to be filled later, in stability-checker()
+            stable: Default::default(),
+            initial_response,
+            diffs: Vec::new(),
+            progress_bar,
+            id,
+        })
     }
 
     /// actually runs the runner
@@ -96,24 +101,26 @@ impl<'a> Runner<'a> {
             self.write_banner_url();
         }
 
+        // makes a few request to check page's behavior
         self.stability_checker().await?;
 
-        //add only unique possible params to the vec of all params (the tool works properly only with unique parameters)
-        //less efficient than making it within the sorted vec but I want to preserve the order
+        // add only unique possible params to the vec of all params (the tool works properly only with unique parameters)
+        // less efficient than making it within the sorted vec but I want to preserve the order
         for param in self.possible_params.iter() {
             if !params.contains(&param) {
                 params.push(param.to_owned());
             }
         }
 
+        // try to find existing parameters from the list
         let (diffs, mut found_params) = self.check_parameters(params).await?;
 
         self.check_non_random_parameters(&mut found_params).await?;
 
-        //remove duplicates
+        // remove duplicates
         let mut found_params = found_params.process(self.request_defaults.injection_place);
 
-        //verify found parameters
+        // verify found parameters
         if self.config.verify {
             found_params = if let Ok(filtered_params)
                 = verify(&self.initial_response, &self.request_defaults, &found_params, &diffs, &self.stable).await {
@@ -124,6 +131,7 @@ impl<'a> Runner<'a> {
             };
         }
 
+        // replay request with found parameters via another proxy
         if !self.config.replay_proxy.is_empty() {
             if let Err(_) = replay(
                 &self.config,
@@ -284,7 +292,7 @@ impl<'a> Runner<'a> {
             is_the_body_the_same = false;
         }
 
-        //in case the page isn't different from previous one - try to increase max amount of parameters by 128
+        // in case the page isn't different from previous one - try to increase max amount of parameters by 128
         if !is_code_different && (!self.stable.body || is_the_body_the_same) {
 
             let response =  Request::new_random(&self.request_defaults, self.max + 128)

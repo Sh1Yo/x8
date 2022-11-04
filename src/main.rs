@@ -10,11 +10,11 @@ use atty::Stream;
 use futures::StreamExt;
 use indicatif::ProgressBar;
 use x8::{
-    args::get_config,
-    network::{request::{Request, RequestDefaults}, headers::Headers},
-    structs::Config,
-    runner::{runner::Runner, found_parameters::{ReasonKind, Parameters}, output::{RunnerOutput, ParseOutputs}},
-    utils::{self, write_banner_config, read_lines, read_stdin_lines, init_progress},
+    network::{request::{Request, RequestDefaults}, utils::Headers},
+    config::{structs::Config, utils::write_banner_config},
+    config::args::get_config,
+    runner::{runner::Runner, utils::{ReasonKind, Parameters}, output::{RunnerOutput, ParseOutputs}},
+    utils::{self, read_lines, read_stdin_lines, init_progress},
 };
 
 #[cfg(windows)]

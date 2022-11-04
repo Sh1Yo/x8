@@ -1,9 +1,8 @@
 use crate::{
-    structs::{InjectionPlace, DataType, Config}, utils::{random_line},
+    config::structs::Config, utils::{random_line},
 };
 use itertools::Itertools;
-use lazy_static::lazy_static;
-use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+use percent_encoding::utf8_percent_encode;
 use reqwest::Client;
 use url::Url;
 use std::{
@@ -18,23 +17,7 @@ const HEADERS_TEMPLATE: &'static str = "{k}\x00@%=%@\x00{v}";
 const HEADERS_MIDDLE: &'static str = "\x00@%=%@\x00";
 const HEADERS_JOINER: &'static str = "\x01@%&%@\x01";
 
-use super::{response::Response, headers::Headers};
-
-lazy_static! {
-    //characters to encode
-    static ref FRAGMENT: AsciiSet = CONTROLS
-        .add(b' ')
-        .add(b'"')
-        .add(b'<')
-        .add(b'>')
-        .add(b'`')
-        .add(b'&')
-        .add(b'#')
-        .add(b';')
-        .add(b'/')
-        .add(b'=')
-        .add(b'%');
-}
+use super::{response::Response, utils::{Headers, FRAGMENT, InjectionPlace, DataType}};
 
 #[derive(Debug, Clone)]
 pub struct RequestDefaults {
@@ -357,31 +340,6 @@ impl<'a> Request<'a> {
         str_req += &format!("\n{}", self.body);
 
         str_req
-    }
-}
-
-//for test purposes only I guess
-impl<'a> Default for RequestDefaults {
-    fn default() -> RequestDefaults {
-        RequestDefaults {
-            method: "GET".to_string(),
-            scheme: "https".to_string(),
-            path: "/".to_string(),
-            host: "example.com".to_string(),
-            custom_headers: Vec::new(),
-            port: 443,
-            delay: Duration::from_millis(0),
-            client: Default::default(),
-            template: "{k}={v}".to_string(),
-            joiner: "&".to_string(),
-            is_json: false,
-            encode: false,
-            disable_custom_parameters: false,
-            body: String::new(),
-            parameters: Vec::new(),
-            injection_place: InjectionPlace::Path,
-            amount_of_reflections: 0
-        }
     }
 }
 

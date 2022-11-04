@@ -1,28 +1,32 @@
 use serde::Serialize;
 
-use crate::{structs::{Config, InjectionPlace}, network::{request::{RequestDefaults, Request}, response::Response}};
+use crate::{config::structs::Config, network::{request::{RequestDefaults, Request}, response::Response, utils::InjectionPlace}};
 
-use super::found_parameters::FoundParameter;
+use super::utils::FoundParameter;
 
 #[derive(Debug, Serialize)]
 pub struct RunnerOutput {
+
+    /// request's method
     pub method: String,
 
-    //request url without injection point
+    /// request url without injection point
     pub url: String,
 
-    //initial response code
+    /// initial response code
     pub status: u16,
 
-    //initial response size (body + headers)
+    /// initial response size (body + headers)
     pub size: usize,
 
     pub found_params: Vec<FoundParameter>,
 
     pub injection_place: InjectionPlace,
 
-    //prepared query and request with found parameters
+    /// prepared query with found parameters
     pub query: String,
+
+    /// prepared request with found parameters
     pub request: String,
 }
 
@@ -108,10 +112,10 @@ impl RunnerOutput {
 impl ParseOutputs for Vec<RunnerOutput> {
     fn parse_output(&self, config: &Config) -> String {
 
-        //print an array of json objects instead of just new line separeted new objects
+        // print an array of json objects instead of just new line separeted new objects
         if config.output_format.as_str() == "json" {
             serde_json::to_string(&self).unwrap()
-        //otherwise kust call .parse on every RunnerOutput
+        // otherwise calls .parse on every RunnerOutput
         } else {
             self.iter().map(|x| x.parse(config)).collect::<Vec<String>>().join("")
         }
