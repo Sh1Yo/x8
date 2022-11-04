@@ -1,6 +1,7 @@
 use std::{collections::HashMap, error::Error, io::{self, Write}};
 
 use colored::Colorize;
+use snailquote::unescape;
 
 use crate::network::utils::DataType;
 
@@ -27,7 +28,7 @@ pub(super) fn parse_request<'a>(request: &'a str, scheme: &str, port: u16, split
     let lines = if split_by.is_none() {
         request.lines().collect::<Vec<&str>>()
     } else {
-        request.split(split_by.unwrap()).collect::<Vec<&str>>()
+        request.split(&unescape(split_by.unwrap())?).collect::<Vec<&str>>()
     };
     let mut lines = lines.iter();
 
