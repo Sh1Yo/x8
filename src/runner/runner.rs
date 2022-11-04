@@ -70,7 +70,6 @@ impl<'a> Runner<'a> {
              headers: initial_response.headers,
              text: initial_response.text,
              reflected_parameters: initial_response.reflected_parameters,
-             additional_parameter: initial_response.additional_parameter,
              request: None,
              http_version: initial_response.http_version
          };

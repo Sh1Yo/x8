@@ -25,9 +25,6 @@ pub struct Response<'a> {
     //<parameter, amount of reflections>
     pub reflected_parameters: HashMap<String, usize>,
 
-    //loooks like it's being used only as a cachebuster so far? TODO maybe I need to remove it or make an option of it at least?
-    pub additional_parameter: String,
-
     //None only in initial_request due to some lifetime issues
     pub request: Option<Request<'a>>,
 
@@ -152,9 +149,8 @@ impl<'a> Response<'a> {
         };
 
         // only one reflected parameter besides additional one - return it
-        // this parameter caused other parameters to reflect different amount of times
-        if self.request.as_ref().unwrap().prepared_parameters.len() == 2 && self.reflected_parameters.len() == 2 {
-            return (Some(self.reflected_parameters.keys().filter(|x| x != &&self.additional_parameter).next().unwrap()), false)
+        if self.request.as_ref().unwrap().prepared_parameters.len() == self.reflected_parameters.len() && self.reflected_parameters.len() == 1 {
+            return (Some(self.reflected_parameters.keys().next().unwrap()), false)
         }
 
         //save parameters by their amount of reflections

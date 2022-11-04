@@ -108,7 +108,7 @@ pub struct Request<'a> {
 
     //whether the request was prepared
     //{{random}} things replaced, prepared_parameters filled
-    pub prepared: bool
+    pub prepared: bool,
 }
 
 impl<'a> Request<'a> {
@@ -165,12 +165,12 @@ impl<'a> Request<'a> {
 
     /// replace injection points with parameters
     /// replace templates ({{random}}) with random values
-    /// additional param is for reflection counting
+    /// additional param is for reflection counting TODO REMOVE
     ///
     /// in case self.parameters contains parameter with "="
     /// it gets splitted by =  and the default random value gets replaced with the right part:
     /// admin=true -> (admin, true) vs admin -> (admin, df32w)
-    pub fn prepare(&mut self, additional_param: Option<&String>) {
+    pub fn prepare(&mut self) {
         if self.prepared {
             return
         }
@@ -199,7 +199,7 @@ impl<'a> Request<'a> {
                 .chain(
                     self.parameters
                         .iter()
-                        .chain([additional_param.unwrap_or(&String::new())])
+                        //.chain([additional_param.unwrap_or(&String::new())])
                         .filter(|x| !x.is_empty() && !x.contains("="))
                         .map(|x| (x.to_owned(), random_line(VALUE_LENGTH)))
                 )
@@ -275,9 +275,7 @@ impl<'a> Request<'a> {
     }
 
     async fn request(mut self, client: &Client) -> Result<Response<'a>, reqwest::Error> {
-        let additional_parameter = random_line(7);
-
-        self.prepare(Some(&additional_parameter));
+        self.prepare();
 
         let mut request = http::Request::builder()
             .method(self.defaults.method.as_str())
@@ -324,7 +322,6 @@ impl<'a> Request<'a> {
             text,
             request: Some(self),
             reflected_parameters: HashMap::new(),
-            additional_parameter: additional_parameter,
             http_version,
         };
 
@@ -336,21 +333,20 @@ impl<'a> Request<'a> {
 
     /// the function is used when there was a error during the request
     pub fn empty_response(mut self) -> Response<'a> {
-        self.prepare(None);
+        self.prepare();
         Response {
             time: 0,
             code: 0,
             headers: Vec::new(),
             text: String::new(),
             reflected_parameters: HashMap::new(),
-            additional_parameter: String::new(),
             request: Some(self),
             http_version: None,
         }
     }
 
     pub fn print(&mut self) -> String {
-        self.prepare(Some(&random_line(VALUE_LENGTH)));
+        self.prepare();
 
         let mut str_req = format!("{} {} HTTP/x\nHost: {}\n", &self.defaults.method, self.path, self.defaults.host); //TODO identify HTTP version
 

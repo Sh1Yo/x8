@@ -58,7 +58,7 @@ impl RunnerOutput {
                 |x| if x.value.is_none() { x.name.to_owned() } else { format!("{}={}", x.name, x.value.as_ref().unwrap()) }
             ).collect());
 
-            request.prepare(None);
+            request.prepare();
 
             if config.output_format == "url" {
                 self.query = request.make_query();
