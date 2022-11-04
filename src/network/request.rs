@@ -222,7 +222,7 @@ impl<'a> Request<'a> {
             },
             InjectionPlace::Headers => {
                 let headers: Vec<(String, String)>
-                    = self.make_query().split(&self.defaults.joiner).map(|x| x.split(HEADERS_MIDDLE)).map(
+                    = self.make_query().split(&self.defaults.joiner).filter(|x| !x.is_empty()).map(|x| x.split(HEADERS_MIDDLE)).map(
                         |mut x| (x.next().unwrap().to_owned(), x.next().unwrap().to_owned()
                     )).collect();
 
@@ -420,7 +420,7 @@ impl<'a> RequestDefaults {
             injection_place = InjectionPlace::HeaderValue;
         }
 
-        let data_type = if data_type.is_some() && data_type != Some(DataType::ProbablyJson) {
+        let data_type = if data_type.is_none() || data_type.is_some() && data_type != Some(DataType::ProbablyJson) {
             data_type
 
         //explained in DataType enum comments

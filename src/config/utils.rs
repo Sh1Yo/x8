@@ -24,7 +24,7 @@ pub(super) fn parse_request<'a>(request: &'a str, scheme: &str, port: u16, split
     String, // body
     Option<DataType>,
 ), Box<dyn Error>> {
-    //request by lines
+    // request by lines
     let lines = if split_by.is_none() {
         request.lines().collect::<Vec<&str>>()
     } else {
@@ -36,13 +36,13 @@ pub(super) fn parse_request<'a>(request: &'a str, scheme: &str, port: u16, split
     let mut headers: HashMap<&'a str, String> = HashMap::new();
     let mut host = String::new();
 
-    //parse the first line
+    // parse the first line
     let mut firstline = lines.next().ok_or("Unable to parse firstline")?.split(' ');
     let method = firstline.next().ok_or("Unable to parse method")?.to_string();
     let path = firstline.next().ok_or("Unable to parse path")?.to_string(); //include ' ' in path too?
     let http2 = firstline.next().ok_or("Unable to parse http version")?.contains("HTTP/2");
 
-    //parse headers
+    // parse headers
     while let Some(line) = lines.next() {
         if line.is_empty() {
             break;
@@ -68,8 +68,8 @@ pub(super) fn parse_request<'a>(request: &'a str, scheme: &str, port: u16, split
                     continue
                 }
             },
-            //breaks h2 too
-            //TODO maybe add an option to keep request as it is without removing anything
+            // breaks h2 too
+            // TODO maybe add an option to keep request as it is without removing anything
             "content-length" => continue,
             _ => ()
         };
