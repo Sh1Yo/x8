@@ -5,8 +5,10 @@ use std::{
 };
 
 use indicatif::{ProgressBar, MultiProgress, ProgressStyle};
+use linked_hash_map::LinkedHashMap;
 use rand::Rng;
 use colored::*;
+use url::Url;
 
 use crate::{config::structs::Config, RANDOM_CHARSET};
 use crate::network::{response::Response};
@@ -58,36 +60,40 @@ pub fn error<T: std::fmt::Display>(msg: T, url: Option<&str>, progress_bar: Opti
     }
 }
 
-/// initialize progress bars for every url
-pub fn init_progress(config: &Config) -> Vec<(String, ProgressBar)> {
-    let mut url_to_progress = Vec::new();
+/// initialize progress bars for every url set
+pub fn init_progress(config: &Config) -> Vec<(ProgressBar, Vec<String>)> {
+    let mut urls_to_progress = Vec::new();
     let m = MultiProgress::new();
 
-    //we're creating an empty progress bar to make one empty line between progress bars and the tool's output
+    // we're creating an empty progress bar to make one empty line between progress bars and the tool's output
     let empty_line = m.add(ProgressBar::new(128));
     let sty = ProgressStyle::with_template(" ",).unwrap();
     empty_line.set_style(sty);
     empty_line.inc(1);
-    url_to_progress.push((String::new(), empty_line));
+    urls_to_progress.push((empty_line, vec![String::new()]));
 
-    //append progress bars one after another and push them to url_to_progress
-    for url in config.urls.iter() {
+    // in case --one-worker-per-host option is provided -- each url set contains urls with one host
+    // otherwise it's just url sets with one url
+    let urls = if config.one_worker_per_host {
+        order_urls(&config.urls)
+    } else {
+        config.urls.iter().map(|x| vec![x.to_owned()]).collect()
+    };
+
+    // append progress bars one after another and push them to urls_to_progress
+    for url_set in urls {
         let pb = m.insert_from_back(
-                0,
-                if config.disable_progress_bar || config.verbose < 1 {
-                    ProgressBar::new(128)
-                } else {
-                    ProgressBar::hidden()
-                }
+            0,
+            if config.disable_progress_bar || config.verbose < 1 {
+                ProgressBar::new(128)
+            } else {
+                ProgressBar::hidden()
+            }
         );
-
-        url_to_progress.push((
-            url.to_owned(),
-            pb.clone()
-        ));
+        urls_to_progress.push((pb.clone(), url_set));
     }
 
-    url_to_progress
+    urls_to_progress
 }
 
 /// read wordlist with parameters
@@ -134,4 +140,30 @@ pub fn color_id(id: usize) -> String {
     } else {
         unreachable!()
     }.to_string()
+}
+
+/// makes sure that every inner Vec contains urls from different hosts
+pub fn order_urls(urls: &Vec<String>) -> Vec<Vec<String>> {
+
+    // LinkedHashMap instead of hashmap for preserving the order
+    // LinkedHashMap<HOST, Vec<URL>>
+    let mut sorted_urls: LinkedHashMap<String, Vec<String>> = LinkedHashMap::new();
+    let mut ordered_urls: Vec<Vec<String>> = Vec::new();
+
+    for url in urls.iter() {
+        let parsed_url = Url::parse(url).unwrap();
+        let host = parsed_url.host_str().unwrap();
+
+        if sorted_urls.contains_key(host) {
+            sorted_urls.get_mut(host).unwrap().push(url.to_owned());
+        } else {
+            sorted_urls.insert(host.to_owned(), vec![url.to_owned()]);
+        }
+    }
+
+    for host in sorted_urls.clone().keys() {
+        ordered_urls.push(sorted_urls[host].clone())
+    }
+
+    ordered_urls
 }

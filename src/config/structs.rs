@@ -111,6 +111,8 @@ pub struct Config {
     /// but in rare cases its number may be higher
     pub reflected_only: bool,
 
+    pub one_worker_per_host: bool,
+
     /// http version. 1.1 or 2
     /// TODO replace with enum
     pub http: String,

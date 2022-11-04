@@ -283,6 +283,11 @@ Conflicts with --verify for now. Will be changed in the future.")
                 .help("Disable page comparison and search for reflected parameters only.")
         )
         .arg(
+            Arg::with_name("one-worker-per-host")
+                .long("one-worker-per-host")
+                .help("Multiple urls with the same host will be checked one after another, while urls with different hosts - are in parallel.")
+        )
+        .arg(
             Arg::with_name("http")
                 .long("http")
                 .help("HTTP version. Supported versions: --http 1.1, --http 2")
@@ -492,6 +497,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         joiner: convert_to_string_if_some(args.value_of("joiner")),
         encode: args.is_present("encode"),
         disable_custom_parameters: args.is_present("disable-custom-parameters"),
+        one_worker_per_host: args.is_present("one-worker-per-host"),
         invert: args.is_present("invert"),
         headers_discovery: args.is_present("headers-discovery"),
         body,

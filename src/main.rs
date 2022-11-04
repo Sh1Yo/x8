@@ -92,43 +92,47 @@ async fn init() -> Result<(), Box<dyn Error>> {
         write_banner_config(&config, &params);
     }
 
-    let runner_outputs = futures::stream::iter(init_progress(&config).iter().enumerate().skip(1).map(|(id, (url, progress_bar))| {
+    let runner_outputs =
+        futures::stream::iter(init_progress(&config).iter().enumerate().skip(1).map(|(id, (progress_bar, url_set))| {
 
-        //each url should have each own list of parameters
+        // each url set should have each own list of parameters
         let params = params.clone();
 
-        //each url should have it's own immutable pointer to config
+        // each url set should have it's own immutable pointer to config
         let config = &config;
 
         async move {
             let mut runner_outputs = Vec::new();
 
-            for method in &config.methods.clone() {
-                //each method should have each own list of parameters (we're changing this list through the run)
-                let mut params = params.clone();
+            // for now url set are used only in case --one-worker-per-host option is provided
+            // otherwise it's just url sets of 1 url
+            for url in url_set {
+                for method in &config.methods.clone() {
+                    // each method should have each own list of parameters (we're changing this list through the run)
+                    let mut params = params.clone();
 
-                let mut request_defaults = match RequestDefaults::from_config(config, method.as_str(), url.as_str()) {
-                    Ok(val) => val,
-                    Err(err) => {
-                        utils::error(err, Some(url), Some(progress_bar));
-                        continue
-                    },
-                };
+                    let mut request_defaults = match RequestDefaults::from_config(config, method.as_str(), url.as_str()) {
+                        Ok(val) => val,
+                        Err(err) => {
+                            utils::error(err, Some(url), Some(progress_bar));
+                            continue
+                        },
+                    };
 
-                //get cookies
-                if let Err(err) = Request::new(&request_defaults, Vec::new())
-                    .send()
-                    .await {
-                        utils::error(err, Some(url), Some(progress_bar));
-                        continue
-                };
+                    // get cookies
+                    if let Err(err) = Request::new(&request_defaults, Vec::new())
+                        .send()
+                        .await {
+                            utils::error(err, Some(url), Some(progress_bar));
+                            continue
+                    };
 
-                match run(config, &mut request_defaults, &mut params, &progress_bar, id).await {
-                    Ok(val) => runner_outputs.push(val),
-                    Err(err) => utils::error(err, Some(url), Some(progress_bar)),
+                    match run(config, &mut request_defaults, &mut params, &progress_bar, id).await {
+                        Ok(val) => runner_outputs.push(val),
+                        Err(err) => utils::error(err, Some(url), Some(progress_bar)),
+                    }
                 }
-            };
-
+            }
             runner_outputs
         }
     }))
@@ -171,19 +175,19 @@ async fn run(
     ).await?
     .run(params).await?;
 
-    //the whole block related to the recursive searching
+    // the whole block related to the recursive searching
     if !runner_output.found_params.is_empty() {
         for depth in 1..config.recursion_depth+1 {
 
-            //remove already found parameters from the list to prevent duplicates
+            // remove already found parameters from the list to prevent duplicates
             params.retain(|x| !runner_output.found_params.contains_name(x));
 
-            //custom parameters work badly with recursion enabled
+            // custom parameters work badly with recursion enabled
             request_defaults.disable_custom_parameters = true;
 
-            //so we are keeping parameters that don't change pages' code
-            //or change it to 200
-            //we cant simply overwrite request_defaults.parameters because there's user-supplied parameters as well.
+            // so we are keeping parameters that don't change pages' code
+            // or change it to 200
+            // we cant simply overwrite request_defaults.parameters because there's user-supplied parameters as well.
             request_defaults.parameters.append(&mut Vec::from_iter(
                 runner_output.found_params.iter().filter(
                     |x|
@@ -209,10 +213,10 @@ async fn run(
         }
     }
 
-    //we probably changed request_defaults.parameters within the loop above
-    //so we are removing all of the added parameters in there
-    //leaving only user-supplied ones
-    //(to not cause double parameters in some output types)
+    // we probably changed request_defaults.parameters within the loop above
+    // so we are removing all of the added parameters in there
+    // leaving only user-supplied ones
+    // (to not cause double parameters in some output types)
     request_defaults.parameters = request_defaults.parameters
         .iter()
         .filter(|x| !runner_output.found_params.contains_name(&x.0))
