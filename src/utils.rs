@@ -84,7 +84,7 @@ pub fn error<T: std::fmt::Display>(msg: T, url: Option<&str>, progress_bar: Opti
     }
 }
 
-pub fn parse_request<'a>(request: &'a str, scheme: &str, port: u16) -> Result<(
+pub fn parse_request<'a>(request: &'a str, scheme: &str, port: u16, split_by: Option<&str>) -> Result<(
     Vec<String>, //method
     Vec<String>, //url
     HashMap<&'a str, String>, //headers
@@ -92,8 +92,12 @@ pub fn parse_request<'a>(request: &'a str, scheme: &str, port: u16) -> Result<(
     Option<DataType>,
 ), Box<dyn Error>> {
     //request by lines
-    //TODO maybe add option whether split lines only by '\r\n' instead of splitting by '\n' as well.
-    let mut lines = request.lines();
+    let lines = if split_by.is_none() {
+        request.lines().collect::<Vec<&str>>()
+    } else {
+        request.split(split_by.unwrap()).collect::<Vec<&str>>()
+    };
+    let mut lines = lines.iter();
 
     let mut data_type: Option<DataType> = None;
     let mut headers: HashMap<&'a str, String> = HashMap::new();
@@ -141,7 +145,7 @@ pub fn parse_request<'a>(request: &'a str, scheme: &str, port: u16) -> Result<(
         headers.insert(key, value);
     }
 
-    let mut body = lines.next().unwrap_or("").to_string();
+    let mut body = lines.next().unwrap_or(&"").to_string();
     while let Some(part) = lines.next() {
         if !part.is_empty() {
             body.push_str("\r\n");
@@ -210,7 +214,7 @@ pub async fn smart_verify(
     let mut filtered_params = Vec::with_capacity(found_params.len());
 
     for param in found_params {
-        let param_patterns = ParamPatterns::get_patterns(&param.name);
+        let _param_patterns = ParamPatterns::get_patterns(&param.name);
 
         let mut response = Request::new(request_defaults, vec![param.name.clone()])
                                     .send()

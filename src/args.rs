@@ -34,6 +34,13 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
             .requires("request")
             .conflicts_with("url")
         )
+        .arg(Arg::with_name("split-by")
+            .long("split-by")
+            .help("Split request into lines by provided sequence. By default splits by \\r, \\n and \\r\\n")
+            .takes_value(true)
+            .requires("request")
+            .conflicts_with("url")
+        )
         .arg(
             Arg::with_name("wordlist")
                 .short("w")
@@ -43,7 +50,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("parameter_template")
+            Arg::with_name("parameter-template")
                 .short("P")
                 .long("param-template")
                 .help("%k - key, %v - value. Example: --param-template 'user[%k]=%v'\nDefault: urlencoded - <%k=%v>, json - <\"%k\":%v>, headers - <%k=%v>")
@@ -332,6 +339,7 @@ Conflicts with --verify for now. Will be changed in the future.")
             &request,
             &scheme,
             port,
+            args.value_of("split-by")
         )?
     } else {
 
@@ -480,7 +488,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         verify: args.is_present("verify"),
         reflected_only: args.is_present("reflected-only"),
         http: args.value_of("output").unwrap_or("").to_string(),
-        template: convert_to_string_if_some(args.value_of("parameter_template")),
+        template: convert_to_string_if_some(args.value_of("parameter-template")),
         joiner: convert_to_string_if_some(args.value_of("joiner")),
         encode: args.is_present("encode"),
         disable_custom_parameters: args.is_present("disable-custom-parameters"),
