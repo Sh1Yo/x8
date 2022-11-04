@@ -12,7 +12,7 @@ use rand::Rng;
 use colored::*;
 use reqwest::Client;
 
-use crate::{structs::{Config, DataType, Stable}, RANDOM_CHARSET};
+use crate::{structs::{Config, DataType, Stable, ParamPatterns}, RANDOM_CHARSET};
 use crate::network::{request::{RequestDefaults, Request}, response::Response};
 use crate::runner::found_parameters::{FoundParameter, ReasonKind};
 
@@ -177,6 +177,40 @@ pub async fn verify<'a>(
     let mut filtered_params = Vec::with_capacity(found_params.len());
 
     for param in found_params {
+
+        let mut response = Request::new(request_defaults, vec![param.name.clone()])
+                                    .send()
+                                    .await?;
+
+        let (is_code_the_same, new_diffs) = response.compare(initial_response, &diffs)?;
+        let mut is_the_body_the_same = true;
+
+        if !new_diffs.is_empty() {
+            is_the_body_the_same = false;
+        }
+
+        response.fill_reflected_parameters(initial_response);
+
+        if !is_code_the_same || !(!stable.body || is_the_body_the_same) || !response.reflected_parameters.is_empty() {
+            filtered_params.push(param.clone());
+        }
+    }
+
+    Ok(filtered_params)
+}
+
+// under development
+pub async fn smart_verify(
+    initial_response: &Response<'_>,
+    request_defaults: &RequestDefaults,
+    found_params: &Vec<FoundParameter>,
+    diffs: &Vec<String>,
+    stable: &Stable
+) -> Result<Vec<FoundParameter>, Box<dyn Error>> {
+    let mut filtered_params = Vec::with_capacity(found_params.len());
+
+    for param in found_params {
+        let param_patterns = ParamPatterns::get_patterns(&param.name);
 
         let mut response = Request::new(request_defaults, vec![param.name.clone()])
                                     .send()
