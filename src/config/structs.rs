@@ -97,7 +97,7 @@ pub struct Config {
     pub concurrency: usize,
 
     /// amount of concurrent url checks
-    pub threads: usize,
+    pub workers: usize,
 
     /// http request timeout in seconds
     pub timeout: usize,

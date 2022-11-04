@@ -73,7 +73,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
         )
         .arg(
             Arg::with_name("data-type")
-                .short("T")
+                .short("t")
                 .long("data-type")
                 .help("Available: urlencode, json\nCan be detected automatically if --body is specified (default is \"urlencode\")")
                 .value_name("data-type")
@@ -266,8 +266,8 @@ Conflicts with --verify for now. Will be changed in the future.")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("threads")
-                .short("t")
+            Arg::with_name("workers")
+                .short("W")
                 .help("The number of concurrent url checks")
                 .default_value("1")
                 .takes_value(true)
@@ -305,7 +305,7 @@ Conflicts with --verify for now. Will be changed in the future.")
 
     let learn_requests_count = args.value_of("learn_requests_count").unwrap().parse()?;
     let concurrency = args.value_of("concurrency").unwrap().parse()?;
-    let threads = args.value_of("threads").unwrap().parse()?;
+    let workers = args.value_of("workers").unwrap().parse()?;
     let verbose = args.value_of("verbose").unwrap().parse()?;
     let timeout = args.value_of("timeout").unwrap().parse()?;
     let recursion_depth = args.value_of("recursion_depth").unwrap().parse()?;
@@ -487,7 +487,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         verbose,
         learn_requests_count,
         concurrency,
-        threads,
+        workers,
         timeout,
         recursion_depth,
         verify: args.is_present("verify"),

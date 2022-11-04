@@ -136,7 +136,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
             runner_outputs
         }
     }))
-    .buffer_unordered(config.threads)
+    .buffer_unordered(config.workers)
     .collect::<Vec<Vec<RunnerOutput>>>()
     .await;
 
