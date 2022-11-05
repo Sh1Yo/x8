@@ -16,7 +16,7 @@ use url::Url;
 pub const VALUE_LENGTH: usize = 5;
 const RANDOM_LENGTH: usize = 5;
 
-//in order to be able to use make_query() for headers as well
+/// in order to be able to use make_query() for headers as well
 const HEADERS_TEMPLATE: &'static str = "{k}\x00@%=%@\x00{v}";
 const HEADERS_MIDDLE: &'static str = "\x00@%=%@\x00";
 const HEADERS_JOINER: &'static str = "\x01@%&%@\x01";
@@ -486,15 +486,19 @@ impl<'a> RequestDefaults {
 
         let (path, body) = if data_type.is_some() {
             RequestDefaults::fix_path_and_body(
-                url.path(),
+                // &url[url::Position::BeforePath..].to_string() instead of url.path() because we need to preserve query as well
+                &url[url::Position::BeforePath..].to_string(),
                 body,
                 &joiner,
                 &injection_place,
                 data_type.unwrap(),
             )
         } else {
-            //injection within headers
-            (url.path().to_string(), body.to_owned())
+            // injection within headers
+            (
+                url[url::Position::BeforePath..].to_string().to_string(),
+                body.to_owned(),
+            )
         };
 
         Ok(Self {
@@ -528,7 +532,7 @@ impl<'a> RequestDefaults {
     ) -> (&'a str, &'a str, bool, Option<DataType>) {
         if data_type.is_some() {
             match data_type.unwrap() {
-                //{v} isn't within quotes because not every json value needs to be in quotes
+                // {v} isn't within quotes because not every json value needs to be in quotes
                 DataType::Json => ("\"{k}\": {v}", ", ", true, Some(DataType::Json)),
                 DataType::Urlencoded => ("{k}={v}", "&", false, Some(DataType::Urlencoded)),
                 _ => unreachable!(),
@@ -572,7 +576,7 @@ impl<'a> RequestDefaults {
                         DataType::Urlencoded => (path.to_string(), format!("{}{}%s", body, joiner)),
                         DataType::Json => {
                             let mut body = body.to_owned();
-                            body.pop(); //remove the last '}'
+                            body.pop(); // remove the last '}'
                             (path.to_string(), format!("{}, %s}}", body))
                         }
                         _ => unreachable!(),
@@ -583,7 +587,7 @@ impl<'a> RequestDefaults {
                 if path.contains("%s") {
                     (path.to_string(), body.to_string())
                 } else if path.contains("?") {
-                    (format!("{}{}%s", joiner, path), body.to_string())
+                    (format!("{}{}%s", path, joiner), body.to_string())
                 } else if joiner == "&" {
                     (format!("{}?%s", path), body.to_string())
                 } else {
