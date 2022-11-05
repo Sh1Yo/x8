@@ -1,22 +1,19 @@
-use crate::{
-    network::{request::Request},
-    runner::utils::{FoundParameter, ReasonKind},
-};
-use futures::{stream::StreamExt};
-use indicatif::ProgressStyle;
-use std::{sync::Arc, error::Error, cmp};
-use parking_lot::Mutex;
-use async_recursion::async_recursion;
+use std::{cmp, collections::HashMap, error::Error, sync::Arc};
 
-use std::{
-    collections::HashMap,
+use async_recursion::async_recursion;
+use futures::stream::StreamExt;
+use indicatif::ProgressStyle;
+use parking_lot::Mutex;
+
+use crate::{
+    network::request::Request,
+    runner::utils::{FoundParameter, ReasonKind},
 };
 
 use super::runner::Runner;
 
 /// impl logic for checking parameters
 impl<'a> Runner<'a> {
-
     /// just splits params into two parts and runs check_parameters_recursion for every part
     async fn repeat(
         &self,
@@ -25,18 +22,22 @@ impl<'a> Runner<'a> {
         shared_found_params: Arc<Mutex<&'a mut Vec<FoundParameter>>>,
         mut params: Vec<String>,
     ) -> Result<(), Box<dyn Error>> {
-
-        let second_params_part = params.split_off(params.len()/2);
+        let second_params_part = params.split_off(params.len() / 2);
 
         self.check_parameters_recursion(
             Arc::clone(&shared_diffs),
             Arc::clone(&shared_green_lines),
             Arc::clone(&shared_found_params),
             params,
-        ).await?;
+        )
+        .await?;
         self.check_parameters_recursion(
-            shared_diffs, shared_green_lines, shared_found_params, second_params_part
-        ).await
+            shared_diffs,
+            shared_green_lines,
+            shared_found_params,
+            second_params_part,
+        )
+        .await
     }
 
     #[async_recursion(?Send)]
@@ -47,22 +48,19 @@ impl<'a> Runner<'a> {
         shared_found_params: Arc<Mutex<&'a mut Vec<FoundParameter>>>,
         mut params: Vec<String>,
     ) -> Result<(), Box<dyn Error>> {
-
         let request = Request::new(&self.request_defaults, params.clone());
-        let mut response =
-            match request.clone()
-                .wrapped_send()
-                .await {
-                Ok(val) => val,
-                Err(_) => match Request::new_random(&self.request_defaults, params.len())
-                            .send()
-                            .await {
-                                //we don't return the actual response because it was a random request without original parameters
-                                //instead we return an empty response from the original request
-                                Ok(_) => request.empty_response(),
-                                //looks like either server or network is down
-                                Err(err) => Err(format!("Unable to reach server ({})", err))?
-                }
+        let mut response = match request.clone().wrapped_send().await {
+            Ok(val) => val,
+            Err(_) => match Request::new_random(&self.request_defaults, params.len())
+                .send()
+                .await
+            {
+                //we don't return the actual response because it was a random request without original parameters
+                //instead we return an empty response from the original request
+                Ok(_) => request.empty_response(),
+                //looks like either server or network is down
+                Err(err) => Err(format!("Unable to reach server ({})", err))?,
+            },
         };
 
         if self.stable.reflections {
@@ -75,7 +73,6 @@ impl<'a> Runner<'a> {
 
                 let mut found_params = shared_found_params.lock();
                 if !found_params.iter().any(|x| x.name == reflected_parameter) {
-
                     let mut kind = ReasonKind::Reflected;
                     // explained in response.proceed_reflected_parameters() method
                     // chunk.len() == 1 and not 2 because the random parameter appends later
@@ -83,16 +80,22 @@ impl<'a> Runner<'a> {
                         kind = ReasonKind::NotReflected;
                     }
 
-                    found_params.push(
-                        FoundParameter::new(
-                            reflected_parameter, &vec![], response.code, response.text.len(), kind.clone()
-                        )
-                    );
+                    found_params.push(FoundParameter::new(
+                        reflected_parameter,
+                        &vec![],
+                        response.code,
+                        response.text.len(),
+                        kind.clone(),
+                    ));
                     drop(found_params);
 
                     // remove found parameter from the list
-                    params.remove(params.iter().position(|x| *x == reflected_parameter).unwrap());
-
+                    params.remove(
+                        params
+                            .iter()
+                            .position(|x| *x == reflected_parameter)
+                            .unwrap(),
+                    );
 
                     response.write_and_save(
                         self.id,
@@ -101,24 +104,28 @@ impl<'a> Runner<'a> {
                         kind,
                         &reflected_parameter,
                         None,
-                        self.progress_bar
+                        self.progress_bar,
                     )?;
                 }
             }
 
             if repeat {
-                return self.repeat(
-                    shared_diffs, shared_green_lines, shared_found_params, params.clone()
-                ).await;
+                return self
+                    .repeat(
+                        shared_diffs,
+                        shared_green_lines,
+                        shared_found_params,
+                        params.clone(),
+                    )
+                    .await;
             }
 
             if self.config.reflected_only {
-                return Ok(())
+                return Ok(());
             }
         }
 
         if self.initial_response.code != response.code {
-
             // increases the specific response code counter
             // helps to notice whether the page's completely changed
             // like, for example, when the IP got banned by the server
@@ -131,13 +138,17 @@ impl<'a> Runner<'a> {
                         if n_val > 50 {
                             drop(green_lines);
 
-                            let check_response = Request::new_random(&self.request_defaults, params.len())
-                                .wrapped_send()
-                                .await
-                                .unwrap_or_default();
+                            let check_response =
+                                Request::new_random(&self.request_defaults, params.len())
+                                    .wrapped_send()
+                                    .await
+                                    .unwrap_or_default();
 
                             if check_response.code != self.initial_response.code {
-                                return Err(format!("{} The page became unstable (code)", self.request_defaults.url()))?
+                                return Err(format!(
+                                    "{} The page became unstable (code)",
+                                    self.request_defaults.url()
+                                ))?;
                             } else {
                                 let mut green_lines = shared_green_lines.lock();
                                 green_lines.insert(response.code.to_string(), 0);
@@ -159,28 +170,32 @@ impl<'a> Runner<'a> {
                     ReasonKind::Code,
                     &params[0],
                     None,
-                    self.progress_bar
+                    self.progress_bar,
                 )?;
 
                 let mut found_params = shared_found_params.lock();
-                found_params.push(
-                    FoundParameter::new(
-                        &params[0],
-                        &vec![format!("{} -> {}", &self.initial_response.code, response.code)],
-                        response.code,
-                        response.text.len(),
-                        ReasonKind::Code
-                    )
-                );
+                found_params.push(FoundParameter::new(
+                    &params[0],
+                    &vec![format!(
+                        "{} -> {}",
+                        &self.initial_response.code, response.code
+                    )],
+                    response.code,
+                    response.text.len(),
+                    ReasonKind::Code,
+                ));
             // there's more than 1 parameter left - split the list and repeat
             } else {
-                return self.repeat(
-                    shared_diffs, shared_green_lines, shared_found_params, params.clone()
-                ).await;
+                return self
+                    .repeat(
+                        shared_diffs,
+                        shared_green_lines,
+                        shared_found_params,
+                        params.clone(),
+                    )
+                    .await;
             }
-
         } else if self.stable.body {
-
             // check whether the new_diff has at least 1 unique diff compared to stored diffs
             let (_, new_diffs) = {
                 let diffs = shared_diffs.lock();
@@ -188,8 +203,7 @@ impl<'a> Runner<'a> {
             };
 
             // and then make a new request to check whether it's a permament diff or not
-            if !new_diffs.is_empty()  {
-
+            if !new_diffs.is_empty() {
                 if self.config.strict {
                     let found_params = shared_found_params.lock();
                     if found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
@@ -200,8 +214,8 @@ impl<'a> Runner<'a> {
                 // just request the page with random parameters and store it's diffs
                 // maybe I am overcheking this, but still to be sure..
                 let tmp_resp = Request::new_random(&self.request_defaults, params.len())
-                                            .send()
-                                            .await?;
+                    .send()
+                    .await?;
 
                 let (_, tmp_diffs) = {
                     let diffs = shared_diffs.lock();
@@ -222,9 +236,7 @@ impl<'a> Runner<'a> {
                     let mut found_params = shared_found_params.lock();
 
                     // there's only one parameter left that changing the page
-                    if params.len() == 1
-                    && !found_params.iter().any(|x| x.name == params[0]) {
-
+                    if params.len() == 1 && !found_params.iter().any(|x| x.name == params[0]) {
                         // repeating --strict checks. We need to do it twice because we're usually running in parallel
                         // and some parameters may be found after the first check
                         if self.config.strict {
@@ -240,27 +252,30 @@ impl<'a> Runner<'a> {
                             ReasonKind::Text,
                             &params[0],
                             Some(&diff),
-                            self.progress_bar
+                            self.progress_bar,
                         )?;
 
-                        found_params.push(
-                            FoundParameter::new(
-                                &params[0],
-                                &new_diffs,
-                                response.code,
-                                response.text.len(),
-                                ReasonKind::Text
-                            )
-                        );
+                        found_params.push(FoundParameter::new(
+                            &params[0],
+                            &new_diffs,
+                            response.code,
+                            response.text.len(),
+                            ReasonKind::Text,
+                        ));
                         break;
                     // we don't know what parameter caused the difference in response yet
                     // so we are repeating
                     } else {
                         drop(diffs);
                         drop(found_params);
-                        return self.repeat(
-                            shared_diffs, shared_green_lines, shared_found_params, params.clone()
-                        ).await;
+                        return self
+                            .repeat(
+                                shared_diffs,
+                                shared_green_lines,
+                                shared_found_params,
+                                params.clone(),
+                            )
+                            .await;
                     }
                 }
             }
@@ -274,20 +289,17 @@ impl<'a> Runner<'a> {
         &self,
         params: &Vec<String>,
     ) -> Result<(Vec<String>, Vec<FoundParameter>), Box<dyn Error>> {
-
         let max = cmp::min(self.max, params.len());
 
         // the amount of requests needed for process all the parameters
         let all = params.len() / max;
 
         // change and reset the progress bar
-        let sty = ProgressStyle::with_template(
-            "{prefix} {bar:26.cyan/blue} {pos:>7}/{len:7}",
-        )
-        .unwrap()
-        .progress_chars("##-");
+        let sty = ProgressStyle::with_template("{prefix} {bar:26.cyan/blue} {pos:>7}/{len:7}")
+            .unwrap()
+            .progress_chars("##-");
 
-        self.prepare_progress_bar(sty, all+1);
+        self.prepare_progress_bar(sty, all + 1);
 
         // wrap the variables to share them between futures
         let mut diffs = self.diffs.clone();
@@ -311,9 +323,9 @@ impl<'a> Runner<'a> {
                     shared_green_lines,
                     shared_found_params,
                     chunk.to_vec(),
-                ).await
+                )
+                .await
             }
-
         }))
         .buffer_unordered(self.config.concurrency)
         .collect::<Vec<Result<(), Box<dyn Error>>>>()

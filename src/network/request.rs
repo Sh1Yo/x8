@@ -1,13 +1,15 @@
-use crate::{
-    config::structs::Config, utils::{random_line},
-};
+use crate::{config::structs::Config, utils::random_line};
 use itertools::Itertools;
 use percent_encoding::utf8_percent_encode;
 use reqwest::Client;
-use url::Url;
 use std::{
-    error::Error, collections::HashMap, iter::FromIterator, time::{Duration, Instant}, convert::TryFrom,
+    collections::HashMap,
+    convert::TryFrom,
+    error::Error,
+    iter::FromIterator,
+    time::{Duration, Instant},
 };
+use url::Url;
 
 pub const VALUE_LENGTH: usize = 5;
 const RANDOM_LENGTH: usize = 5;
@@ -17,7 +19,10 @@ const HEADERS_TEMPLATE: &'static str = "{k}\x00@%=%@\x00{v}";
 const HEADERS_MIDDLE: &'static str = "\x00@%=%@\x00";
 const HEADERS_JOINER: &'static str = "\x01@%&%@\x01";
 
-use super::{response::Response, utils::{Headers, FRAGMENT, InjectionPlace, DataType}};
+use super::{
+    response::Response,
+    utils::{DataType, Headers, InjectionPlace, FRAGMENT},
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct RequestDefaults {
@@ -63,8 +68,7 @@ pub struct RequestDefaults {
     pub injection_place: InjectionPlace,
 
     //the default amount of reflection per non existing parameter
-    pub amount_of_reflections: usize
-
+    pub amount_of_reflections: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -95,15 +99,14 @@ pub struct Request<'a> {
 }
 
 impl<'a> Request<'a> {
-
     pub fn new(l: &'a RequestDefaults, parameters: Vec<String>) -> Self {
-        Self{
+        Self {
             path: l.path.to_owned(),
             defaults: l,
             headers: Vec::new(),
             body: String::new(),
             parameters: parameters,
-            prepared_parameters: Vec::new(),//l.parameters.clone(),
+            prepared_parameters: Vec::new(), //l.parameters.clone(),
             non_random_parameters: Vec::new(),
             prepared: false,
         }
@@ -125,17 +128,18 @@ impl<'a> Request<'a> {
     }
 
     pub fn url(&self) -> String {
-        format!("{}://{}:{}{}", &self.defaults.scheme, &self.defaults.host, &self.defaults.port, &self.path)
+        format!(
+            "{}://{}:{}{}",
+            &self.defaults.scheme, &self.defaults.host, &self.defaults.port, &self.path
+        )
     }
 
     pub fn make_query(&self) -> String {
-        let query = self.prepared_parameters
+        let query = self
+            .prepared_parameters
             .iter()
             .chain(self.defaults.parameters.iter())
-            .map(|(k, v)| self.defaults.template
-                                    .replace("{k}", k)
-                                    .replace("{v}", v)
-            )
+            .map(|(k, v)| self.defaults.template.replace("{k}", k).replace("{v}", v))
             .collect::<Vec<String>>()
             .join(&self.defaults.joiner);
 
@@ -155,7 +159,7 @@ impl<'a> Request<'a> {
     /// admin=true -> (admin, true) vs admin -> (admin, df32w)
     pub fn prepare(&mut self) {
         if self.prepared {
-            return
+            return;
         }
         self.prepared = true;
 
@@ -164,7 +168,12 @@ impl<'a> Request<'a> {
                 .iter()
                 .filter(|x| x.contains("="))
                 .map(|x| x.split("="))
-                .map(|mut x| (x.next().unwrap().to_owned(), x.next().unwrap_or("").to_owned()))
+                .map(|mut x| {
+                    (
+                        x.next().unwrap().to_owned(),
+                        x.next().unwrap_or("").to_owned(),
+                    )
+                }),
         );
 
         self.prepared_parameters = Vec::from_iter(
@@ -176,7 +185,7 @@ impl<'a> Request<'a> {
                 .chain(
                     self.non_random_parameters
                         .iter()
-                        .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                        .map(|(k, v)| (k.to_owned(), v.to_owned())),
                 )
                 //append random parameters
                 .chain(
@@ -184,22 +193,19 @@ impl<'a> Request<'a> {
                         .iter()
                         //.chain([additional_param.unwrap_or(&String::new())])
                         .filter(|x| !x.is_empty() && !x.contains("="))
-                        .map(|x| (x.to_owned(), random_line(VALUE_LENGTH)))
-                )
+                        .map(|x| (x.to_owned(), random_line(VALUE_LENGTH))),
+                ),
         );
 
         if self.defaults.injection_place != InjectionPlace::HeaderValue {
             for (k, v) in self.defaults.custom_headers.iter() {
-                self.set_header(
-                    k,
-                    &v.replace("{{random}}", &random_line(RANDOM_LENGTH))
-                );
+                self.set_header(k, &v.replace("{{random}}", &random_line(RANDOM_LENGTH)));
             }
         }
         self.path = self.path.replace("{{random}}", &random_line(RANDOM_LENGTH));
         self.body = self.body.replace("{{random}}", &random_line(RANDOM_LENGTH));
 
-       match self.defaults.injection_place {
+        match self.defaults.injection_place {
             InjectionPlace::Path => self.path = self.path.replace("%s", &self.make_query()),
             InjectionPlace::Body => {
                 self.body = self.body.replace("%s", &self.make_query());
@@ -211,28 +217,31 @@ impl<'a> Request<'a> {
                         self.set_header("Content-Type", "application/x-www-form-urlencoded");
                     }
                 }
-            },
+            }
             InjectionPlace::HeaderValue => {
                 for (k, v) in self.defaults.custom_headers.iter() {
                     self.set_header(
                         k,
-                        &v.replace("{{random}}", &random_line(RANDOM_LENGTH)).replace("%s", &self.make_query())
+                        &v.replace("{{random}}", &random_line(RANDOM_LENGTH))
+                            .replace("%s", &self.make_query()),
                     );
                 }
-            },
+            }
             InjectionPlace::Headers => {
-                let headers: Vec<(String, String)>
-                    = self.make_query().split(&self.defaults.joiner).filter(|x| !x.is_empty()).map(|x| x.split(HEADERS_MIDDLE)).map(
-                        |mut x| (x.next().unwrap().to_owned(), x.next().unwrap().to_owned()
-                    )).collect();
+                let headers: Vec<(String, String)> = self
+                    .make_query()
+                    .split(&self.defaults.joiner)
+                    .filter(|x| !x.is_empty())
+                    .map(|x| x.split(HEADERS_MIDDLE))
+                    .map(|mut x| (x.next().unwrap().to_owned(), x.next().unwrap().to_owned()))
+                    .collect();
 
                 self.set_headers(headers);
             }
-       }
+        }
     }
 
     pub async fn send_by(self, clients: &Client) -> Result<Response<'a>, Box<dyn Error>> {
-
         match self.clone().request(clients).await {
             Ok(val) => Ok(val),
             Err(_) => {
@@ -265,12 +274,10 @@ impl<'a> Request<'a> {
             .uri(self.url());
 
         for (k, v) in &self.headers {
-            request = request.header(k,v)
-        };
+            request = request.header(k, v)
+        }
 
-        let request = request
-            .body(self.body.to_owned())
-            .unwrap();
+        let request = request.body(self.body.to_owned()).unwrap();
 
         tokio::time::sleep(self.defaults.delay).await;
 
@@ -298,7 +305,7 @@ impl<'a> Request<'a> {
 
         let text = String::from_utf8_lossy(&body_bytes).to_string();
 
-        let mut response = Response{
+        let mut response = Response {
             code,
             headers,
             time: duration.as_millis(),
@@ -331,7 +338,10 @@ impl<'a> Request<'a> {
     pub fn print(&mut self) -> String {
         self.prepare();
 
-        let mut str_req = format!("{} {} HTTP/x\nHost: {}\n", &self.defaults.method, self.path, self.defaults.host); //TODO identify HTTP version
+        let mut str_req = format!(
+            "{} {} HTTP/x\nHost: {}\n",
+            &self.defaults.method, self.path, self.defaults.host
+        ); //TODO identify HTTP version
 
         for (k, v) in self.headers.iter().sorted() {
             str_req += &format!("{}: {}\n", k, v)
@@ -344,7 +354,6 @@ impl<'a> Request<'a> {
 }
 
 impl<'a> RequestDefaults {
-
     fn create_client(config: &Config) -> Result<Client, Box<dyn Error>> {
         let mut client = Client::builder()
             .danger_accept_invalid_certs(true)
@@ -362,7 +371,7 @@ impl<'a> RequestDefaults {
 
         if !config.http.is_empty() {
             match config.http.as_str() {
-                "1.1" =>  client = client.http1_only(),
+                "1.1" => client = client.http1_only(),
                 "2" => client = client.http2_prior_knowledge(),
                 _ => Err("Incorrect http version provided")?,
             }
@@ -371,10 +380,14 @@ impl<'a> RequestDefaults {
         Ok(client.build()?)
     }
 
-    pub fn from_config<S: Into<String>>(config: &Config, method: S, url: S) -> Result<Self, Box<dyn Error>> {
+    pub fn from_config<S: Into<String>>(
+        config: &Config,
+        method: S,
+        url: S,
+    ) -> Result<Self, Box<dyn Error>> {
         Self::new(
             method.into().as_str(), //method needs to be set explicitly via .set_method()
-            url.into().as_str(), //as well as url
+            url.into().as_str(),    //as well as url
             config.custom_headers.clone(),
             config.delay,
             Self::create_client(config)?,
@@ -385,11 +398,11 @@ impl<'a> RequestDefaults {
             config.invert,
             config.headers_discovery,
             &config.body,
-            config.disable_custom_parameters
+            config.disable_custom_parameters,
         )
     }
 
-    pub fn new<S: Into<String>+From<String> + std::fmt::Debug>(
+    pub fn new<S: Into<String> + From<String> + std::fmt::Debug>(
         method: &str,
         url: &str,
         custom_headers: Vec<(String, String)>,
@@ -402,13 +415,12 @@ impl<'a> RequestDefaults {
         invert: bool,
         headers_discovery: bool,
         body: &str,
-        disable_custom_parameters: bool
+        disable_custom_parameters: bool,
     ) -> Result<Self, Box<dyn Error>> {
-
         //TODO recheck logic
-        let mut injection_place = if
-            (method == "POST" || method == "PUT") && !invert
-            || (method != "POST" && method != "PUT" && invert) {
+        let mut injection_place = if (method == "POST" || method == "PUT") && !invert
+            || (method != "POST" && method != "PUT" && invert)
+        {
             InjectionPlace::Body
         } else if headers_discovery {
             InjectionPlace::Headers
@@ -420,12 +432,16 @@ impl<'a> RequestDefaults {
             injection_place = InjectionPlace::HeaderValue;
         }
 
-        let data_type = if data_type.is_none() || data_type.is_some() && data_type != Some(DataType::ProbablyJson) {
+        let data_type = if data_type.is_none()
+            || data_type.is_some() && data_type != Some(DataType::ProbablyJson)
+        {
             data_type
 
         //explained in DataType enum comments
         //tl.dr. data_type was taken from a parsed request's content-type so we are not 100% sure what did a user mean
-        } else if data_type == Some(DataType::ProbablyJson) && injection_place == InjectionPlace::Body {
+        } else if data_type == Some(DataType::ProbablyJson)
+            && injection_place == InjectionPlace::Body
+        {
             Some(DataType::Json)
         } else {
             Some(DataType::Urlencoded)
@@ -434,18 +450,29 @@ impl<'a> RequestDefaults {
         let (guessed_template, guessed_joiner, is_json, data_type) =
             RequestDefaults::guess_data_format(body, &injection_place, data_type);
 
-        let (template, joiner) =
-            (template.unwrap_or(guessed_template.to_string().into()).into(), joiner.unwrap_or(guessed_joiner.to_string().into()).into());
+        let (template, joiner) = (
+            template
+                .unwrap_or(guessed_template.to_string().into())
+                .into(),
+            joiner.unwrap_or(guessed_joiner.to_string().into()).into(),
+        );
 
         let url = Url::parse(url)?;
 
         let (path, body) = if data_type.is_some() {
-            RequestDefaults::fix_path_and_body(url.path(), body, &joiner, &injection_place, data_type.unwrap())
-        } else { //injection within headers
+            RequestDefaults::fix_path_and_body(
+                url.path(),
+                body,
+                &joiner,
+                &injection_place,
+                data_type.unwrap(),
+            )
+        } else {
+            //injection within headers
             (url.path().to_string(), body.to_owned())
         };
 
-        Ok(Self{
+        Ok(Self {
             method: method.to_string(),
             scheme: url.scheme().to_string(),
             path,
@@ -470,34 +497,41 @@ impl<'a> RequestDefaults {
 
     /// returns template, joiner, whether the data is json, DataType if the injection point isn't within headers
     fn guess_data_format(
-        body: &str, injection_place: &InjectionPlace, data_type: Option<DataType>
+        body: &str,
+        injection_place: &InjectionPlace,
+        data_type: Option<DataType>,
     ) -> (&'a str, &'a str, bool, Option<DataType>) {
         if data_type.is_some() {
             match data_type.unwrap() {
                 //{v} isn't within quotes because not every json value needs to be in quotes
                 DataType::Json => ("\"{k}\": {v}", ", ", true, Some(DataType::Json)),
                 DataType::Urlencoded => ("{k}={v}", "&", false, Some(DataType::Urlencoded)),
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         } else {
             match injection_place {
-                InjectionPlace::Body => if body.starts_with("{") {
-                    ("\"{k}\": {v}", ", ", true, Some(DataType::Json))
-                } else {
-                    ("{k}={v}", "&", false, Some(DataType::Urlencoded))
-                },
+                InjectionPlace::Body => {
+                    if body.starts_with("{") {
+                        ("\"{k}\": {v}", ", ", true, Some(DataType::Json))
+                    } else {
+                        ("{k}={v}", "&", false, Some(DataType::Urlencoded))
+                    }
+                }
                 InjectionPlace::HeaderValue => ("{k}={v}", ";", false, None),
                 InjectionPlace::Path => ("{k}={v}", "&", false, Some(DataType::Urlencoded)),
-                InjectionPlace::Headers => (HEADERS_TEMPLATE, HEADERS_JOINER, false, None)
+                InjectionPlace::Headers => (HEADERS_TEMPLATE, HEADERS_JOINER, false, None),
             }
         }
     }
 
     /// adds injection points where necessary
     fn fix_path_and_body(
-        path: &str, body: &str, joiner: &str, injection_place: &InjectionPlace, data_type: DataType
+        path: &str,
+        body: &str,
+        joiner: &str,
+        injection_place: &InjectionPlace,
+        data_type: DataType,
     ) -> (String, String) {
-
         match injection_place {
             InjectionPlace::Body => {
                 if body.contains("%s") {
@@ -506,7 +540,7 @@ impl<'a> RequestDefaults {
                     match data_type {
                         DataType::Urlencoded => (path.to_string(), format!("%s")),
                         DataType::Json => (path.to_string(), format!("{{%s}}")),
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else {
                     match data_type {
@@ -515,11 +549,11 @@ impl<'a> RequestDefaults {
                             let mut body = body.to_owned();
                             body.pop(); //remove the last '}'
                             (path.to_string(), format!("{}, %s}}", body))
-                        },
-                        _ => unreachable!()
+                        }
+                        _ => unreachable!(),
                     }
                 }
-            },
+            }
             InjectionPlace::Path => {
                 if path.contains("%s") {
                     (path.to_string(), body.to_string())
@@ -527,11 +561,12 @@ impl<'a> RequestDefaults {
                     (format!("{}{}%s", joiner, path), body.to_string())
                 } else if joiner == "&" {
                     (format!("{}?%s", path), body.to_string())
-                } else { //some very non-standart configuration
+                } else {
+                    //some very non-standart configuration
                     (format!("{}%s", path), body.to_string())
                 }
             }
-            _ => (path.to_string(), body.to_string())
+            _ => (path.to_string(), body.to_string()),
         }
     }
 
@@ -542,7 +577,6 @@ impl<'a> RequestDefaults {
 
     /// recreates url without default port
     pub fn url_without_default_port(&self) -> String {
-
         let port = if self.port == 443 || self.port == 80 {
             String::new()
         } else {

@@ -4,18 +4,29 @@ use std::{
     path::Path,
 };
 
-use indicatif::{ProgressBar, MultiProgress, ProgressStyle};
+use colored::*;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use linked_hash_map::LinkedHashMap;
 use rand::Rng;
-use colored::*;
 use url::Url;
 
 use crate::{config::structs::Config, RANDOM_CHARSET};
 
 /// prints informative messages/non critical errors
-pub fn info<S: Into<String>, T: std::fmt::Display>(config: &Config, id: usize, progress_bar: &ProgressBar, word: S, msg: T) {
+pub fn info<S: Into<String>, T: std::fmt::Display>(
+    config: &Config,
+    id: usize,
+    progress_bar: &ProgressBar,
+    word: S,
+    msg: T,
+) {
     if config.verbose > 0 {
-        progress_bar.println(format!("{} [{}] {}", color_id(id), word.into().yellow(), msg));
+        progress_bar.println(format!(
+            "{} [{}] {}",
+            color_id(id),
+            word.into().yellow(),
+            msg
+        ));
     }
 }
 
@@ -41,7 +52,7 @@ pub fn init_progress(config: &Config) -> Vec<(ProgressBar, Vec<String>)> {
 
     // we're creating an empty progress bar to make one empty line between progress bars and the tool's output
     let empty_line = m.add(ProgressBar::new(128));
-    let sty = ProgressStyle::with_template(" ",).unwrap();
+    let sty = ProgressStyle::with_template(" ").unwrap();
     empty_line.set_style(sty);
     empty_line.inc(1);
     urls_to_progress.push((empty_line, vec![String::new()]));
@@ -62,7 +73,7 @@ pub fn init_progress(config: &Config) -> Vec<(ProgressBar, Vec<String>)> {
                 ProgressBar::new(128)
             } else {
                 ProgressBar::hidden()
-            }
+            },
         );
         urls_to_progress.push((pb.clone(), url_set));
     }
@@ -89,7 +100,7 @@ pub fn read_stdin_lines() -> Vec<String> {
 pub fn random_line(size: usize) -> String {
     (0..size)
         .map(|_| {
-            let idx = rand::thread_rng().gen_range(0,RANDOM_CHARSET.len());
+            let idx = rand::thread_rng().gen_range(0, RANDOM_CHARSET.len());
             RANDOM_CHARSET[idx] as char
         })
         .collect()
@@ -113,12 +124,12 @@ pub fn color_id(id: usize) -> String {
         id.to_string().magenta()
     } else {
         unreachable!()
-    }.to_string()
+    }
+    .to_string()
 }
 
 /// moves urls with different hosts to different vectors
 pub fn order_urls(urls: &Vec<String>) -> Vec<Vec<String>> {
-
     // LinkedHashMap instead of hashmap for preserving the order
     // LinkedHashMap<HOST, Vec<URL>>
     let mut sorted_urls: LinkedHashMap<String, Vec<String>> = LinkedHashMap::new();

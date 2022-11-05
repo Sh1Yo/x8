@@ -1,8 +1,8 @@
 use std::error::Error;
 
-use percent_encoding::{CONTROLS, AsciiSet};
-use serde::Serialize;
 use lazy_static::lazy_static;
+use percent_encoding::{AsciiSet, CONTROLS};
+use serde::Serialize;
 
 use crate::{config::structs::Config, utils::random_line};
 
@@ -23,7 +23,6 @@ lazy_static! {
         .add(b'=')
         .add(b'%');
 }
-
 
 /// enum mainly created for the correct json parsing
 #[derive(Debug, Clone, PartialEq)]
@@ -47,7 +46,7 @@ pub enum InjectionPlace {
     Path,
     Body,
     Headers,
-    HeaderValue
+    HeaderValue,
 }
 
 pub trait Headers {
@@ -60,7 +59,7 @@ impl Headers for Vec<(String, String)> {
     fn contains_key(&self, key: &str) -> bool {
         for (k, _) in self.iter() {
             if k == key {
-                return true
+                return true;
             }
         }
         false
@@ -69,7 +68,7 @@ impl Headers for Vec<(String, String)> {
     fn get_value(&self, key: &str) -> Option<String> {
         for (k, v) in self.iter() {
             if k == key {
-                return Some(v.to_owned())
+                return Some(v.to_owned());
             }
         }
         None
@@ -79,32 +78,38 @@ impl Headers for Vec<(String, String)> {
         let key = key.to_lowercase();
         for (k, v) in self.iter() {
             if k.to_lowercase() == key {
-                return Some(v.to_owned())
+                return Some(v.to_owned());
             }
         }
         None
     }
-
 }
 
 /// writes request and response to a file
 /// return file location
-pub(super) fn save_request(config: &Config, response: &Response, param_key: &str) -> Result<String, Box<dyn Error>> {
+pub(super) fn save_request(
+    config: &Config,
+    response: &Response,
+    param_key: &str,
+) -> Result<String, Box<dyn Error>> {
     let output = response.print();
 
     let filename = format!(
         "{}/{}-{}-{}-{}",
         &config.save_responses,
         &response.request.as_ref().unwrap().defaults.host,
-        response.request.as_ref().unwrap().defaults.method.to_lowercase(),
+        response
+            .request
+            .as_ref()
+            .unwrap()
+            .defaults
+            .method
+            .to_lowercase(),
         param_key,
         random_line(3) //nonce to prevent overwrites
     );
 
-    std::fs::write(
-        &filename,
-        output,
-    )?;
+    std::fs::write(&filename, output)?;
 
     Ok(filename)
 }

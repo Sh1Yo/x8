@@ -1,12 +1,17 @@
-use crate::{config::{structs::Config, utils::{parse_request, convert_to_string_if_some}}, network::utils::DataType};
+use crate::{
+    config::{
+        structs::Config,
+        utils::{convert_to_string_if_some, parse_request},
+    },
+    network::utils::DataType,
+};
 use clap::{crate_version, App, AppSettings, Arg};
-use std::{collections::HashMap, fs, error::Error};
-use tokio::time::Duration;
 use snailquote::unescape;
+use std::{collections::HashMap, error::Error, fs};
+use tokio::time::Duration;
 use url::Url;
 
 pub fn get_config() -> Result<Config, Box<dyn Error>> {
-
     let app = App::new("x8")
         .setting(AppSettings::ArgRequiredElseHelp)
         .version(crate_version!())
@@ -324,15 +329,12 @@ Conflicts with --verify for now. Will be changed in the future.")
 
     // parse the default request information
     // either via the request file or via provided parameters
-    let (
-        methods,
-        urls,
-        headers,
-        body,
-        data_type,
-    ) = if !request.is_empty() {
+    let (methods, urls, headers, body, data_type) = if !request.is_empty() {
         // if the request file is specified - get protocol (https/http) from args, specify scheme and port, and parse request file
-        let proto = args.value_of("proto").ok_or("--proto wasn't provided")?.to_string();
+        let proto = args
+            .value_of("proto")
+            .ok_or("--proto wasn't provided")?
+            .to_string();
 
         let scheme = proto.replace("://", "");
 
@@ -346,15 +348,14 @@ Conflicts with --verify for now. Will be changed in the future.")
             }
         };
 
-        parse_request(
-            &request,
-            &scheme,
-            port,
-            args.value_of("split-by")
-        )?
+        parse_request(&request, &scheme, port, args.value_of("split-by"))?
     } else {
         // parse everything from user-supplied command line arguments
-        let methods = args.values_of("method").unwrap().map(|x| x.to_string()).collect::<Vec<String>>();
+        let methods = args
+            .values_of("method")
+            .unwrap()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>();
 
         let mut headers: HashMap<&str, String> = HashMap::new();
 
@@ -371,7 +372,8 @@ Conflicts with --verify for now. Will be changed in the future.")
                         None => Err("Unable to parse headers")?,
                     },
                     k_v.map(|x| ":".to_owned() + x).collect(),
-                ].concat();
+                ]
+                .concat();
 
                 headers.insert(key, value);
             }
@@ -379,7 +381,10 @@ Conflicts with --verify for now. Will be changed in the future.")
 
         // set default headers if weren't specified by a user.
         if !headers.keys().any(|i| i.contains("User-Agent")) {
-            headers.insert("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36".to_string());
+            headers.insert(
+                "User-Agent",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36".to_string()
+            );
         }
 
         // TODO return cachebuster in query as well
@@ -388,40 +393,51 @@ Conflicts with --verify for now. Will be changed in the future.")
                 headers.insert("Accept", "*/*, text/{{random}}".to_string());
             }
             if !headers.keys().any(|i| i.contains("Accept-Language")) {
-                headers.insert("Accept-Language","en-US, {{random}};q=0.9, *;q=0.5".to_string());
+                headers.insert(
+                    "Accept-Language",
+                    "en-US, {{random}};q=0.9, *;q=0.5".to_string(),
+                );
             }
             if !headers.keys().any(|i| i.contains("Accept-Charset")) {
-                headers.insert("Accept-Charset","utf-8, iso-8859-1;q=0.5, {{random}};q=0.2, *;q=0.1".to_string());
+                headers.insert(
+                    "Accept-Charset",
+                    "utf-8, iso-8859-1;q=0.5, {{random}};q=0.2, *;q=0.1".to_string(),
+                );
             }
         }
 
         // TODO replace with ".parse()" or sth like it
         let data_type = match args.value_of("data-type") {
-            Some(val) => if val == "json" {
-                Some(DataType::Json)
-            } else if val == "urlencoded" {
-                Some(DataType::Urlencoded)
-            } else {
-                Err("Incorrect --data-type specified")?
-            },
-            None => None
+            Some(val) => {
+                if val == "json" {
+                    Some(DataType::Json)
+                } else if val == "urlencoded" {
+                    Some(DataType::Urlencoded)
+                } else {
+                    Err("Incorrect --data-type specified")?
+                }
+            }
+            None => None,
         };
 
-        let urls =
-            args.values_of("url")
-                .unwrap()
-                .map(|x| Url::parse(x)).collect::<Vec<Result<Url, url::ParseError>>>();
+        let urls = args
+            .values_of("url")
+            .unwrap()
+            .map(|x| Url::parse(x))
+            .collect::<Vec<Result<Url, url::ParseError>>>();
 
         // in case there's at least a single wrong url -- return with an error
         if urls.iter().any(|x| x.is_err()) {
             for err_url in urls.iter().filter(|x| x.is_err()) {
                 err_url.to_owned()?;
-            };
+            }
             unreachable!();
         } else {
             (
                 methods,
-                urls.iter().map(|x| x.as_ref().unwrap().to_string()).collect::<Vec<String>>(),
+                urls.iter()
+                    .map(|x| x.as_ref().unwrap().to_string())
+                    .collect::<Vec<String>>(),
                 headers,
                 unescape(&args.value_of("body").unwrap_or("").to_string())?,
                 data_type,
@@ -431,26 +447,35 @@ Conflicts with --verify for now. Will be changed in the future.")
 
     // generate custom param values like admin=true
     let custom_keys: Vec<String> = match args.values_of("custom-parameters") {
-        Some(val) => {
-            val.map(|x| x.to_string()).collect()
-        }
-        None =>["admin", "bot", "captcha", "debug", "disable", "encryption", "env", "show", "sso", "test", "waf"]
-            .iter()
-            .map(|x| x.to_string())
-            .collect()
+        Some(val) => val.map(|x| x.to_string()).collect(),
+        None => [
+            "admin",
+            "bot",
+            "captcha",
+            "debug",
+            "disable",
+            "encryption",
+            "env",
+            "show",
+            "sso",
+            "test",
+            "waf",
+        ]
+        .iter()
+        .map(|x| x.to_string())
+        .collect(),
     };
 
     let custom_values: Vec<String> = match args.values_of("custom-values") {
-        Some(val) => {
-            val.map(|x| x.to_string()).collect()
-        }
+        Some(val) => val.map(|x| x.to_string()).collect(),
         None => ["1", "0", "false", "off", "null", "true", "yes", "no"]
             .iter()
             .map(|x| x.to_string())
-            .collect()
+            .collect(),
     };
 
-    let mut custom_parameters: HashMap<String, Vec<String>> = HashMap::with_capacity(custom_keys.len());
+    let mut custom_parameters: HashMap<String, Vec<String>> =
+        HashMap::with_capacity(custom_keys.len());
     for key in custom_keys.iter() {
         let mut values: Vec<String> = Vec::with_capacity(custom_values.len());
         for value in custom_values.iter() {
@@ -500,7 +525,10 @@ Conflicts with --verify for now. Will be changed in the future.")
         headers_discovery: args.is_present("headers-discovery"),
         body,
         delay,
-        custom_headers: headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+        custom_headers: headers
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
         data_type,
         max,
     })

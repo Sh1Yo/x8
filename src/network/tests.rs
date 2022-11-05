@@ -2,7 +2,10 @@
 mod tests {
     use tokio::time::Duration;
 
-    use crate::{network::{request::{RequestDefaults, Request}, utils::{InjectionPlace, Headers}}};
+    use crate::network::{
+        request::{Request, RequestDefaults},
+        utils::{Headers, InjectionPlace},
+    };
 
     #[test]
     fn query_creation() {
@@ -31,14 +34,18 @@ mod tests {
             false,
             false,
             "",
-            false
-        ).unwrap();
+            false,
+        )
+        .unwrap();
 
         assert_eq!(defaults.scheme, "https");
         assert_eq!(defaults.host, "example.com");
         assert_eq!(defaults.port, 8443);
         assert_eq!(defaults.path, "/path?%s");
-        assert_eq!(defaults.custom_headers.get_value("X-Header").unwrap(), "Value");
+        assert_eq!(
+            defaults.custom_headers.get_value("X-Header").unwrap(),
+            "Value"
+        );
         assert_eq!(defaults.template, "{k}={v}");
         assert_eq!(defaults.joiner, "&");
         assert_eq!(defaults.injection_place, InjectionPlace::Path);
@@ -46,7 +53,7 @@ mod tests {
 
     #[test]
     fn json_request_body_generation() {
-        let defaults =  RequestDefaults::new::<String>(
+        let defaults = RequestDefaults::new::<String>(
             "POST",
             "https://example.com:8443/path",
             Vec::from([("X-Header".to_string(), "Value".to_string())]),
@@ -59,8 +66,9 @@ mod tests {
             false,
             false,
             "{\"something\":1}",
-            false
-        ).unwrap();
+            false,
+        )
+        .unwrap();
 
         assert!(defaults.is_json);
         assert_eq!(defaults.body, "{\"something\":1, %s}");

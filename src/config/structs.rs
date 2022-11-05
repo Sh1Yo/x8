@@ -1,4 +1,4 @@
-use std::{time::Duration, collections::HashMap};
+use std::{collections::HashMap, time::Duration};
 
 use crate::network::utils::DataType;
 

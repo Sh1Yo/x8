@@ -1,8 +1,8 @@
 pub mod config;
-pub mod network;
-pub mod utils;
 pub mod diff;
+pub mod network;
 pub mod runner;
+pub mod utils;
 
 const RANDOM_CHARSET: &'static [u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 

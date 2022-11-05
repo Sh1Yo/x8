@@ -1,14 +1,17 @@
-use std::{error::Error, collections::HashMap, iter::FromIterator};
+use std::{collections::HashMap, error::Error, iter::FromIterator};
 
 use colored::Colorize;
 use indicatif::ProgressBar;
 use itertools::Itertools;
-use regex::Regex;
 use lazy_static::lazy_static;
+use regex::Regex;
 
-use crate::{config::structs::Config, diff::diff, utils::color_id, runner::utils::ReasonKind};
+use crate::{config::structs::Config, diff::diff, runner::utils::ReasonKind, utils::color_id};
 
-use super::{request::Request, utils::{save_request, Headers}};
+use super::{
+    request::Request,
+    utils::{save_request, Headers},
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct Response<'a> {
@@ -41,23 +44,25 @@ unsafe impl Send for Response<'_> {}
 /// helps manage response codes
 #[derive(PartialEq, Eq)]
 pub enum Status {
-    Ok,             //2xx
-    Redirect,       //3xx
-    UserFault,      //4xx
-    ServerFault,    //5xx
+    Ok,          //2xx
+    Redirect,    //3xx
+    UserFault,   //4xx
+    ServerFault, //5xx
     Other,
 }
 
 impl<'a> Response<'a> {
-
     /// count how many times we can see the string in the response
     pub fn count(&self, string: &str) -> usize {
         self.text.to_lowercase().matches(string).count()
     }
 
     /// calls check_diffs & returns code and found diffs
-    pub fn compare(&self, initial_response: &'a Response<'a>, old_diffs: &Vec<String>) -> Result<(bool, Vec<String>), Box<dyn Error>> {
-
+    pub fn compare(
+        &self,
+        initial_response: &'a Response<'a>,
+        old_diffs: &Vec<String>,
+    ) -> Result<(bool, Vec<String>), Box<dyn Error>> {
         let mut is_code_diff: bool = false;
         let mut diffs: Vec<String> = Vec::new();
 
@@ -66,10 +71,7 @@ impl<'a> Response<'a> {
         }
 
         // just push every found diff to the vector of diffs
-        for diff in diff(
-            &self.print(),
-            &initial_response.print(),
-        )? {
+        for diff in diff(&self.print(), &initial_response.print())? {
             if !diffs.contains(&diff) && !old_diffs.contains(&diff) {
                 diffs.push(diff);
             // sometimes returns a few same diffs. They should be considered as well
@@ -100,12 +102,15 @@ impl<'a> Response<'a> {
                 Regex::new(r#"(?P<first>"[\w\.-]*"):(?P<second>(false|null|true)),"#).unwrap();
         }
 
-        self.text
-            = if (self.headers.contains_key("content-type") && self.headers.get_value_case_insensitive("content-type").unwrap().contains("json"))
-            || (self.text.starts_with("{") && self.text.ends_with("}")) {
-            let body = self.text
-                                    .replace("\\\"", "'")
-                                    .replace("\",", "\",\n");
+        self.text = if (self.headers.contains_key("content-type")
+            && self
+                .headers
+                .get_value_case_insensitive("content-type")
+                .unwrap()
+                .contains("json"))
+            || (self.text.starts_with("{") && self.text.ends_with("}"))
+        {
+            let body = self.text.replace("\\\"", "'").replace("\",", "\",\n");
             let body = RE_JSON_BRACKETS.replace_all(&body, "${bracket}\n");
             let body = RE_JSON_COMMA_AFTER_DIGIT.replace_all(&body, "$first:$second,\n");
             let body = RE_JSON_COMMA_AFTER_BOOL.replace_all(&body, "$first:$second,\n");
@@ -118,24 +123,44 @@ impl<'a> Response<'a> {
 
     /// finds parameters with the different amount of reflections and adds them to self.reflected_parameters
     pub fn fill_reflected_parameters(&mut self, initial_response: &Response) {
-
         // remove non random parameters from prepared parameters because they would cause false positives in this check
-        let prepated_parameters: Vec<&(String, String)> = if !self.request.as_ref().unwrap().non_random_parameters.is_empty() {
+        let prepated_parameters: Vec<&(String, String)> = if !self
+            .request
+            .as_ref()
+            .unwrap()
+            .non_random_parameters
+            .is_empty()
+        {
             Vec::from_iter(
-                self.request.as_ref().unwrap().prepared_parameters
+                self.request
+                    .as_ref()
+                    .unwrap()
+                    .prepared_parameters
                     .iter()
-                    .filter(|x| !self.request.as_ref().unwrap().non_random_parameters.contains_key(&x.0))
+                    .filter(|x| {
+                        !self
+                            .request
+                            .as_ref()
+                            .unwrap()
+                            .non_random_parameters
+                            .contains_key(&x.0)
+                    }),
             )
         } else {
-            Vec::from_iter(
-                self.request.as_ref().unwrap().prepared_parameters.iter()
-            )
+            Vec::from_iter(self.request.as_ref().unwrap().prepared_parameters.iter())
         };
 
         for (k, v) in prepated_parameters.iter() {
             let new_count = self.count(v) - initial_response.count(v);
 
-            if self.request.as_ref().unwrap().defaults.amount_of_reflections != new_count {
+            if self
+                .request
+                .as_ref()
+                .unwrap()
+                .defaults
+                .amount_of_reflections
+                != new_count
+            {
                 self.reflected_parameters.insert(k.to_string(), new_count);
             }
         }
@@ -143,18 +168,26 @@ impl<'a> Response<'a> {
 
     /// returns parameters with different amount of reflections and tells whether we need to recheck the remaining parameters
     pub fn proceed_reflected_parameters(&self) -> (Option<&str>, bool) {
-
         if self.reflected_parameters.is_empty() {
-            return (None, false)
+            return (None, false);
 
-         // only one reflected parameter - return it
+            // only one reflected parameter - return it
         } else if self.reflected_parameters.len() == 1 {
-            return (Some(self.reflected_parameters.keys().next().unwrap()), false)
+            return (
+                Some(self.reflected_parameters.keys().next().unwrap()),
+                false,
+            );
         };
 
         // only one reflected parameter besides additional one - return it
-        if self.request.as_ref().unwrap().prepared_parameters.len() == self.reflected_parameters.len() && self.reflected_parameters.len() == 1 {
-            return (Some(self.reflected_parameters.keys().next().unwrap()), false)
+        if self.request.as_ref().unwrap().prepared_parameters.len()
+            == self.reflected_parameters.len()
+            && self.reflected_parameters.len() == 1
+        {
+            return (
+                Some(self.reflected_parameters.keys().next().unwrap()),
+                false,
+            );
         }
 
         // save parameters by their amount of reflections
@@ -172,7 +205,7 @@ impl<'a> Response<'a> {
         if parameters_by_reflections.len() == 2 {
             for (_, v) in parameters_by_reflections.iter() {
                 if v.len() == 1 {
-                    return (Some(v[0]), true)
+                    return (Some(v[0]), true);
                 }
             }
         }
@@ -200,9 +233,8 @@ impl<'a> Response<'a> {
         reason_kind: ReasonKind,
         parameter: &str,
         diff: Option<&str>,
-        progress_bar: &ProgressBar
+        progress_bar: &ProgressBar,
     ) -> Result<(), Box<dyn Error>> {
-
         let mut message = match reason_kind {
             ReasonKind::Code => format!(
                 "{}) {}: code {} -> {}",
@@ -219,8 +251,18 @@ impl<'a> Response<'a> {
                 self.text.len().to_string().bright_yellow(),
                 diff.unwrap()
             ),
-            ReasonKind::Reflected => format!("{}) {}: {}", color_id(id), "reflects".bright_blue(), parameter),
-            ReasonKind::NotReflected => format!("{}) {}: {}", color_id(id), "not reflected one".bright_cyan(), parameter),
+            ReasonKind::Reflected => format!(
+                "{}) {}: {}",
+                color_id(id),
+                "reflects".bright_blue(),
+                parameter
+            ),
+            ReasonKind::NotReflected => format!(
+                "{}) {}: {}",
+                color_id(id),
+                "not reflected one".bright_cyan(),
+                parameter
+            ),
         };
 
         if config.verbose > 0 {
@@ -288,7 +330,7 @@ impl<'a> Response<'a> {
         }
 
         let re_words_within_objects = Regex::new(r#"[\{,]\s*[[:alpha:]]\w{2,25}:"#).unwrap();
-        for cap in re_words_within_objects.captures_iter(body){
+        for cap in re_words_within_objects.captures_iter(body) {
             found.push(re_special_chars.replace_all(&cap[0], "").to_string());
         }
 
@@ -308,7 +350,7 @@ impl<'a> Response<'a> {
                 http::Version::HTTP_3 => "HTTP/3",
                 _ => "HTTP/x",
             },
-            None => "HTTP/x"
+            None => "HTTP/x",
         };
 
         format!("{} {} \n{}", http_version, self.code, self.text)

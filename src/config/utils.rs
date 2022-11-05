@@ -1,4 +1,8 @@
-use std::{collections::HashMap, error::Error, io::{self, Write}};
+use std::{
+    collections::HashMap,
+    error::Error,
+    io::{self, Write},
+};
 
 use colored::Colorize;
 use snailquote::unescape;
@@ -17,18 +21,28 @@ pub(super) fn convert_to_string_if_some(el: Option<&str>) -> Option<String> {
 }
 
 /// parse request from the request file
-pub(super) fn parse_request<'a>(request: &'a str, scheme: &str, port: u16, split_by: Option<&str>) -> Result<(
-    Vec<String>, // method
-    Vec<String>, // url
-    HashMap<&'a str, String>, // headers
-    String, // body
-    Option<DataType>,
-), Box<dyn Error>> {
+pub(super) fn parse_request<'a>(
+    request: &'a str,
+    scheme: &str,
+    port: u16,
+    split_by: Option<&str>,
+) -> Result<
+    (
+        Vec<String>,              // method
+        Vec<String>,              // url
+        HashMap<&'a str, String>, // headers
+        String,                   // body
+        Option<DataType>,
+    ),
+    Box<dyn Error>,
+> {
     // request by lines
     let lines = if split_by.is_none() {
         request.lines().collect::<Vec<&str>>()
     } else {
-        request.split(&unescape(split_by.unwrap())?).collect::<Vec<&str>>()
+        request
+            .split(&unescape(split_by.unwrap())?)
+            .collect::<Vec<&str>>()
     };
     let mut lines = lines.iter();
 
@@ -38,9 +52,15 @@ pub(super) fn parse_request<'a>(request: &'a str, scheme: &str, port: u16, split
 
     // parse the first line
     let mut firstline = lines.next().ok_or("Unable to parse firstline")?.split(' ');
-    let method = firstline.next().ok_or("Unable to parse method")?.to_string();
+    let method = firstline
+        .next()
+        .ok_or("Unable to parse method")?
+        .to_string();
     let path = firstline.next().ok_or("Unable to parse path")?.to_string(); //include ' ' in path too?
-    let http2 = firstline.next().ok_or("Unable to parse http version")?.contains("HTTP/2");
+    let http2 = firstline
+        .next()
+        .ok_or("Unable to parse http version")?
+        .contains("HTTP/2");
 
     // parse headers
     while let Some(line) = lines.next() {
@@ -51,27 +71,33 @@ pub(super) fn parse_request<'a>(request: &'a str, scheme: &str, port: u16, split
         let mut k_v = line.split(':');
         let key = k_v.next().ok_or("Unable to parse header key")?;
         let value: String = [
-            k_v.next().ok_or("Unable to parse header value")?.trim().to_owned(),
+            k_v.next()
+                .ok_or("Unable to parse header value")?
+                .trim()
+                .to_owned(),
             k_v.map(|x| ":".to_owned() + x).collect(),
-        ].concat();
+        ]
+        .concat();
 
         match key.to_lowercase().as_str() {
-            "content-type" =>  if value.contains("json") {
+            "content-type" => {
+                if value.contains("json") {
                     data_type = Some(DataType::Json)
                 } else if value.contains("urlencoded") {
                     data_type = Some(DataType::Urlencoded)
-                },
+                }
+            }
             "host" => {
                 host = value.clone();
                 // host header in http2 breaks the h2 lib for now
                 if http2 {
-                    continue
+                    continue;
                 }
-            },
+            }
             // breaks h2 too
             // TODO maybe add an option to keep request as it is without removing anything
             "content-length" => continue,
-            _ => ()
+            _ => (),
         };
 
         headers.insert(key, value);
@@ -95,7 +121,12 @@ pub(super) fn parse_request<'a>(request: &'a str, scheme: &str, port: u16, split
 }
 
 pub fn write_banner_config(config: &Config, params: &Vec<String>) {
-    let mut output = format!("urls: {}, methods: {}, wordlist len: {}", config.urls.len(), config.methods.join(" "), params.len().to_string().blue());
+    let mut output = format!(
+        "urls: {}, methods: {}, wordlist len: {}",
+        config.urls.len(),
+        config.methods.join(" "),
+        params.len().to_string().blue()
+    );
 
     if !config.proxy.is_empty() {
         output += &format!(", proxy: {}", &config.proxy.green())
@@ -106,12 +137,11 @@ pub fn write_banner_config(config: &Config, params: &Vec<String>) {
     }
 
     if config.recursion_depth != 0 {
-        output += &format!(", recursion depth: {}", &config.recursion_depth.to_string().yellow())
+        output += &format!(
+            ", recursion depth: {}",
+            &config.recursion_depth.to_string().yellow()
+        )
     }
 
-    writeln!(
-        io::stdout(),
-        "{}\n",
-        output
-    ).ok();
+    writeln!(io::stdout(), "{}\n", output).ok();
 }
