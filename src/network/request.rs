@@ -139,13 +139,15 @@ impl<'a> Request<'a> {
     pub fn make_query(&self) -> String {
         lazy_static! {
             static ref RE_JSON_WORDS_WITHOUT_QUOTES: Regex =
-                Regex::new(r#"^(\d+|null|false|true)$"#).unwrap();
+                Regex::new(r#"^([1-9]\d*|null|false|true)$"#).unwrap();
         }
 
         let query = if self.defaults.is_json {
             self.prepared_parameters
                 .iter()
                 .chain(self.defaults.parameters.iter())
+                // not very optimal because we know that there's a lot of random parameters
+                // that doesn't need to be checked
                 .map(|(k, v)| {
                     if RE_JSON_WORDS_WITHOUT_QUOTES.is_match(v) {
                         self.defaults.template.replace("{k}", k).replace("{v}", v)
