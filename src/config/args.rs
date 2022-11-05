@@ -122,7 +122,6 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
                 .short("X")
                 .long("method")
                 .value_name("method")
-                .default_value("GET")
                 .takes_value(true)
                 .min_values(1)
                 .conflicts_with("request")
@@ -351,11 +350,14 @@ Conflicts with --verify for now. Will be changed in the future.")
         parse_request(&request, &scheme, port, args.value_of("split-by"))?
     } else {
         // parse everything from user-supplied command line arguments
-        let methods = args
-            .values_of("method")
-            .unwrap()
-            .map(|x| x.to_string())
-            .collect::<Vec<String>>();
+        let methods = if args.is_present("method") {
+            args.values_of("method")
+                .unwrap()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+        } else {
+            vec!["GET".to_string()]
+        };
 
         let mut headers: HashMap<&str, String> = HashMap::new();
 
