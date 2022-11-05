@@ -123,7 +123,18 @@ impl<'a> Runner<'a> {
         }
 
         // try to find existing parameters from the list
-        let (diffs, mut found_params) = self.check_parameters(params).await?;
+        let (diffs, mut found_params) = if !params.is_empty() {
+            self.check_parameters(params).await?
+        } else {
+            utils::info(
+                self.config,
+                self.id,
+                self.progress_bar,
+                "info",
+                "No parameters were provided",
+            );
+            (Vec::new(), Vec::new())
+        };
 
         self.check_non_random_parameters(&mut found_params).await?;
 
