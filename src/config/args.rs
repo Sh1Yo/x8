@@ -300,7 +300,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         Err("A target was not provided")?;
     }
 
-    //parse numbers
+    // parse numbers
     let delay = Duration::from_millis(args.value_of("delay").unwrap().parse()?);
 
     let learn_requests_count = args.value_of("learn_requests_count").unwrap().parse()?;
@@ -310,14 +310,20 @@ Conflicts with --verify for now. Will be changed in the future.")
     let timeout = args.value_of("timeout").unwrap().parse()?;
     let recursion_depth = args.value_of("recursion_depth").unwrap().parse()?;
 
-    //try to read request file
+    let max: Option<usize> = if args.is_present("max") {
+        Some(args.value_of("max").unwrap().parse()?)
+    } else {
+        None
+    };
+
+    // try to read request file
     let request = match args.value_of("request") {
         Some(val) => fs::read_to_string(val)?,
         None => String::new(),
     };
 
-    //parse default request information
-    //either via request file or via provided parameters
+    // parse the default request information
+    // either via the request file or via provided parameters
     let (
         methods,
         urls,
@@ -325,7 +331,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         body,
         data_type,
     ) = if !request.is_empty() {
-        //if the request file is specified - get protocol (https/http) from args, specify schema and port and parse request file
+        // if the request file is specified - get protocol (https/http) from args, specify scheme and port, and parse request file
         let proto = args.value_of("proto").ok_or("--proto wasn't provided")?.to_string();
 
         let scheme = proto.replace("://", "");
@@ -347,7 +353,7 @@ Conflicts with --verify for now. Will be changed in the future.")
             args.value_of("split-by")
         )?
     } else {
-
+        // parse everything from user-supplied command line arguments
         let methods = args.values_of("method").unwrap().map(|x| x.to_string()).collect::<Vec<String>>();
 
         let mut headers: HashMap<&str, String> = HashMap::new();
@@ -371,11 +377,12 @@ Conflicts with --verify for now. Will be changed in the future.")
             }
         };
 
-        //set default headers if weren't specified by a user.
+        // set default headers if weren't specified by a user.
         if !headers.keys().any(|i| i.contains("User-Agent")) {
             headers.insert("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36".to_string());
         }
 
+        // TODO return cachebuster in query as well
         if !args.is_present("disable-cachebuster") {
             if !headers.keys().any(|i| i.contains("Accept")) {
                 headers.insert("Accept", "*/*, text/{{random}}".to_string());
@@ -388,7 +395,7 @@ Conflicts with --verify for now. Will be changed in the future.")
             }
         }
 
-        //TODO replace with ".parse" or sth like it
+        // TODO replace with ".parse()" or sth like it
         let data_type = match args.value_of("data-type") {
             Some(val) => if val == "json" {
                 Some(DataType::Json)
@@ -422,14 +429,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         }
     };
 
-    //set default max amount of parameters per request
-    let max: Option<usize> = if args.is_present("max") {
-        Some(args.value_of("max").unwrap().parse()?)
-    } else {
-        None
-    };
-
-    //generate custom param values like admin=true
+    // generate custom param values like admin=true
     let custom_keys: Vec<String> = match args.values_of("custom-parameters") {
         Some(val) => {
             val.map(|x| x.to_string()).collect()
@@ -459,15 +459,13 @@ Conflicts with --verify for now. Will be changed in the future.")
         custom_parameters.insert(key.to_string(), values);
     }
 
+    // disable colors
     if args.is_present("disable-colors") {
         colored::control::set_override(false);
     }
 
-    println!("{:?}", urls);
-    println!("{:?}", methods);
-
-    //TODO maybe replace empty with None
-    let config = Config {
+    // TODO maybe replace empty with None
+    Ok(Config {
         urls,
         methods,
         wordlist: args.value_of("wordlist").unwrap_or("").to_string(),
@@ -505,7 +503,5 @@ Conflicts with --verify for now. Will be changed in the future.")
         custom_headers: headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
         data_type,
         max,
-    };
-
-    Ok(config)
+    })
 }
