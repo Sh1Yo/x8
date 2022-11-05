@@ -104,7 +104,7 @@ impl<'a> Request<'a> {
             path: l.path.to_owned(),
             defaults: l,
             headers: Vec::new(),
-            body: String::new(),
+            body: l.body.clone(),
             parameters: parameters,
             prepared_parameters: Vec::new(), //l.parameters.clone(),
             non_random_parameters: Vec::new(),
