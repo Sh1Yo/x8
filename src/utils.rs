@@ -11,32 +11,6 @@ use colored::*;
 use url::Url;
 
 use crate::{config::structs::Config, RANDOM_CHARSET};
-use crate::network::{response::Response};
-use crate::runner::utils::ReasonKind;
-
-/// notify about found parameters
-pub fn notify(progress_bar: &ProgressBar, config: &Config, reason_kind: ReasonKind, response: &Response, diffs: Option<&String>) {
-    if config.verbose > 1 {
-        match reason_kind {
-            ReasonKind::Code => progress_bar.println(
-            format!(
-                    "{} {}",
-                    response.code(),
-                    response.text.len()
-                )
-            ),
-            ReasonKind::Text => progress_bar.println(
-            format!(
-                    "{} {} ({})",
-                    response.code,
-                    response.text.len().to_string().bright_yellow(),
-                    diffs.unwrap()
-                )
-            ),
-            _ => unreachable!()
-        }
-    }
-}
 
 /// prints informative messages/non critical errors
 pub fn info<S: Into<String>, T: std::fmt::Display>(config: &Config, id: usize, progress_bar: &ProgressBar, word: S, msg: T) {
@@ -142,7 +116,7 @@ pub fn color_id(id: usize) -> String {
     }.to_string()
 }
 
-/// makes sure that every inner Vec contains urls from different hosts
+/// moves urls with different hosts to different vectors
 pub fn order_urls(urls: &Vec<String>) -> Vec<Vec<String>> {
 
     // LinkedHashMap instead of hashmap for preserving the order

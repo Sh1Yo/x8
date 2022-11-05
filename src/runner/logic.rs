@@ -1,5 +1,4 @@
 use crate::{
-    utils,
     network::{request::Request},
     runner::utils::{FoundParameter, ReasonKind},
 };
@@ -119,11 +118,10 @@ impl<'a> Runner<'a> {
         }
 
         if self.initial_response.code != response.code {
-            utils::notify(self.progress_bar, &self.config, ReasonKind::Code, &response, None);
 
             // increases the specific response code counter
             // helps to notice whether the page's completely changed
-            // like for example when the IP got banned by the server
+            // like, for example, when the IP got banned by the server
             {
                 let mut green_lines = shared_green_lines.lock();
                 match green_lines.get(&response.code.to_string()) {
@@ -221,8 +219,6 @@ impl<'a> Runner<'a> {
             // check whether the page still(after making a random request and storing it's diffs) has an unique diffs
             for diff in new_diffs.iter() {
                 if !diffs.contains(&diff) {
-                    utils::notify(self.progress_bar, &self.config, ReasonKind::Text, &response, Some(&diff));
-
                     let mut found_params = shared_found_params.lock();
 
                     // there's only one parameter left that changing the page

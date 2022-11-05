@@ -80,9 +80,8 @@ pub struct Config {
     /// can be useful for checking whether the program parsed the input parameters successfully
     pub test: bool,
 
-    //0 - print only critical errors and output
-    //1 - print intermediate results and progress bar
-    //2 - print all response changes
+    /// 0 - print only critical errors and output
+    /// 1 - print intermediate results and progress bar
     pub verbose: usize,
 
     /// determines how much learning requests should be made on the start
