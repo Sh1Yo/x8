@@ -26,48 +26,48 @@ use super::{
 
 #[derive(Debug, Clone, Default)]
 pub struct RequestDefaults {
-    //default request data
+    /// default request data
     pub method: String,
     pub scheme: String,
     pub path: String,
     pub host: String,
     pub port: u16,
 
-    //custom user supplied headers or default ones
+    /// custom user supplied headers or default ones
     pub custom_headers: Vec<(String, String)>,
 
-    //how much to sleep between requests in millisecs
+    /// how much to sleep between requests in millisecs
     pub delay: Duration, //MOVE to config
 
-    //default reqwest client
+    /// default reqwest client
     pub client: Client,
 
-    //parameter template, for example {k}={v}
+    /// parameter template, for example {k}={v}
     pub template: String,
 
-    //how to join parameters, for example '&'
+    /// how to join parameters, for example '&'
     pub joiner: String,
 
-    //whether to encode the query like param1=value1&param2=value2 -> param1%3dvalue1%26param2%3dvalue2
+    /// whether to encode the query like param1=value1&param2=value2 -> param1%3dvalue1%26param2%3dvalue2
     pub encode: bool,
 
-    //to replace {"key": "false"} with {"key": false}
+    /// to replace {"key": "false"} with {"key": false}
     pub is_json: bool,
 
-    //default body
+    /// default body
     pub body: String,
 
-    //whether to include parameters like debug=true to the list
+    /// whether to include parameters like debug=true to the list
     pub disable_custom_parameters: bool,
 
-    //parameters to add to every request
-    //it is used in recursion search
+    /// parameters to add to every request
+    /// it is used in recursion search
     pub parameters: Vec<(String, String)>,
 
-    //where the injection point is
+    /// where the injection point is
     pub injection_place: InjectionPlace,
 
-    //the default amount of reflection per non existing parameter
+    /// the default amount of reflection per non existing parameter
     pub amount_of_reflections: usize,
 }
 
@@ -75,26 +75,26 @@ pub struct RequestDefaults {
 pub struct Request<'a> {
     pub defaults: &'a RequestDefaults,
 
-    //vector of supplied parameters
+    /// vector of supplied parameters
     pub parameters: Vec<String>,
 
-    //parsed parameters (key, value)
+    /// parsed parameters (key, value)
     pub prepared_parameters: Vec<(String, String)>,
 
-    //parameters with not random values
-    //we need this vector to ignore searching for reflections for these parameters
-    //for example admin=1 - its obvious that 1 can be reflected unpredictable amount of times
+    /// parameters with not random values
+    /// we need this vector to ignore searching for reflections for these parameters
+    /// for example admin=1 - its obvious that 1 can be reflected unpredictable amount of times
     pub non_random_parameters: Vec<(String, String)>,
 
     pub headers: Vec<(String, String)>,
 
     pub body: String,
 
-    //we can't use defaults.path because there can be {{random}} variable that need to be replaced
+    /// we can't use defaults.path because there can be {{random}} variable that need to be replaced
     pub path: String,
 
-    //whether the request was prepared
-    //{{random}} things replaced, prepared_parameters filled
+    /// whether the request was prepared
+    /// {{random}} things replaced, prepared_parameters filled
     pub prepared: bool,
 }
 
@@ -177,21 +177,20 @@ impl<'a> Request<'a> {
         );
 
         self.prepared_parameters = Vec::from_iter(
-            //append self.prepared_parameters (can be set from RequestDefaults using recursive search)
+            // append self.prepared_parameters (can be set from RequestDefaults using recursive search)
             self.prepared_parameters
                 .iter()
                 .map(|(k, v)| (k.to_owned(), v.to_owned()))
-                //append parameters with not random values
+                // append parameters with not random values
                 .chain(
                     self.non_random_parameters
                         .iter()
                         .map(|(k, v)| (k.to_owned(), v.to_owned())),
                 )
-                //append random parameters
+                // append random parameters
                 .chain(
                     self.parameters
                         .iter()
-                        //.chain([additional_param.unwrap_or(&String::new())])
                         .filter(|x| !x.is_empty() && !x.contains("="))
                         .map(|x| (x.to_owned(), random_line(VALUE_LENGTH))),
                 ),
@@ -251,9 +250,9 @@ impl<'a> Request<'a> {
         }
     }
 
-    //we need to somehow impl Send and Sync for error
-    //therefore we are wrapping the original call to send()
-    //not a good way tho, maybe someone can suggest a better one
+    // we need to somehow impl Send and Sync for error
+    // therefore we are wrapping the original call to send()
+    // not a good way tho, maybe someone can suggest a better one
     pub async fn wrapped_send(self) -> Result<Response<'a>, Box<dyn Error + Send + Sync>> {
         match self.send().await {
             Err(err) => Err(err.to_string().into()),
@@ -417,7 +416,7 @@ impl<'a> RequestDefaults {
         body: &str,
         disable_custom_parameters: bool,
     ) -> Result<Self, Box<dyn Error>> {
-        //TODO recheck logic
+        // TODO recheck logic
         let mut injection_place = if (method == "POST" || method == "PUT") && !invert
             || (method != "POST" && method != "PUT" && invert)
         {
@@ -437,8 +436,8 @@ impl<'a> RequestDefaults {
         {
             data_type
 
-        //explained in DataType enum comments
-        //tl.dr. data_type was taken from a parsed request's content-type so we are not 100% sure what did a user mean
+        // explained in DataType enum comments
+        // tl.dr. data_type was taken from a parsed request's content-type so we are not 100% sure what did a user mean
         } else if data_type == Some(DataType::ProbablyJson)
             && injection_place == InjectionPlace::Body
         {
@@ -562,7 +561,7 @@ impl<'a> RequestDefaults {
                 } else if joiner == "&" {
                     (format!("{}?%s", path), body.to_string())
                 } else {
-                    //some very non-standart configuration
+                    // some very non-standart configuration
                     (format!("{}%s", path), body.to_string())
                 }
             }
