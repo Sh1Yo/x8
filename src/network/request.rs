@@ -1,6 +1,8 @@
 use crate::{config::structs::Config, utils::random_line};
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use percent_encoding::utf8_percent_encode;
+use regex::Regex;
 use reqwest::Client;
 use std::{
     collections::HashMap,
@@ -135,13 +137,35 @@ impl<'a> Request<'a> {
     }
 
     pub fn make_query(&self) -> String {
-        let query = self
-            .prepared_parameters
-            .iter()
-            .chain(self.defaults.parameters.iter())
-            .map(|(k, v)| self.defaults.template.replace("{k}", k).replace("{v}", v))
-            .collect::<Vec<String>>()
-            .join(&self.defaults.joiner);
+        lazy_static! {
+            static ref RE_JSON_WORDS_WITHOUT_QUOTES: Regex =
+                Regex::new(r#"^(\d+|null|false|true)$"#).unwrap();
+        }
+
+        let query = if self.defaults.is_json {
+            self.prepared_parameters
+                .iter()
+                .chain(self.defaults.parameters.iter())
+                .map(|(k, v)| {
+                    if RE_JSON_WORDS_WITHOUT_QUOTES.is_match(v) {
+                        self.defaults.template.replace("{k}", k).replace("{v}", v)
+                    } else {
+                        self.defaults
+                            .template
+                            .replace("{k}", k)
+                            .replace("{v}", &format!("\"{}\"", v))
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join(&self.defaults.joiner)
+        } else {
+            self.prepared_parameters
+                .iter()
+                .chain(self.defaults.parameters.iter())
+                .map(|(k, v)| self.defaults.template.replace("{k}", k).replace("{v}", v))
+                .collect::<Vec<String>>()
+                .join(&self.defaults.joiner)
+        };
 
         if self.defaults.encode {
             utf8_percent_encode(&query, &FRAGMENT).to_string()
