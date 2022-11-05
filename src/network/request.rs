@@ -19,7 +19,7 @@ const HEADERS_JOINER: &'static str = "\x01@%&%@\x01";
 
 use super::{response::Response, utils::{Headers, FRAGMENT, InjectionPlace, DataType}};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RequestDefaults {
     //default request data
     pub method: String,

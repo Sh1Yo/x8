@@ -41,8 +41,9 @@ pub enum DataType {
 }
 
 /// where to insert parameters
-#[derive(Debug, Clone, PartialEq, Serialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Serialize, Copy, Default)]
 pub enum InjectionPlace {
+    #[default]
     Path,
     Body,
     Headers,

@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap};
     use tokio::time::Duration;
 
-    use crate::{structs::{InjectionPlace, DataType}, network::{request::{RequestDefaults, Request}, headers::Headers}};
+    use crate::{network::{request::{RequestDefaults, Request}, utils::{InjectionPlace, Headers}}};
 
     #[test]
     fn query_creation() {
@@ -12,24 +11,25 @@ mod tests {
         l.joiner = "&".to_string();
         let parameters = vec!["test1".to_string()];
         let mut request = Request::new(&l, parameters);
-        request.prepare(None);
+        request.prepare();
 
         assert_eq!(request.make_query(), "test1=payload");
     }
 
     #[test]
     fn request_defaults_generation() {
-        let defaults = RequestDefaults::new(
+        let defaults = RequestDefaults::new::<String>(
             "GET",
             "https://example.com:8443/path",
-            HashMap::from([("X-Header", "Value".to_string())]),
+            Vec::from([("X-Header".to_string(), "Value".to_string())]),
             Duration::from_millis(0),
             Default::default(),
             None,
             None,
             false,
             None,
-            InjectionPlace::Path,
+            false,
+            false,
             "",
             false
         ).unwrap();
@@ -45,53 +45,25 @@ mod tests {
     }
 
     #[test]
-    fn request_body_generation() {
-        let mut template = RequestDefaults::default();
+    fn json_request_body_generation() {
+        let defaults =  RequestDefaults::new::<String>(
+            "POST",
+            "https://example.com:8443/path",
+            Vec::from([("X-Header".to_string(), "Value".to_string())]),
+            Duration::from_millis(0),
+            Default::default(),
+            None,
+            None,
+            false,
+            None,
+            false,
+            false,
+            "{\"something\":1}",
+            false
+        ).unwrap();
 
-        template.injection_place = InjectionPlace::Body;
-        let defaults = template.recreate(Some(DataType::Json), None, None);
         assert!(defaults.is_json);
-        assert_eq!(defaults.body, "{%s}");
-        assert_eq!(defaults.template, "\"{k}\": {v}");
-
-        template.body = "{\"something\":1}".to_string();
-        let defaults = template.recreate(None, None, None);
         assert_eq!(defaults.body, "{\"something\":1, %s}");
         assert_eq!(defaults.template, "\"{k}\": {v}");
-
-        template.body = String::new();
-        let defaults = template.recreate(None, None, None);
-        assert_eq!(defaults.body, "%s");
-
-        template.body = "a=b".to_string();
-        let defaults = template.recreate(None, None, None);
-        assert_eq!(defaults.body, "a=b&%s");
-    }
-
-    #[test]
-    fn request_generation() {
-        let mut template = RequestDefaults::default();
-
-        let defaults = template.recreate(None, None, None);
-        assert_eq!(defaults.path, "/?%s");
-        let params = vec!["param".to_string()];
-        let mut request = Request::new(&defaults, params);
-        request.prepare(None);
-        assert!(request.defaults.path.starts_with("/?param="));
-        assert!(request.url().starts_with("https://example.com:443/?param="));
-
-        template.injection_place = InjectionPlace::Body;
-        template.body = "{\"something\":[%s]}".to_string();
-        let defaults = template.recreate(None, Some("\"{k}\""), Some(", "));
-        let params = vec!["param1".to_string()];
-        let mut request = Request::new(&defaults, params.clone());
-        request.prepare(None);
-        assert_eq!(request.body, "{\"something\":[\"param1\"]}");
-
-        template.body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><note>%s</note>".to_string();
-        let defaults = template.recreate(None, Some("<{k}>sth</{k}>"), Some(""));
-        let mut request = Request::new(&defaults, params);
-        request.prepare(None);
-        assert_eq!(request.body, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><note><param1>sth</param1></note>");
     }
 }
