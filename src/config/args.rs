@@ -150,7 +150,7 @@ It's possible to overwrite this behaviour by specifying the option")
         .arg(
             Arg::with_name("force")
                 .long("force")
-                .help("Ignore 'binary data detected', 'the page is too huge', 'param_template lacks variables' error messages")
+                .help("Force searching for parameters on pages > 25MB")
         )
         .arg(
             Arg::with_name("disable-custom-parameters")
