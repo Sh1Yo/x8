@@ -533,5 +533,6 @@ Conflicts with --verify for now. Will be changed in the future.")
             .collect(),
         data_type,
         max,
+        disable_colors: args.is_present("disable-colors"),
     })
 }

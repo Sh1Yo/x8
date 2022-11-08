@@ -10,7 +10,7 @@ use crate::{
         response::Response,
         utils::InjectionPlace,
     },
-    utils::{self, color_id, random_line},
+    utils::{self, color_id, random_line, progress_style_learn_requests},
     DEFAULT_PROGRESS_URL_MAX_LEN, MAX_PAGE_SIZE,
 };
 
@@ -276,13 +276,8 @@ impl<'a> Runner<'a> {
         };
         let mut diffs: Vec<String> = Vec::new();
 
-        //set up progress bar
-        let sty = ProgressStyle::with_template("{prefix} {bar:26.cyan/green} {pos:>7}/{len:7}")
-            .unwrap()
-            .progress_chars("**-");
-
-        self.prepare_progress_bar(sty, self.config.learn_requests_count);
-        // --
+        // set up progress bar
+        self.prepare_progress_bar(progress_style_learn_requests(self.config), self.config.learn_requests_count);
 
         for _ in 0..self.config.learn_requests_count {
             let response = Request::new_random(&self.request_defaults, self.max)
@@ -291,7 +286,7 @@ impl<'a> Runner<'a> {
 
             self.progress_bar.inc(1);
 
-            //do not check pages >25MB because usually its just a binary file or sth
+            // do not check pages >25MB because usually its just a binary file or sth
             if response.text.len() > MAX_PAGE_SIZE && !self.config.force {
                 Err("The page's size > 25MB. Use --force flag to disable this error")?;
             }
@@ -309,12 +304,12 @@ impl<'a> Runner<'a> {
             diffs.append(&mut new_diffs);
         }
 
-        //check the last time
+        // check the last time
         let response = Request::new_random(&self.request_defaults, self.max)
             .send()
             .await?;
 
-        //in case the page is still different from other random ones - the body isn't stable
+        // in case the page is still different from other random ones - the body isn't stable
         if !response
             .compare(&self.initial_response, &diffs)?
             .1

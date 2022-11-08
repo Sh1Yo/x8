@@ -153,7 +153,9 @@ async fn init() -> Result<(), Box<dyn Error>> {
                             .await
                             {
                                 Ok(val) => runner_outputs.push(val),
-                                Err(err) => utils::error(err, Some(url), Some(progress_bar), Some(config)),
+                                Err(err) => {
+                                    utils::error(err, Some(url), Some(progress_bar), Some(config))
+                                }
                             }
                         }
                     }

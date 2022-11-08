@@ -12,6 +12,31 @@ use url::Url;
 
 use crate::{config::structs::Config, RANDOM_CHARSET};
 
+pub fn progress_style_learn_requests(config: &Config) -> ProgressStyle {
+    if config.disable_colors {
+        ProgressStyle::with_template("{prefix} {bar:26} {pos:>7}/{len:7}")
+            .unwrap()
+            .progress_chars("**-")
+    } else {
+        ProgressStyle::with_template("{prefix} {bar:26.cyan/green} {pos:>7}/{len:7}")
+            .unwrap()
+            .progress_chars("**-")
+    }
+}
+
+pub fn progress_style_check_requests(config: &Config) -> ProgressStyle {
+    if config.disable_colors {
+        ProgressStyle::with_template("{prefix} {bar:26} {pos:>7}/{len:7}")
+            .unwrap()
+            .progress_chars("##-")
+    } else {
+        ProgressStyle::with_template("{prefix} {bar:26.cyan/blue} {pos:>7}/{len:7}")
+            .unwrap()
+            .progress_chars("##-")
+    }
+}
+
+
 /// prints informative messages/non critical errors
 pub fn info<S: Into<String>, T: std::fmt::Display>(
     config: &Config,

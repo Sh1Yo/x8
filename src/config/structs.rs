@@ -124,4 +124,6 @@ pub struct Config {
     pub headers_discovery: bool,
 
     pub follow_redirects: bool,
+
+    pub disable_colors: bool,
 }

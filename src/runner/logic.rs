@@ -2,12 +2,11 @@ use std::{cmp, collections::HashMap, error::Error, sync::Arc};
 
 use async_recursion::async_recursion;
 use futures::stream::StreamExt;
-use indicatif::ProgressStyle;
 use parking_lot::Mutex;
 
 use crate::{
     network::request::Request,
-    runner::utils::{FoundParameter, ReasonKind},
+    runner::utils::{FoundParameter, ReasonKind}, utils::progress_style_check_requests,
 };
 
 use super::runner::Runner;
@@ -295,11 +294,7 @@ impl<'a> Runner<'a> {
         let all = params.len() / max;
 
         // change and reset the progress bar
-        let sty = ProgressStyle::with_template("{prefix} {bar:26.cyan/blue} {pos:>7}/{len:7}")
-            .unwrap()
-            .progress_chars("##-");
-
-        self.prepare_progress_bar(sty, all + 1);
+        self.prepare_progress_bar(progress_style_check_requests(self.config), all + 1);
 
         // wrap the variables to share them between futures
         let mut diffs = self.diffs.clone();
