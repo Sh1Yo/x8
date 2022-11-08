@@ -122,24 +122,28 @@ pub(super) fn parse_request<'a>(
 
 pub fn write_banner_config(config: &Config, params: &Vec<String>) {
     let mut output = format!(
-        "urls: {}, methods: {}, wordlist len: {}",
-        config.urls.len(),
+        "{}:         {}\n{}:      {}\n{}: {}",
+        "urls".green(),
+        config.urls.join(" "),
+        "methods".blue(),
         config.methods.join(" "),
-        params.len().to_string().blue()
+        "wordlist len".cyan(),
+        params.len(),
     );
 
     if !config.proxy.is_empty() {
-        output += &format!(", proxy: {}", &config.proxy.green())
+        output += &format!("\n{}:        {}", "proxy".green(), &config.proxy)
     }
 
     if !config.replay_proxy.is_empty() {
-        output += &format!(", replay proxy: {}", &config.proxy.magenta())
+        output += &format!("\n{}: {}", "replay proxy".magenta(), &config.replay_proxy)
     }
 
     if config.recursion_depth != 0 {
         output += &format!(
-            ", recursion depth: {}",
-            &config.recursion_depth.to_string().yellow()
+            "\n{}: {}",
+            "recursion depth".yellow(),
+            &config.recursion_depth.to_string()
         )
     }
 
