@@ -44,7 +44,7 @@ async fn main() {
     std::process::exit(match init().await {
         Ok(_) => 0,
         Err(err) => {
-            utils::error(err, None, None);
+            utils::error(err, None, None, None);
             1
         }
     });
@@ -130,7 +130,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
                             ) {
                                 Ok(val) => val,
                                 Err(err) => {
-                                    utils::error(err, Some(url), Some(progress_bar));
+                                    utils::error(err, Some(url), Some(progress_bar), Some(config));
                                     continue;
                                 }
                             };
@@ -139,7 +139,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
                             if let Err(err) =
                                 Request::new(&request_defaults, Vec::new()).send().await
                             {
-                                utils::error(err, Some(url), Some(progress_bar));
+                                utils::error(err, Some(url), Some(progress_bar), Some(config));
                                 continue;
                             };
 
@@ -153,7 +153,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
                             .await
                             {
                                 Ok(val) => runner_outputs.push(val),
-                                Err(err) => utils::error(err, Some(url), Some(progress_bar)),
+                                Err(err) => utils::error(err, Some(url), Some(progress_bar), Some(config)),
                             }
                         }
                     }

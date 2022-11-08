@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, io::{self, Write}};
 
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -403,7 +403,8 @@ impl<'a> Runner<'a> {
     }
 
     pub fn write_banner_url(&self) {
-        self.progress_bar.println(format!(
+
+        let msg = format!(
             "[{}] {} {} ({}) [{}] {{{}}}",
             color_id(self.id),
             self.request_defaults.method.blue(),
@@ -414,6 +415,12 @@ impl<'a> Runner<'a> {
                 .amount_of_reflections
                 .to_string()
                 .magenta()
-        ));
+        );
+
+        if self.config.disable_progress_bar {
+            writeln!(io::stdout(), "{}", msg).ok();
+        } else {
+            self.progress_bar.println(msg);
+        }
     }
 }

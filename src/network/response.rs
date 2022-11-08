@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error, iter::FromIterator};
+use std::{collections::HashMap, error::Error, iter::FromIterator, io::{self, Write}};
 
 use colored::Colorize;
 use indicatif::ProgressBar;
@@ -270,7 +270,11 @@ impl<'a> Response<'a> {
                 message += &format!(" [saved to {}]", save_request(config, self, parameter)?);
             }
 
-            progress_bar.println(message);
+            if config.disable_progress_bar {
+                writeln!(io::stdout(), "{}", message).ok();
+            } else {
+                progress_bar.println(message);
+            }
         } else if !config.save_responses.is_empty() {
             save_request(config, self, parameter)?;
         }

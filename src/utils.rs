@@ -5,7 +5,7 @@ use std::{
 };
 
 use colored::*;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle, ProgressDrawTarget};
 use linked_hash_map::LinkedHashMap;
 use rand::Rng;
 use url::Url;
@@ -21,24 +21,31 @@ pub fn info<S: Into<String>, T: std::fmt::Display>(
     msg: T,
 ) {
     if config.verbose > 0 {
-        progress_bar.println(format!(
+        let message = format!(
             "{} [{}] {}",
             color_id(id),
             word.into().yellow(),
             msg
-        ));
+        );
+
+        // in case progress bars are hidden -- the messages from progress_bar.println arent' displayed, so we need to use writeln instead
+        if config.disable_progress_bar {
+            writeln!(io::stdout(), "{}", message).ok();
+        } else {
+            progress_bar.println(message);
+        }
     }
 }
 
 /// prints errors. Progress_bar may be null in case the error happened too early (before requests)
-pub fn error<T: std::fmt::Display>(msg: T, url: Option<&str>, progress_bar: Option<&ProgressBar>) {
+pub fn error<T: std::fmt::Display>(msg: T, url: Option<&str>, progress_bar: Option<&ProgressBar>, config: Option<&Config>) {
     let message = if url.is_none() {
         format!("{} {}", "[#]".red(), msg)
     } else {
         format!("{} [{}] {}", "[#]".red(), url.unwrap(), msg)
     };
 
-    if progress_bar.is_none() {
+    if progress_bar.is_none() || (config.is_some() && config.unwrap().disable_progress_bar) {
         writeln!(io::stdout(), "{}", message).ok();
     } else {
         progress_bar.unwrap().println(message);
@@ -52,8 +59,8 @@ pub fn init_progress(config: &Config) -> Vec<(ProgressBar, Vec<String>)> {
 
     // we're creating an empty progress bar to make one empty line between progress bars and the tool's output
     let empty_line = m.add(ProgressBar::new(128));
-    let sty = ProgressStyle::with_template(" ").unwrap();
-    empty_line.set_style(sty);
+    let empty_sty = ProgressStyle::with_template("").unwrap();
+    empty_line.set_style(empty_sty);
     empty_line.inc(1);
     urls_to_progress.push((empty_line, vec![String::new()]));
 
@@ -69,13 +76,13 @@ pub fn init_progress(config: &Config) -> Vec<(ProgressBar, Vec<String>)> {
     for url_set in urls {
         let pb = m.insert_from_back(
             0,
-            if config.disable_progress_bar || config.verbose < 1 {
-                ProgressBar::new(128)
-            } else {
-                ProgressBar::hidden()
-            },
+            ProgressBar::new(0)
         );
-        urls_to_progress.push((pb.clone(), url_set));
+        if config.disable_progress_bar {
+            pb.set_draw_target(ProgressDrawTarget::hidden());
+        }
+
+        urls_to_progress.push((pb, url_set));
     }
 
     urls_to_progress
