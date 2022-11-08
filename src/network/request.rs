@@ -1,4 +1,4 @@
-use crate::{config::structs::Config, utils::random_line};
+use crate::{config::structs::Config, utils::random_line, VALUE_LENGTH, RANDOM_LENGTH};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use percent_encoding::utf8_percent_encode;
@@ -12,9 +12,6 @@ use std::{
     time::{Duration, Instant},
 };
 use url::Url;
-
-pub const VALUE_LENGTH: usize = 5;
-const RANDOM_LENGTH: usize = 5;
 
 /// in order to be able to use make_query() for headers as well
 const HEADERS_TEMPLATE: &'static str = "{k}\x00@%=%@\x00{v}";

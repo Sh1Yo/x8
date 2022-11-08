@@ -12,11 +12,11 @@ use serde::Serialize;
 use crate::{
     config::structs::Config,
     network::{
-        request::{Request, RequestDefaults, VALUE_LENGTH},
+        request::{Request, RequestDefaults},
         response::Response,
         utils::InjectionPlace,
     },
-    utils::random_line,
+    utils::random_line, VALUE_LENGTH,
 };
 
 #[derive(Debug, Default)]
@@ -221,14 +221,16 @@ pub(super) async fn replay<'a>(
             request_defaults,
             found_params
                 .iter()
-                .map(|x| x.name.to_owned())
+                .map(|x| x.get())
+                .map(|(x, y)| format!("{}={}", x, y))
                 .collect::<Vec<String>>(),
         )
         .send_by(replay_client)
         .await?;
     } else {
         for param in found_params {
-            Request::new(request_defaults, vec![param.name.to_string()])
+            let param = param.get();
+            Request::new(request_defaults, vec![format!("{}={}", param.0, param.1)])
                 .send_by(replay_client)
                 .await?;
         }

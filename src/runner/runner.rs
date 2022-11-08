@@ -178,8 +178,7 @@ impl<'a> Runner<'a> {
                 )?,
                 &found_params,
             )
-            .await
-            {
+            .await {
                 utils::info(
                     &self.config,
                     self.id,
