@@ -139,11 +139,12 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
                 .long("invert")
                 .help("By default parameters are sent within the body only in case PUT or POST methods are used.
 It's possible to overwrite this behaviour by specifying the option")
+                .conflicts_with("headers-discovery")
         )
         .arg(
             Arg::with_name("headers-discovery")
                 .long("headers")
-                .help("Switch to header discovery mode.\nForbidden chars would be automatically removed from headers names")
+                .help("Switch to header discovery mode.\nNOTE Content-Length and Host headers are automatically removed from the list")
                 .conflicts_with("indert")
                 .conflicts_with("param-template")
         )
@@ -289,7 +290,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         .arg(
             Arg::with_name("one-worker-per-host")
                 .long("one-worker-per-host")
-                .help("Multiple urls with the same host will be checked one after another, while urls with different hosts - are in parallel.")
+                .help("Multiple urls with the same host will be checked one after another,\nwhile urls with different hosts - are in parallel.")
         )
         .arg(
             Arg::with_name("http")
