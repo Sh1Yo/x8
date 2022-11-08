@@ -517,7 +517,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         recursion_depth,
         verify: args.is_present("verify"),
         reflected_only: args.is_present("reflected-only"),
-        http: args.value_of("output").unwrap_or("").to_string(),
+        http: args.value_of("http").unwrap_or("").to_string(),
         template: convert_to_string_if_some(args.value_of("parameter-template")),
         joiner: convert_to_string_if_some(args.value_of("joiner")),
         encode: args.is_present("encode"),
