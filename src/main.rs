@@ -90,18 +90,25 @@ async fn init() -> Result<(), Box<dyn Error>> {
     let mut params: Vec<String> = Vec::new();
 
     if !config.wordlist.is_empty() {
-        //read parameters from a file
+        // read parameters from a file
         for line in read_lines(&config.wordlist)?.flatten() {
             params.push(line);
         }
-    //just accept piped stdin
+    // just accept piped stdin
     } else if !atty::is(Stream::Stdin) {
-        //read parameters from stdin
+        // read parameters from stdin
         params = read_stdin_lines();
     }
 
     if config.verbose > 0 {
         write_banner_config(&config, &params);
+    }
+
+    // such headers usually cause server to timeout
+    // especially when http/2 is used
+    // probably better to add a flag for keeping such parameters?
+    if config.headers_discovery {
+        params.retain(|x| "content-length" != x.to_lowercase() && "host" != x.to_lowercase());
     }
 
     let runner_outputs =
