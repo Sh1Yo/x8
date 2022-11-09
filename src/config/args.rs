@@ -245,7 +245,6 @@ It's possible to overwrite this behaviour by specifying the option")
                 .long("recursion-depth")
                 .help("Check the same list of parameters with the found parameters until there are no new parameters to be found.
 Conflicts with --verify for now. Will be changed in the future.")
-                .default_value("0")
                 .takes_value(true)
                 .conflicts_with("verify")
         )
@@ -313,7 +312,7 @@ Conflicts with --verify for now. Will be changed in the future.")
     let workers = args.value_of("workers").unwrap().parse()?;
     let verbose = args.value_of("verbose").unwrap().parse()?;
     let timeout = args.value_of("timeout").unwrap().parse()?;
-    let recursion_depth = args.value_of("recursion_depth").unwrap().parse()?;
+    let recursion_depth = args.value_of("recursion_depth").unwrap_or("0").parse()?;
 
     let max: Option<usize> = if args.is_present("max") {
         Some(args.value_of("max").unwrap().parse()?)

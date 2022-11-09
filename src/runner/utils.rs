@@ -249,11 +249,12 @@ pub(super) async fn verify<'a>(
     let mut filtered_params = Vec::with_capacity(found_params.len());
 
     for param in found_params {
-        let mut response = Request::new(request_defaults, vec![param.name.clone()])
+        let param_value = param.get();
+        let mut response = Request::new(request_defaults, vec![format!("{}={}", param_value.0, param_value.1)])
             .send()
             .await?;
 
-        let (is_code_the_same, new_diffs) = response.compare(initial_response, &diffs)?;
+        let (is_code_diff, new_diffs) = response.compare(initial_response, &diffs)?;
         let mut is_the_body_the_same = true;
 
         if !new_diffs.is_empty() {
@@ -262,7 +263,7 @@ pub(super) async fn verify<'a>(
 
         response.fill_reflected_parameters(initial_response);
 
-        if !is_code_the_same
+        if is_code_diff
             || !(!stable.body || is_the_body_the_same)
             || !response.reflected_parameters.is_empty()
         {
