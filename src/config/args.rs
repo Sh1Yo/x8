@@ -6,7 +6,7 @@ use crate::{
     network::utils::DataType,
 };
 use clap::{crate_version, App, AppSettings, Arg};
-use std::{collections::HashMap, error::Error, fs};
+use std::{collections::HashMap, error::Error, fs, io::{self, Write}};
 use tokio::time::Duration;
 use url::Url;
 
@@ -120,7 +120,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
             Arg::with_name("method")
                 .short("X")
                 .long("method")
-                .value_name("method")
+                .value_name("methods")
                 .takes_value(true)
                 .min_values(1)
                 .conflicts_with("request")
@@ -327,7 +327,7 @@ Conflicts with --verify for now. Will be changed in the future.")
 
     // parse the default request information
     // either via the request file or via provided parameters
-    let (methods, urls, headers, body, data_type) = if !request.is_empty() {
+    let (methods, urls, headers, body, data_type, http_version) = if !request.is_empty() {
         // if the request file is specified - get protocol (https/http) from args, specify scheme and port, and parse request file
         let proto = args
             .value_of("proto")
@@ -421,6 +421,22 @@ Conflicts with --verify for now. Will be changed in the future.")
             None => None,
         };
 
+        let http_version = if args.value_of("http").is_some() {
+            match  args.value_of("http").unwrap() {
+                "1.1" => Some(http::Version::HTTP_11),
+                "2" => Some(http::Version::HTTP_2),
+                _ => {
+                    writeln!(
+                        io::stdout(),
+                        "[#] Incorrect http version provided. The argument is ignored"
+                    ).ok();
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         let urls = args
             .values_of("url")
             .unwrap()
@@ -442,6 +458,7 @@ Conflicts with --verify for now. Will be changed in the future.")
                 headers,
                 args.value_of("body").unwrap_or("").to_string(),
                 data_type,
+                http_version
             )
         }
     };
@@ -516,7 +533,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         recursion_depth,
         verify: args.is_present("verify"),
         reflected_only: args.is_present("reflected-only"),
-        http: args.value_of("http").unwrap_or("").to_string(),
+        http_version,
         template: convert_to_string_if_some(args.value_of("parameter-template")),
         joiner: convert_to_string_if_some(args.value_of("joiner")),
         encode: args.is_present("encode"),

@@ -20,7 +20,7 @@ const HEADERS_JOINER: &'static str = "\x01@%&%@\x01";
 
 use super::{
     response::Response,
-    utils::{DataType, Headers, InjectionPlace, FRAGMENT},
+    utils::{DataType, Headers, InjectionPlace, FRAGMENT, create_client},
 };
 
 #[derive(Debug, Clone, Default)]
@@ -376,32 +376,6 @@ impl<'a> Request<'a> {
 }
 
 impl<'a> RequestDefaults {
-    fn create_client(config: &Config) -> Result<Client, Box<dyn Error>> {
-        let mut client = Client::builder()
-            .danger_accept_invalid_certs(true)
-            .timeout(Duration::from_secs(config.timeout as u64))
-            .http1_title_case_headers()
-            .cookie_store(true)
-            .use_rustls_tls();
-
-        if !config.proxy.is_empty() {
-            client = client.proxy(reqwest::Proxy::all(&config.proxy)?);
-        }
-        if !config.follow_redirects {
-            client = client.redirect(reqwest::redirect::Policy::none());
-        }
-
-        if !config.http.is_empty() {
-            match config.http.as_str() {
-                "1.1" => client = client.http1_only(),
-                "2" => client = client.http2_prior_knowledge(),
-                _ => Err("Incorrect http version provided")?,
-            }
-        }
-
-        Ok(client.build()?)
-    }
-
     pub fn from_config<S: Into<String>>(
         config: &Config,
         method: S,
@@ -412,7 +386,7 @@ impl<'a> RequestDefaults {
             url.into().as_str(),    //as well as url
             config.custom_headers.clone(),
             config.delay,
-            Self::create_client(config)?,
+            create_client(config)?,
             config.template.clone(),
             config.joiner.clone(),
             config.encode,

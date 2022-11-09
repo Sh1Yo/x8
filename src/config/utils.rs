@@ -32,6 +32,7 @@ pub(super) fn parse_request<'a>(
         HashMap<&'a str, String>, // headers
         String,                   // body
         Option<DataType>,
+        Option<reqwest::Version>,         // http version
     ),
     Box<dyn Error>,
 > {
@@ -116,6 +117,7 @@ pub(super) fn parse_request<'a>(
         headers,
         body,
         data_type,
+        if http2 { Some(http::Version::HTTP_2) } else { Some(http::Version::HTTP_11) }
     ))
 }
 

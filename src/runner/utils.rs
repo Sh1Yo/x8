@@ -1,7 +1,5 @@
 use std::{
     error::Error,
-    io::{self, Write},
-    time::Duration,
 };
 
 use lazy_static::lazy_static;
@@ -168,41 +166,6 @@ impl Parameters for Vec<FoundParameter> {
 
         found_params
     }
-}
-
-pub(super) fn create_client(
-    proxy: &str,
-    follow_redirects: bool,
-    http: &str,
-    timeout: usize,
-) -> Result<Client, Box<dyn Error>> {
-    let mut client = Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(Duration::from_secs(timeout as u64))
-        .http1_title_case_headers()
-        .cookie_store(true)
-        .use_rustls_tls();
-
-    if !proxy.is_empty() {
-        client = client.proxy(reqwest::Proxy::all(proxy)?);
-    }
-    if !follow_redirects {
-        client = client.redirect(reqwest::redirect::Policy::none());
-    }
-
-    if !http.is_empty() {
-        match http {
-            "1.1" => client = client.http1_only(),
-            "2" => client = client.http2_prior_knowledge(),
-            _ => writeln!(
-                io::stdout(),
-                "[#] Incorrect http version provided. The argument is ignored"
-            )
-            .unwrap_or(()),
-        }
-    }
-
-    Ok(client.build()?)
 }
 
 pub(super) async fn replay<'a>(

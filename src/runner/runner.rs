@@ -8,7 +8,7 @@ use crate::{
     network::{
         request::{Request, RequestDefaults},
         response::Response,
-        utils::InjectionPlace,
+        utils::{create_client, InjectionPlace},
     },
     utils::{self, color_id, random_line, progress_style_learn_requests},
     DEFAULT_PROGRESS_URL_MAX_LEN, MAX_PAGE_SIZE,
@@ -16,7 +16,7 @@ use crate::{
 
 use super::{
     output::RunnerOutput,
-    utils::{create_client, fold_url, replay, verify, FoundParameter, Parameters, Stable},
+    utils::{fold_url, replay, verify, FoundParameter, Parameters, Stable},
 };
 
 pub struct Runner<'a> {
@@ -170,12 +170,7 @@ impl<'a> Runner<'a> {
             if let Err(_) = replay(
                 &self.config,
                 &self.request_defaults,
-                &create_client(
-                    &self.config.replay_proxy,
-                    self.config.follow_redirects,
-                    &self.config.http,
-                    self.config.timeout,
-                )?,
+                &create_client(self.config)?,
                 &found_params,
             )
             .await {

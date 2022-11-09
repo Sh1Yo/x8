@@ -1,7 +1,8 @@
-use std::error::Error;
+use std::{time::Duration, error::Error};
 
 use lazy_static::lazy_static;
 use percent_encoding::{AsciiSet, CONTROLS};
+use reqwest::Client;
 use serde::Serialize;
 
 use crate::{config::structs::Config, utils::random_line};
@@ -112,4 +113,30 @@ pub(super) fn save_request(
     std::fs::write(&filename, output)?;
 
     Ok(filename)
+}
+
+pub fn create_client(config: &Config) -> Result<Client, Box<dyn Error>> {
+    let mut client = Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(Duration::from_secs(config.timeout as u64))
+        .http1_title_case_headers()
+        .cookie_store(true)
+        .use_rustls_tls();
+
+    if !config.proxy.is_empty() {
+        client = client.proxy(reqwest::Proxy::all(&config.proxy)?);
+    }
+    if !config.follow_redirects {
+        client = client.redirect(reqwest::redirect::Policy::none());
+    }
+
+    if config.http_version.is_some() {
+        match config.http_version {
+            Some(http::Version::HTTP_11) => client = client.http1_only(),
+            Some(http::Version::HTTP_2) => client = client.http2_prior_knowledge(),
+            _ => unreachable!()
+        }
+    }
+
+    Ok(client.build()?)
 }
