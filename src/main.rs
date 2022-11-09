@@ -81,6 +81,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
             .print_all()
         )
         .ok();
+        return Ok(());
     }
 
     if !config.save_responses.is_empty() {

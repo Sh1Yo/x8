@@ -360,13 +360,21 @@ impl<'a> Request<'a> {
     pub fn print(&mut self) -> String {
         self.prepare();
 
+        let host = if self.headers.contains_key("Host") {
+            self.headers.get_value("Host").unwrap().to_string()
+        } else {
+            self.defaults.host.to_owned()
+        };
+
         let mut str_req = format!(
-            "{} {} HTTP/x\nHost: {}\n",
-            &self.defaults.method, self.path, self.defaults.host
-        ); //TODO identify HTTP version
+            "{} {} HTTP/1.1\nHost: {}\n",
+            &self.defaults.method, self.path, host
+        );
 
         for (k, v) in self.headers.iter().sorted() {
-            str_req += &format!("{}: {}\n", k, v)
+            if k != "Host" {
+                str_req += &format!("{}: {}\n", k, v)
+            }
         }
 
         str_req += &format!("\n{}", self.body);
