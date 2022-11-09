@@ -6,7 +6,6 @@ use crate::{
     network::utils::DataType,
 };
 use clap::{crate_version, App, AppSettings, Arg};
-use snailquote::unescape;
 use std::{collections::HashMap, error::Error, fs};
 use tokio::time::Duration;
 use url::Url;
@@ -441,7 +440,7 @@ Conflicts with --verify for now. Will be changed in the future.")
                     .map(|x| x.as_ref().unwrap().to_string())
                     .collect::<Vec<String>>(),
                 headers,
-                unescape(&args.value_of("body").unwrap_or("").to_string())?,
+                args.value_of("body").unwrap_or("").to_string(),
                 data_type,
             )
         }

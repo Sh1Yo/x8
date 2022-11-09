@@ -5,7 +5,6 @@ use std::{
 };
 
 use colored::Colorize;
-use snailquote::unescape;
 
 use crate::network::utils::DataType;
 
@@ -41,7 +40,7 @@ pub(super) fn parse_request<'a>(
         request.lines().collect::<Vec<&str>>()
     } else {
         request
-            .split(&unescape(split_by.unwrap())?)
+            .split(&split_by.unwrap().replace("\\r", "\r").replace("\\n", "\n"))
             .collect::<Vec<&str>>()
     };
     let mut lines = lines.iter();
