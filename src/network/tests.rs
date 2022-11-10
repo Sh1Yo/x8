@@ -10,7 +10,7 @@ mod tests {
     #[test]
     fn query_creation() {
         let mut l = RequestDefaults::default();
-        l.template = "{k}=payload".to_string();
+        l.template = "%k=payload".to_string();
         l.joiner = "&".to_string();
         let parameters = vec!["test1".to_string()];
         let mut request = Request::new(&l, parameters);
@@ -46,7 +46,7 @@ mod tests {
             defaults.custom_headers.get_value("X-Header").unwrap(),
             "Value"
         );
-        assert_eq!(defaults.template, "{k}={v}");
+        assert_eq!(defaults.template, "%k=%v");
         assert_eq!(defaults.joiner, "&");
         assert_eq!(defaults.injection_place, InjectionPlace::Path);
     }
@@ -72,6 +72,6 @@ mod tests {
 
         assert!(defaults.is_json);
         assert_eq!(defaults.body, "{\"something\":1, %s}");
-        assert_eq!(defaults.template, "\"{k}\": {v}");
+        assert_eq!(defaults.template, "\"%k\": %v");
     }
 }
