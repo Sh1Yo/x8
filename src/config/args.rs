@@ -153,7 +153,7 @@ It's possible to overwrite this behaviour by specifying the option")
         .arg(
             Arg::with_name("force")
                 .long("force")
-                .help("Force searching for parameters on pages > 25MB")
+                .help("Force searching for parameters on pages > 25MB. Remove an error in case there's 1 worker with --one-worker-per-host option.")
         )
         .arg(
             Arg::with_name("disable-custom-parameters")
@@ -254,7 +254,7 @@ Conflicts with --verify for now. Will be changed in the future.")
             Arg::with_name("max")
                 .short("m")
                 .long("max")
-                .help("Change the maximum number of parameters.\n(default is 128/192/256 for query, 64/128/196 for headers and 512 for body)")
+                .help("Change the maximum number of parameters.\n(default is 128/192/256 for query, 64 for headers and 512 for body)")
                 .takes_value(true)
         )
         .arg(
@@ -274,6 +274,7 @@ Conflicts with --verify for now. Will be changed in the future.")
         .arg(
             Arg::with_name("workers")
                 .short("W")
+                .long("workers")
                 .help("The number of concurrent url checks")
                 .default_value("1")
                 .takes_value(true)
@@ -321,6 +322,12 @@ Conflicts with --verify for now. Will be changed in the future.")
     } else {
         None
     };
+
+    if workers == 1 && args.is_present("one-worker-per-host") && !args.is_present("force") {
+        Err("The --one-worker-per-host option doesn't increase the amount of workers. \
+So there's no point in --one-worker-per-host with 1 worker. \
+Increase the amount of workers to remove the error or use --force.")?;
+    }
 
     // try to read request file
     let request = match args.value_of("request") {
