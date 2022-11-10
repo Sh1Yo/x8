@@ -23,7 +23,7 @@ pub struct Config {
     /// Can be specified by user otherwise detects automatically based on the request method
     pub max: Option<usize>,
 
-    /// parameter template, for example {k}={v}
+    /// parameter template, for example %k=%v
     pub template: Option<String>,
 
     /// how to join parameters, for example '&'

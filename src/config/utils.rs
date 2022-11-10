@@ -1,7 +1,8 @@
 use std::{
+    fs::File,
     collections::HashMap,
     error::Error,
-    io::{self, Write},
+    io::{self, BufRead, Write},
 };
 
 use colored::Colorize;
@@ -149,4 +150,19 @@ pub fn write_banner_config(config: &Config, params: &Vec<String>) {
     }
 
     writeln!(io::stdout(), "{}\n", output).ok();
+}
+
+pub fn read_urls_if_possible(filename: &str) -> Result<Option<Vec<String>>, io::Error> {
+    let file = match File::open(filename) {
+        Ok(file) => file,
+        Err(_) => return Ok(None)
+    };
+
+    let mut urls = Vec::new();
+
+    for url in io::BufReader::new(file).lines() {
+        urls.push(url?);
+    }
+
+    Ok(Some(urls))
 }

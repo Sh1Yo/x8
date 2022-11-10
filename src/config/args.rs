@@ -10,6 +10,8 @@ use std::{collections::HashMap, error::Error, fs, io::{self, Write}};
 use tokio::time::Duration;
 use url::Url;
 
+use super::utils::read_urls_if_possible;
+
 pub fn get_config() -> Result<Config, Box<dyn Error>> {
     let app = App::new("x8")
         .setting(AppSettings::ArgRequiredElseHelp)
@@ -19,7 +21,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
         .arg(Arg::with_name("url")
             .short("u")
             .long("url")
-            .help("You can add a custom injection point with %s.")
+            .help("You can add a custom injection point with %s.\nMultiple urls and filenames are supported:\n-u filename.txt\n-u https://url1 http://url2")
             .takes_value(true)
             .min_values(1)
             .conflicts_with("request")
@@ -64,7 +66,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
             Arg::with_name("joiner")
             .short("j")
             .long("joiner")
-            .help("How to join parameter templates. Example: --joiner '&'\nDefault: urlencoded - '&', json - ', ', headers - '; '")
+            .help("How to join parameter templates. Example: --joiner '&'\nDefault: urlencoded - '&', json - ', ', header values - '; '")
             .takes_value(true),
         )
         .arg(
@@ -121,6 +123,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
                 .short("X")
                 .long("method")
                 .value_name("methods")
+                .help("Multiple values are supported: -X GET POST")
                 .takes_value(true)
                 .min_values(1)
                 .conflicts_with("request")
@@ -439,8 +442,19 @@ Conflicts with --verify for now. Will be changed in the future.")
 
         let urls = args
             .values_of("url")
-            .unwrap()
-            .map(|x| Url::parse(x))
+            .unwrap();
+
+        let urls = if urls.len() == 1 && !urls.clone().any(|x| x.contains("://")) {
+            // it can be a file
+            match read_urls_if_possible(urls.clone().next().unwrap())? {
+                Some(urls) => urls,
+                None => Err("The provided --url value is neither url nor a filename.")?
+            }
+        } else {
+            urls.map(|x| x.to_string()).collect()
+        };
+
+        let urls = urls.iter().map(|x| Url::parse(x))
             .collect::<Vec<Result<Url, url::ParseError>>>();
 
         // in case there's at least a single wrong url -- return with an error

@@ -14,7 +14,7 @@ use std::{
 use url::Url;
 
 /// in order to be able to use make_query() for headers as well
-const HEADERS_TEMPLATE: &'static str = "{k}\x00@%=%@\x00{v}";
+const HEADERS_TEMPLATE: &'static str = "%k\x00@%=%@\x00%v";
 const HEADERS_MIDDLE: &'static str = "\x00@%=%@\x00";
 const HEADERS_JOINER: &'static str = "\x01@%&%@\x01";
 
@@ -41,7 +41,7 @@ pub struct RequestDefaults {
     /// default reqwest client
     pub client: Client,
 
-    /// parameter template, for example {k}={v}
+    /// parameter template, for example %k=%v
     pub template: String,
 
     /// how to join parameters, for example '&'
@@ -147,12 +147,12 @@ impl<'a> Request<'a> {
                 // that doesn't need to be checked
                 .map(|(k, v)| {
                     if RE_JSON_WORDS_WITHOUT_QUOTES.is_match(v) {
-                        self.defaults.template.replace("{k}", k).replace("{v}", v)
+                        self.defaults.template.replace("%k", k).replace("%v", v)
                     } else {
                         self.defaults
                             .template
-                            .replace("{k}", k)
-                            .replace("{v}", &format!("\"{}\"", v))
+                            .replace("%k", k)
+                            .replace("%v", &format!("\"{}\"", v))
                     }
                 })
                 .collect::<Vec<String>>()
@@ -161,7 +161,7 @@ impl<'a> Request<'a> {
             self.prepared_parameters
                 .iter()
                 .chain(self.defaults.parameters.iter())
-                .map(|(k, v)| self.defaults.template.replace("{k}", k).replace("{v}", v))
+                .map(|(k, v)| self.defaults.template.replace("%k", k).replace("%v", v))
                 .collect::<Vec<String>>()
                 .join(&self.defaults.joiner)
         };
@@ -458,7 +458,7 @@ impl<'a> RequestDefaults {
             template
                 .unwrap_or(guessed_template.to_string().into())
                 .into(),
-            joiner.unwrap_or(guessed_joiner.to_string().into()).into(),
+            joiner.unwrap_or(guessed_joiner.to_string().into()).into().replace("\\r", "\r").replace("\\n", "\n"),
         );
 
         let url = Url::parse(url)?;
@@ -511,22 +511,22 @@ impl<'a> RequestDefaults {
     ) -> (&'a str, &'a str, bool, Option<DataType>) {
         if data_type.is_some() {
             match data_type.unwrap() {
-                // {v} isn't within quotes because not every json value needs to be in quotes
-                DataType::Json => ("\"{k}\": {v}", ", ", true, Some(DataType::Json)),
-                DataType::Urlencoded => ("{k}={v}", "&", false, Some(DataType::Urlencoded)),
+                // %v isn't within quotes because not every json value needs to be in quotes
+                DataType::Json => ("\"%k\": %v", ", ", true, Some(DataType::Json)),
+                DataType::Urlencoded => ("%k=%v", "&", false, Some(DataType::Urlencoded)),
                 _ => unreachable!(),
             }
         } else {
             match injection_place {
                 InjectionPlace::Body => {
                     if body.starts_with("{") {
-                        ("\"{k}\": {v}", ", ", true, Some(DataType::Json))
+                        ("\"%k\": %v", ", ", true, Some(DataType::Json))
                     } else {
-                        ("{k}={v}", "&", false, Some(DataType::Urlencoded))
+                        ("%k=%v", "&", false, Some(DataType::Urlencoded))
                     }
                 }
-                InjectionPlace::HeaderValue => ("{k}={v}", ";", false, None),
-                InjectionPlace::Path => ("{k}={v}", "&", false, Some(DataType::Urlencoded)),
+                InjectionPlace::HeaderValue => ("%k=%v", ";", false, None),
+                InjectionPlace::Path => ("%k=%v", "&", false, Some(DataType::Urlencoded)),
                 InjectionPlace::Headers => (HEADERS_TEMPLATE, HEADERS_JOINER, false, None),
             }
         }
