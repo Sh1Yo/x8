@@ -112,6 +112,13 @@ async fn init() -> Result<(), Box<dyn Error>> {
         params.retain(|x| "content-length" != x.to_lowercase() && "host" != x.to_lowercase());
     }
 
+    // -W 0 is a special option to run everything in parallel
+    let workers = if config.workers == 0 {
+        config.urls.len()*config.methods.len()
+    } else {
+        config.workers
+    };
+
     let runner_outputs =
         futures::stream::iter(init_progress(&config).iter().enumerate().skip(1).map(
             |(id, (progress_bar, url_set))| {
@@ -171,7 +178,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
                 }
             },
         ))
-        .buffer_unordered(config.workers)
+        .buffer_unordered(workers)
         .collect::<Vec<Vec<RunnerOutput>>>()
         .await;
 
