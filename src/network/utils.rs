@@ -122,7 +122,7 @@ pub fn create_client(config: &Config) -> Result<Client, Box<dyn Error>> {
         .http1_title_case_headers()
         .cookie_store(true)
         .http09_responses()
-        .use_native_tls();
+        .use_rustls_tls();
 
     if !config.proxy.is_empty() {
         client = client.proxy(reqwest::Proxy::all(&config.proxy)?);
