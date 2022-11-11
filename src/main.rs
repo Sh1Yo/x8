@@ -197,8 +197,9 @@ async fn init() -> Result<(), Box<dyn Error>> {
                             .await
                             {
                                 Ok(val) => {
-                                    let mut output_file = shared_output_file.lock();
+                                    // if output format is not json we can print output and write to file in real time
                                     if config.output_format != "json" {
+                                        let mut output_file = shared_output_file.lock();
                                         let output = val.parse(config);
 
                                         if output_file.is_some() && !(config.remove_empty && val.found_params.is_empty()) {
