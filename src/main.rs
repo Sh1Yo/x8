@@ -1,10 +1,14 @@
 extern crate x8;
 use std::{
     error::Error,
-    fs::{self, OpenOptions},
+    sync::Arc,
     io::{self, Write},
     iter::FromIterator,
 };
+
+use parking_lot::Mutex;
+use tokio::fs::{self, OpenOptions};
+use tokio::io::AsyncWriteExt;
 
 use atty::Stream;
 
@@ -85,7 +89,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
     }
 
     if !config.save_responses.is_empty() {
-        fs::create_dir_all(&config.save_responses)?;
+        fs::create_dir_all(&config.save_responses).await?;
     }
 
     let mut params: Vec<String> = Vec::new();
@@ -119,14 +123,41 @@ async fn init() -> Result<(), Box<dyn Error>> {
         config.workers
     };
 
+    // open output file
+    let mut output_file = if !config.output_file.is_empty() {
+        let mut file = OpenOptions::new();
+
+        let file = if config.append {
+            file.write(true).append(true)
+        } else {
+            file.write(true).truncate(true)
+        };
+
+        let file = match file.open(&config.output_file).await {
+            Ok(file) => file,
+            Err(_) => fs::File::create(&config.output_file).await?,
+        };
+
+        Some(file)
+    } else {
+        None
+    };
+
+    let shared_output_file = Arc::new(Mutex::new(&mut output_file));
+
     let runner_outputs =
         futures::stream::iter(init_progress(&config).iter().enumerate().skip(1).map(
             |(id, (progress_bar, url_set))| {
+
+                let shared_output_file = Arc::clone(&shared_output_file);
+
                 // each url set should have each own list of parameters
                 let params = params.clone();
 
                 // each url set should have it's own immutable pointer to config
                 let config = &config;
+
+                //let output_file = output_file.as_ref().unwrap().try_clone();
 
                 async move {
                     let mut runner_outputs = Vec::new();
@@ -167,7 +198,24 @@ async fn init() -> Result<(), Box<dyn Error>> {
                             )
                             .await
                             {
-                                Ok(val) => runner_outputs.push(val),
+                                Ok(val) => {
+                                    let mut output_file = shared_output_file.lock();
+                                    if config.output_format != "json" {
+                                        let output = val.parse(config);
+
+                                        if output_file.is_some() {
+                                            match output_file.as_mut().unwrap().write_all(output.as_bytes()).await {
+                                                Ok(()) => (),
+                                                Err(err) => utils::error(err, Some(url), Some(progress_bar), Some(config)),
+                                            };
+                                        }
+
+                                        progress_bar.println(output);
+
+                                    } else {
+                                        runner_outputs.push(val)
+                                    }
+                                },
                                 Err(err) => {
                                     utils::error(err, Some(url), Some(progress_bar), Some(config))
                                 }
@@ -182,31 +230,23 @@ async fn init() -> Result<(), Box<dyn Error>> {
         .collect::<Vec<Vec<RunnerOutput>>>()
         .await;
 
-    let output = runner_outputs
-        .into_iter()
-        .flatten()
-        .filter(|x| !(config.remove_empty && x.found_params.is_empty()))
-        .collect::<Vec<RunnerOutput>>()
-        .parse_output(&config);
+    // works only in case json output is used.
+    // otherwise runner_outputs is an empty vector
+    // and all the printing work is done within the futures above
+    if !runner_outputs.is_empty() {
+        let output = runner_outputs
+            .into_iter()
+            .flatten()
+            .filter(|x| !(config.remove_empty && x.found_params.is_empty()))
+            .collect::<Vec<RunnerOutput>>()
+            .parse_output(&config);
 
-    if !config.output_file.is_empty() {
-        let mut file = OpenOptions::new();
+        if output_file.is_some() {
+            output_file.unwrap().write_all(output.as_bytes()).await?;
+        }
 
-        let file = if config.append {
-            file.write(true).append(true)
-        } else {
-            file.write(true).truncate(true)
-        };
-
-        let mut file = match file.open(&config.output_file) {
-            Ok(file) => file,
-            Err(_) => fs::File::create(&config.output_file)?,
-        };
-
-        write!(file, "{}", output)?;
+        write!(io::stdout(), "\n{}", output).ok();
     }
-
-    write!(io::stdout(), "\n{}", output).ok();
 
     Ok(())
 }
