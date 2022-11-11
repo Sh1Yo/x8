@@ -10,7 +10,7 @@ use crate::{
         response::Response,
         utils::{create_client, InjectionPlace},
     },
-    utils::{self, color_id, random_line, progress_style_learn_requests},
+    utils::{self, color_id, random_line, progress_style_learn_requests, is_id_important},
     DEFAULT_PROGRESS_URL_MAX_LEN, MAX_PAGE_SIZE,
 };
 
@@ -370,17 +370,21 @@ impl<'a> Runner<'a> {
     }
 
     fn make_progress_prefix(&self) -> String {
-        //to align all the progress bars
-        let mut id = self.id.to_string() + ":";
-        id += &" ".repeat(1 + self.config.urls.len().to_string().len() - id.to_string().len());
-        id = id.replace(&self.id.to_string(), &color_id(self.id));
+        // to align all the progress bars
+        let id = if is_id_important(self.config) {
+            let mut id = self.id.to_string() + ":";
+            id += &" ".repeat(1 + self.config.urls.len().to_string().len() - id.to_string().len());
+            format!("{} ", id.replace(&self.id.to_string(), &color_id(self.id)))
+        } else {
+            String::new()
+        };
 
         let mut method = self.request_defaults.method.clone();
         method +=
             &" ".repeat(self.config.methods.iter().map(|x| x.len()).max().unwrap() - method.len());
 
         format!(
-            "{} {} {}",
+            "{}{} {}",
             id,
             method.blue(),
             fold_url(
@@ -393,9 +397,15 @@ impl<'a> Runner<'a> {
 
     pub fn write_banner_url(&self) {
 
+        let id = if is_id_important(self.config) {
+            format!("[{}] ", color_id(self.id))
+        } else {
+            String::new()
+        };
+
         let msg = format!(
-            "[{}] {} {} ({}) [{}] {{{}}}",
-            color_id(self.id),
+            "{}{} {} ({}) [{}] {{{}}}",
+            id,
             self.request_defaults.method.blue(),
             self.request_defaults.url().green(),
             self.initial_response.code(),

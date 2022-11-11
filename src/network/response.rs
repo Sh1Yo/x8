@@ -6,7 +6,7 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::{config::structs::Config, diff::diff, runner::utils::ReasonKind, utils::color_id};
+use crate::{config::structs::Config, diff::diff, runner::utils::ReasonKind, utils::{color_id, is_id_important}};
 
 use super::{
     request::Request,
@@ -235,31 +235,38 @@ impl<'a> Response<'a> {
         diff: Option<&str>,
         progress_bar: &ProgressBar,
     ) -> Result<(), Box<dyn Error>> {
+
+        let id_if_important = if is_id_important(config) {
+            format!("{}) ", color_id(id))
+        } else {
+            String::new()
+        };
+
         let mut message = match reason_kind {
             ReasonKind::Code => format!(
-                "{}) {}: code {} -> {}",
-                color_id(id),
+                "{}{}: code {} -> {}",
+                &id_if_important,
                 &parameter,
                 initial_response.code(),
                 self.code(),
             ),
             ReasonKind::Text => format!(
-                "{}) {}: page {} -> {} ({})",
-                color_id(id),
+                "{}{}: page {} -> {} ({})",
+                &id_if_important,
                 &parameter,
                 initial_response.text.len(),
                 self.text.len().to_string().bright_yellow(),
                 diff.unwrap()
             ),
             ReasonKind::Reflected => format!(
-                "{}) {}: {}",
-                color_id(id),
+                "{}{}: {}",
+                &id_if_important,
                 "reflects".bright_blue(),
                 parameter
             ),
             ReasonKind::NotReflected => format!(
-                "{}) {}: {}",
-                color_id(id),
+                "{}{}: {}",
+                &id_if_important,
                 "not reflected one".bright_cyan(),
                 parameter
             ),

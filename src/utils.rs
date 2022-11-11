@@ -46,9 +46,16 @@ pub fn info<S: Into<String>, T: std::fmt::Display>(
     msg: T,
 ) {
     if config.verbose > 0 {
+
+        let id = if is_id_important(config) {
+            format!("{} ", color_id(id))
+        } else {
+            String::new()
+        };
+
         let message = format!(
-            "{} [{}] {}",
-            color_id(id),
+            "{}[{}] {}",
+            id,
             word.into().yellow(),
             msg
         );
@@ -183,4 +190,11 @@ pub fn order_urls(urls: &Vec<String>) -> Vec<Vec<String>> {
     }
 
     ordered_urls
+}
+
+/// returns true if more than 1 url is being checked a time
+pub fn is_id_important(config: &Config) -> bool {
+    !(
+        config.workers == 1 || (config.urls.len() == 1 && config.methods.len() == 1)
+    )
 }
