@@ -10,7 +10,7 @@ use std::{collections::HashMap, error::Error, fs, io::{self, Write}};
 use tokio::time::Duration;
 use url::Url;
 
-use super::utils::read_urls_if_possible;
+use super::utils::{read_urls_if_possible, mimic_browser_headers, add_default_headers};
 
 pub fn get_config() -> Result<Config, Box<dyn Error>> {
     let app = App::new("x8")
@@ -238,10 +238,6 @@ It's possible to overwrite this behaviour by specifying the option")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("disable-cachebuster")
-                .long("disable-cachebuster")
-        )
-        .arg(
             Arg::with_name("learn-requests-count")
                 .long("learn-requests")
                 .help("Set the custom number of learning requests.")
@@ -299,6 +295,12 @@ Conflicts with --verify for now. Will be changed in the future.")
             Arg::with_name("one-worker-per-host")
                 .long("one-worker-per-host")
                 .help("Multiple urls with the same host will be checked one after another,\nwhile urls with different hosts - are in parallel.\nDoesn't increase the amount of workers")
+        )
+        .arg(
+            Arg::with_name("mimic-browser")
+                .long("mimic-browser")
+                .help("Add default headers that browsers usually set.")
+                .conflicts_with("request")
         )
         .arg(
             Arg::with_name("http")
@@ -397,31 +399,11 @@ Increase the amount of workers to remove the error or use --force.")?;
         };
 
         // set default headers if weren't specified by a user.
-        if !headers.keys().any(|i| i.contains("User-Agent")) {
-            headers.insert(
-                "User-Agent",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36".to_string()
-            );
-        }
-
-        // TODO return cachebuster in query as well
-        if !args.is_present("disable-cachebuster") {
-            if !headers.keys().any(|i| i.contains("Accept")) {
-                headers.insert("Accept", "*/*, text/{{random}}".to_string());
-            }
-            if !headers.keys().any(|i| i.contains("Accept-Language")) {
-                headers.insert(
-                    "Accept-Language",
-                    "en-US, {{random}};q=0.9, *;q=0.5".to_string(),
-                );
-            }
-            if !headers.keys().any(|i| i.contains("Accept-Charset")) {
-                headers.insert(
-                    "Accept-Charset",
-                    "utf-8, iso-8859-1;q=0.5, {{random}};q=0.2, *;q=0.1".to_string(),
-                );
-            }
-        }
+        let headers = if args.is_present("mimic-browser") {
+            mimic_browser_headers(headers)
+        } else {
+            add_default_headers(headers)
+        };
 
         // TODO replace with ".parse()" or sth like it
         let data_type = match args.value_of("data-type") {

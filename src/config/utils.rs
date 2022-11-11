@@ -30,10 +30,10 @@ pub(super) fn parse_request<'a>(
     (
         Vec<String>,              // method
         Vec<String>,              // url
-        HashMap<&'a str, String>, // headers
+        Vec<(String, String)>,    // headers
         String,                   // body
         Option<DataType>,
-        Option<reqwest::Version>,         // http version
+        Option<reqwest::Version>, // http version
     ),
     Box<dyn Error>,
 > {
@@ -48,7 +48,7 @@ pub(super) fn parse_request<'a>(
     let mut lines = lines.iter();
 
     let mut data_type: Option<DataType> = None;
-    let mut headers: HashMap<&'a str, String> = HashMap::new();
+    let mut headers: Vec<(String, String)> = Vec::new();
     let mut host = String::new();
 
     // parse the first line
@@ -101,7 +101,7 @@ pub(super) fn parse_request<'a>(
             _ => (),
         };
 
-        headers.insert(key, value);
+        headers.push((key.to_string(), value));
     }
 
     let mut body = lines.next().unwrap_or(&"").to_string();
@@ -165,4 +165,50 @@ pub fn read_urls_if_possible(filename: &str) -> Result<Option<Vec<String>>, io::
     }
 
     Ok(Some(urls))
+}
+
+pub(super) fn add_default_headers(curr_headers: HashMap<&str, String>) -> Vec<(String, String)> {
+    let default_headers = [
+        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 12) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Firefox/99.0"),
+        ("Accept", "*/*"),
+        ("Accept-Encoding", "gzip, deflate")
+    ];
+
+    let mut headers = Vec::new();
+
+    for (k, v) in default_headers {
+        if !curr_headers.keys().any(|i| i.contains(k)) {
+            headers.push((k.to_string(), v.to_string()))
+        }
+    }
+
+    curr_headers.iter().map(|(k, v)| headers.push((k.to_string(), v.to_string()))).for_each(drop);
+
+    headers
+}
+
+pub(super) fn mimic_browser_headers(curr_headers: HashMap<&str, String>) -> Vec<(String, String)> {
+    let browser_headers = [
+        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 12) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Firefox/99.0"),
+        ("Accept", "*/*"), // TODO maybe get from file extension as browsers do
+        ("Accept-Language", "en-US;q=0.7,en;q=0.3"),
+        ("Accept-Encoding", "gzip, deflate"),
+        ("Dnt", "1"),
+        ("Upgrade-Insecure-Requests", "1"),
+        ("Sec-Fetch-Dest", "document"),
+        ("Sec-Fetch-Mode", "navigate"),
+        ("Sec-Fetch-Site", "same-site")
+    ];
+
+    let mut headers = Vec::new();
+
+    for (k, v) in browser_headers {
+        if !curr_headers.keys().any(|i| i.contains(k)) {
+            headers.push((k.to_string(), v.to_string()))
+        }
+    }
+
+    curr_headers.iter().map(|(k, v)| headers.push((k.to_string(), v.to_string()))).for_each(drop);
+
+    headers
 }
