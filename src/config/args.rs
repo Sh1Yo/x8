@@ -121,7 +121,8 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
         .arg(
             Arg::with_name("remove-empty")
                 .long("remove-empty")
-                .help("Skip printing outputs of url:method pairs without parameters")
+                .requires("output")
+                .help("Skip writing to file outputs of url:method pairs without parameters")
         )
         .arg(
             Arg::with_name("method")
@@ -241,14 +242,14 @@ It's possible to overwrite this behaviour by specifying the option")
                 .long("disable-cachebuster")
         )
         .arg(
-            Arg::with_name("learn_requests_count")
+            Arg::with_name("learn-requests-count")
                 .long("learn-requests")
                 .help("Set the custom number of learning requests.")
                 .default_value("9")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("recursion_depth")
+            Arg::with_name("recursion-depth")
                 .long("recursion-depth")
                 .help("Check the same list of parameters with the found parameters until there are no new parameters to be found.
 Conflicts with --verify for now. Will be changed in the future.")
@@ -315,12 +316,12 @@ Conflicts with --verify for now. Will be changed in the future.")
     // parse numbers
     let delay = Duration::from_millis(args.value_of("delay").unwrap().parse()?);
 
-    let learn_requests_count = args.value_of("learn_requests_count").unwrap().parse()?;
+    let learn_requests_count = args.value_of("learn-requests-count").unwrap().parse()?;
     let concurrency = args.value_of("concurrency").unwrap().parse()?;
     let workers = args.value_of("workers").unwrap().parse()?;
     let verbose = args.value_of("verbose").unwrap().parse()?;
     let timeout = args.value_of("timeout").unwrap().parse()?;
-    let recursion_depth = args.value_of("recursion_depth").unwrap_or("0").parse()?;
+    let recursion_depth = args.value_of("recursion-depth").unwrap_or("0").parse()?;
 
     let max: Option<usize> = if args.is_present("max") {
         Some(args.value_of("max").unwrap().parse()?)
@@ -546,7 +547,7 @@ Increase the amount of workers to remove the error or use --force.")?;
         save_responses: args.value_of("save-responses").unwrap_or("").to_string(),
         output_format: args.value_of("output-format").unwrap_or("").to_string(),
         append: args.is_present("append"),
-        remove_empty: args.is_present("remove_empty"),
+        remove_empty: args.is_present("remove-empty"),
         force: args.is_present("force"),
         strict: args.is_present("strict"),
         disable_progress_bar: args.is_present("disable-progress-bar"),
