@@ -203,7 +203,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
                                     if config.output_format != "json" {
                                         let output = val.parse(config);
 
-                                        if output_file.is_some() {
+                                        if output_file.is_some() && !(config.remove_empty && val.found_params.is_empty()) {
                                             match output_file.as_mut().unwrap().write_all(output.as_bytes()).await {
                                                 Ok(()) => (),
                                                 Err(err) => utils::error(err, Some(url), Some(progress_bar), Some(config)),
