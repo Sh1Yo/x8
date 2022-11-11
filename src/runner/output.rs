@@ -29,10 +29,13 @@ pub struct RunnerOutput {
 
     pub injection_place: InjectionPlace,
 
+
     /// prepared query with found parameters
+    #[serde(skip_serializing)]
     pub query: String,
 
     /// prepared request with found parameters
+    #[serde(skip_serializing)]
     pub request: String,
 }
 
