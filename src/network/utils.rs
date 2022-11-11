@@ -121,6 +121,7 @@ pub fn create_client(config: &Config) -> Result<Client, Box<dyn Error>> {
         .timeout(Duration::from_secs(config.timeout as u64))
         .http1_title_case_headers()
         .cookie_store(true)
+        .http09_responses()
         .use_rustls_tls();
 
     if !config.proxy.is_empty() {
