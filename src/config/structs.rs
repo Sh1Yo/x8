@@ -51,6 +51,9 @@ pub struct Config {
     /// whether to append to the output file instead of overwriting
     pub append: bool,
 
+    /// do not print outputs of pairs url:method without found parameters
+    pub remove_empty: bool,
+
     /// output format for file & stdout outputs
     pub output_format: String,
 

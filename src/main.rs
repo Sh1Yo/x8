@@ -185,6 +185,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
     let output = runner_outputs
         .into_iter()
         .flatten()
+        .filter(|x| !(config.remove_empty && x.found_params.is_empty()))
         .collect::<Vec<RunnerOutput>>()
         .parse_output(&config);
 

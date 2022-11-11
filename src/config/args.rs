@@ -119,6 +119,11 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
                 .help("Append to the output file instead of overwriting it.")
         )
         .arg(
+            Arg::with_name("remove-empty")
+                .long("remove-empty")
+                .help("Skip printing outputs of url:method pairs without parameters")
+        )
+        .arg(
             Arg::with_name("method")
                 .short("X")
                 .long("method")
@@ -541,6 +546,7 @@ Increase the amount of workers to remove the error or use --force.")?;
         save_responses: args.value_of("save-responses").unwrap_or("").to_string(),
         output_format: args.value_of("output-format").unwrap_or("").to_string(),
         append: args.is_present("append"),
+        remove_empty: args.is_present("remove_empty"),
         force: args.is_present("force"),
         strict: args.is_present("strict"),
         disable_progress_bar: args.is_present("disable-progress-bar"),
