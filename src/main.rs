@@ -7,13 +7,11 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use tokio::fs::{self, OpenOptions};
-use tokio::io::AsyncWriteExt;
-
+use tokio::{fs::{self, OpenOptions}, io::AsyncWriteExt};
 use atty::Stream;
-
 use futures::StreamExt;
 use indicatif::ProgressBar;
+
 use x8::{
     config::args::get_config,
     config::{structs::Config, utils::write_banner_config},
