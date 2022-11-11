@@ -73,6 +73,9 @@ pub struct Config {
 
     pub disable_progress_bar: bool,
 
+    /// the size of progress bar in chars
+    pub progress_bar_len: usize,
+
     /// proxy to resend requests with found parameter
     pub replay_proxy: String,
 

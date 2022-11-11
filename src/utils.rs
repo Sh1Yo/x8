@@ -14,11 +14,11 @@ use crate::{config::structs::Config, RANDOM_CHARSET};
 
 pub fn progress_style_learn_requests(config: &Config) -> ProgressStyle {
     if config.disable_colors {
-        ProgressStyle::with_template("{prefix} {bar:26} {pos:>7}/{len:7}")
+        ProgressStyle::with_template(&format!("{{prefix}} {{bar:{}}} {{pos:>7}}/{{len:7}}", config.progress_bar_len))
             .unwrap()
             .progress_chars("**-")
     } else {
-        ProgressStyle::with_template("{prefix} {bar:26.cyan/green} {pos:>7}/{len:7}")
+        ProgressStyle::with_template(&format!("{{prefix}} {{bar:{}.cyan/green}} {{pos:>7}}/{{len:7}}", config.progress_bar_len))
             .unwrap()
             .progress_chars("**-")
     }
@@ -26,11 +26,11 @@ pub fn progress_style_learn_requests(config: &Config) -> ProgressStyle {
 
 pub fn progress_style_check_requests(config: &Config) -> ProgressStyle {
     if config.disable_colors {
-        ProgressStyle::with_template("{prefix} {bar:26} {pos:>7}/{len:7}")
+        ProgressStyle::with_template(&format!("{{prefix}} {{bar:{}}} {{pos:>7}}/{{len:7}}", config.progress_bar_len))
             .unwrap()
             .progress_chars("##-")
     } else {
-        ProgressStyle::with_template("{prefix} {bar:26.cyan/blue} {pos:>7}/{len:7}")
+        ProgressStyle::with_template(&format!("{{prefix}} {{bar:{}.cyan/blue}} {{pos:>7}}/{{len:7}}", config.progress_bar_len))
             .unwrap()
             .progress_chars("##-")
     }

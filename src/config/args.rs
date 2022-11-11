@@ -175,6 +175,11 @@ It's possible to overwrite this behaviour by specifying the option")
                 .long("disable-progress-bar")
         )
         .arg(
+            Arg::with_name("progress-bar-len")
+                .long("progress-bar-len")
+                .default_value("26")
+        )
+        .arg(
             Arg::with_name("replay-once")
                 .long("replay-once")
                 .help("If replay proxy is specified, send all found parameters within one request.")
@@ -324,6 +329,7 @@ Conflicts with --verify for now. Will be changed in the future.")
     let verbose = args.value_of("verbose").unwrap().parse()?;
     let timeout = args.value_of("timeout").unwrap().parse()?;
     let recursion_depth = args.value_of("recursion-depth").unwrap_or("0").parse()?;
+    let progress_bar_len = args.value_of("progress-bar-len").unwrap().parse()?;
 
     let max: Option<usize> = if args.is_present("max") {
         Some(args.value_of("max").unwrap().parse()?)
@@ -533,6 +539,7 @@ Increase the amount of workers to remove the error or use --force.")?;
         force: args.is_present("force"),
         strict: args.is_present("strict"),
         disable_progress_bar: args.is_present("disable-progress-bar"),
+        progress_bar_len,
         follow_redirects: args.is_present("follow-redirects"),
         test: args.is_present("test"),
         verbose,
