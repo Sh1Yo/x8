@@ -195,6 +195,6 @@ pub fn order_urls(urls: &Vec<String>) -> Vec<Vec<String>> {
 /// returns true if more than 1 url is being checked a time
 pub fn is_id_important(config: &Config) -> bool {
     !(
-        config.workers == 1 || (config.urls.len() == 1 && config.methods.len() == 1)
+        config.workers == 1 || config.urls.len() == 1 || config.verbose == 0
     )
 }

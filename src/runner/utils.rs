@@ -6,6 +6,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use reqwest::Client;
 use serde::Serialize;
+use colored::Colorize;
 
 use crate::{
     config::structs::Config,
@@ -35,8 +36,9 @@ pub enum ReasonKind {
 pub struct FoundParameter {
     pub name: String,
 
-    //is None in case the random parameter name is used
+    /// None in case the random parameter name is used
     pub value: Option<String>,
+
     pub diffs: String,
     pub status: u16,
     pub size: usize,
@@ -73,12 +75,28 @@ impl FoundParameter {
         }
     }
 
-    //just returns (Key, Value) pair
+    /// just returns (Key, Value) pair
     pub fn get(&self) -> (String, String) {
         (
             self.name.clone(),
             self.value.clone().unwrap_or(random_line(VALUE_LENGTH)),
         )
+    }
+
+    /// returns colored param name and param=value in case a non random value is used
+    pub fn get_colored(&self) -> String {
+        let param = match self.reason_kind {
+            ReasonKind::Code => self.name.yellow(),
+            ReasonKind::Text => self.name.bright_yellow(),
+            ReasonKind::Reflected => self.name.bright_blue(),
+            ReasonKind::NotReflected => self.name.bright_cyan(),
+        };
+
+        if self.value.is_some() {
+            format!("{}={}", param, self.value.as_ref().unwrap())
+        } else {
+            param.to_string()
+        }
     }
 }
 
@@ -130,15 +148,15 @@ impl Parameters for Vec<FoundParameter> {
             x
         }
 
-        //in case, for example, 'admin' param is found -- remove params like 'admin=true' or sth
+        // in case, for example, 'admin' param is found -- remove params like 'admin=true' or sth
         self = self
             .iter()
             .filter(|x| !(x.name.contains('=') && self.contains_element(x)))
             .map(|x| x.to_owned())
             .collect();
 
-        //if there's lowercase alternative - remove that parameter
-        //so Host & HOST & host are the same parameters and only host should stay
+        // if there's lowercase alternative - remove that parameter
+        // so Host & HOST & host are the same parameters and only host should stay
         self = self
             .iter()
             .filter(|x| {
@@ -147,7 +165,7 @@ impl Parameters for Vec<FoundParameter> {
             .map(|x| x.to_owned())
             .collect();
 
-        //for now reqwest capitalizes first char of every header
+        // for now reqwest capitalizes first char of every header
         self = if injection_place == InjectionPlace::Headers {
             self.iter()
                 .map(|x| capitalize_first(x.to_owned()))
@@ -156,7 +174,7 @@ impl Parameters for Vec<FoundParameter> {
             self
         };
 
-        //if there's HOST and Host only one of them should stay
+        // if there's HOST and Host only one of them should stay
         let mut found_params = vec![];
         for el in self {
             if !found_params.contains_name_case_insensitive(&el.name) {
@@ -174,7 +192,7 @@ pub(super) async fn replay<'a>(
     replay_client: &Client,
     found_params: &Vec<FoundParameter>,
 ) -> Result<(), Box<dyn Error>> {
-    //get cookies
+    // get cookies
     Request::new(request_defaults, vec![])
         .send_by(replay_client)
         .await?;
@@ -238,26 +256,26 @@ pub(super) async fn verify<'a>(
 }
 
 pub enum ParamPatterns {
-    //_anything
+    /// _anything
     SpecialPrefix(char),
 
-    //anything1243124
-    //from example: (string = anything, usize=7)
+    /// anything1243124
+    /// from example: (string = anything, usize=7)
     HasNumbersPostfix(String, usize),
 
-    //any!thing
+    /// any!thing
     ContainsSpecial(char),
 
-    //password_anything
+    /// password_anything
     BeforeUnderscore(String),
 
-    //anything_password
+    /// anything_password
     AfterUnderscore(String),
 
-    //password-anything
+    /// password-anything
     BeforeDash(String),
 
-    //anything-password
+    /// anything-password
     AfterDash(String),
 }
 
@@ -336,7 +354,7 @@ impl ParamPatterns {
     }
 }
 
-// under development
+/// under development
 pub(super) async fn _smart_verify(
     initial_response: &Response<'_>,
     request_defaults: &RequestDefaults,

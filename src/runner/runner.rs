@@ -107,9 +107,7 @@ impl<'a> Runner<'a> {
 
     /// actually runs the runner
     pub async fn run(mut self, params: &mut Vec<String>) -> Result<RunnerOutput, Box<dyn Error>> {
-        if self.config.verbose > 0 {
-            self.write_banner_url();
-        }
+        self.write_banner_url();
 
         // makes a few request to check page's behavior
         self.stability_checker().await?;

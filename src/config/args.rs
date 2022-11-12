@@ -232,7 +232,7 @@ It's possible to overwrite this behaviour by specifying the option")
             Arg::with_name("verbose")
                 .long("verbose")
                 .short("v")
-                .help("Verbose level 0/1")
+                .help("Verbose level 0/1/2")
                 .default_value("1")
                 .takes_value(true)
         )
@@ -521,6 +521,14 @@ Increase the amount of workers to remove the error or use --force.")?;
     if args.is_present("disable-colors") {
         colored::control::set_override(false);
     }
+
+    // decrease verbose by 1 in case > 1 url is being checked in parallel
+    // this behavior is explained in docs
+    let verbose = if verbose > 0 && !(workers == 1 || urls.len() == 1) {
+        verbose - 1
+    } else {
+        verbose
+    };
 
     // TODO maybe replace empty with None
     Ok(Config {

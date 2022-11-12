@@ -1,4 +1,5 @@
 use serde::Serialize;
+use colored::Colorize;
 
 use crate::{
     config::structs::Config,
@@ -53,9 +54,9 @@ impl RunnerOutput {
             method: request_defaults.method.clone(),
             //remove injection point in case the injection point within url
             url: if request_defaults.injection_place == InjectionPlace::Path {
-                request_defaults.url().replace("?%s", "").replace("&%s", "")
+                request_defaults.url_without_default_port().replace("?%s", "").replace("&%s", "")
             } else {
-                request_defaults.url()
+                request_defaults.url_without_default_port()
             },
             status: initial_response.code,
             size: initial_response.text.len(),
@@ -115,26 +116,19 @@ impl RunnerOutput {
                     self.url.clone()
                 };
 
-                (line + "\n").replace("%s", &self.query)
+                (line).replace("%s", &self.query)
             }
 
             "request" => self.request.clone(),
 
             _ => {
                 format!(
-                    "{} {} % {}\n",
-                    &self.method,
+                    "{} {} % {}",
+                    &self.method.blue(),
                     &self.url,
                     self.found_params
                         .iter()
-                        .map(
-                            //adding '=custom_value' to the parameters with custom values
-                            |x| if x.value.is_none() {
-                                x.name.to_owned()
-                            } else {
-                                format!("{}={}", x.name, x.value.as_ref().unwrap())
-                            }
-                        )
+                        .map(|x| x.get_colored())
                         .collect::<Vec<String>>()
                         .join(", ")
                 )

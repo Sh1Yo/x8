@@ -11,6 +11,7 @@ use tokio::{fs::{self, OpenOptions}, io::AsyncWriteExt};
 use atty::Stream;
 use futures::StreamExt;
 use indicatif::ProgressBar;
+use colored::Colorize;
 
 use x8::{
     config::args::get_config,
@@ -103,9 +104,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
         params = read_stdin_lines();
     }
 
-    if config.verbose > 0 {
-        write_banner_config(&config, &params);
-    }
+    write_banner_config(&config, &params);
 
     // such headers usually cause server to timeout
     // especially when http/2 is used
@@ -203,13 +202,26 @@ async fn init() -> Result<(), Box<dyn Error>> {
                                         let output = val.parse(config);
 
                                         if output_file.is_some() && !(config.remove_empty && val.found_params.is_empty()) {
-                                            match output_file.as_mut().unwrap().write_all(output.as_bytes()).await {
+
+                                            match output_file.as_mut().unwrap().write_all(
+                                                &strip_ansi_escapes::strip(&(output.normal().clear().to_string()+"\n").as_bytes()).unwrap()
+                                            ).await {
                                                 Ok(()) => (),
                                                 Err(err) => utils::error(err, Some(url), Some(progress_bar), Some(config)),
                                             };
                                         }
 
-                                        progress_bar.println(output);
+                                        let msg = if config.verbose > 0 {
+                                            format!("\n{}", output)
+                                        } else {
+                                            format!("{}", output)
+                                        };
+
+                                        if config.disable_progress_bar {
+                                            writeln!(io::stdout(), "{}", msg).ok();
+                                        } else {
+                                            progress_bar.println(msg);
+                                        }
 
                                     } else {
                                         runner_outputs.push(val)
