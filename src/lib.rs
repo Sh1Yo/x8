@@ -12,5 +12,5 @@ const MAX_PAGE_SIZE: usize = 25 * 1024 * 1024;
 const DEFAULT_PROGRESS_URL_MAX_LEN: usize = 36;
 
 /// Default random value sizes
-const VALUE_LENGTH: usize = 5;
+const VALUE_LENGTH: usize = 6;
 const RANDOM_LENGTH: usize = 5;
