@@ -41,13 +41,16 @@ pub enum DataType {
 }
 
 /// where to insert parameters
-#[derive(Debug, Clone, PartialEq, Serialize, Copy, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Copy)]
 pub enum InjectionPlace {
-    #[default]
     Path,
     Body,
     Headers,
     HeaderValue,
+}
+
+impl Default for InjectionPlace {
+    fn default() -> Self { InjectionPlace::Path }
 }
 
 pub trait Headers {
