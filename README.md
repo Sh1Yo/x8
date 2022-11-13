@@ -10,9 +10,9 @@
 
 <h3 align="center">Hidden parameters discovery suite written in Rust.</h3>
 
-<p align="center"><a href="https://asciinema.org/a/oAMn0LK0NciNHgzirYJClyB2v" target="_blank"><img src="https://asciinema.org/a/oAMn0LK0NciNHgzirYJClyB2v.svg" /></a></p>
+<p align="center"><a href="https://asciinema.org/a/HwNa4PC2OZODxyazxCWORF9wB" target="_blank"><img src="https://asciinema.org/a/HwNa4PC2OZODxyazxCWORF9wB.svg" /></a></p>
 
-The tool helps to find hidden parameters that can be vulnerable or can reveal interesting functionality that other hunters miss. Greater accuracy is achieved thanks to the line-by-line comparison of pages, comparison of response code and reflections.
+The tool helps to find hidden parameters that can be vulnerable or can reveal interesting functionality that other testers miss. Great accuracy is achieved thanks to the line-by-line comparison of pages, comparison of response code and reflections.
 
 
 - [Features](#features)
@@ -24,32 +24,35 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
     - [Percent encoding](#percent-encoding)
     - [Headers](#headers)
     - [Header values](#header-values)
-- [Test](#test)
+- [Test site](#test-site)
 - [Usage](#usage)
-- [Troubleshooting](#troubleshooting)
-- [Limitations](#limitations)
 - [Wordlists](#wordlists)
-- [Burp Suite integrations](#burp-suite-integrations)
+- [Burp Suite integration](#burp-suite-integration)
 - [Installation](#installation)
+
+# Documentation
+
+The documentation that explains every feature can be found on [https://sh1yo.art/x8docs/](https://sh1yo.art/x8docs/).
 
 # Features
 
-- A lot of things to customize: key template, value template, encodings, and even injection points.
-- Supports 6 main methods: GET, POST, PUT, PATCH, DELETE, HEAD.
-- Has built in 2 main body types: json, urlencode.
-- Able to discover parameters with not random value, like admin=true
-- Compares responses line-by-line.
-- Adds to every request cachebuster by default.
+- Fast.
+- Has flexible request configuration thanks to the concept of templates and injection points.
+- Scalability. The tool can check up to thousands of urls per run.
+- More accurate than analogs, especially in diffictult cases.
+- Can discover parameters with not random values, like admin=true.
+- Highly configurable.
+- Almost raw requests were achieved due to the external lib modification.
 
 # Examples
 
-#### Send parameters via query
+#### Check parameters in query
 
 ```bash
 x8 -u "https://example.com/" -w <wordlist>
 ```
 
-With some default parameters:
+With default parameters:
 ```bash
 x8 -u "https://example.com/?something=1" -w <wordlist>
 ```
@@ -59,35 +62,28 @@ x8 -u "https://example.com/?something=1" -w <wordlist>
 #### Send parameters via body
 
 ```bash
-x8 -u "https://example.com/" -X POST --as-body -w <wordlist>
+x8 -u "https://example.com/" -X POST -w <wordlist>
 ```
 
 Or with a custom body:
 ```bash
-x8 -u "https://example.com/" -X POST --as-body -b '{"x":{%s}}' -w <wordlist>
+x8 -u "https://example.com/" -X POST -b '{"x":{%s}}' -w <wordlist>
 ```
 `%s` will be replaced with different parameters like `{"x":{"a":"b3a1a", "b":"ce03a", ...}}`
+
+#### Check multiple urls in paralell
+
+```bash
+x8 -u "https://example.com/" "https://4rt.one/" -W0
+```
 
 #### Custom template
 
 ```bash
-x8 -u "https://example.com/" --param-template "user[%k]=%v&" -w <wordlist>
+x8 -u "https://example.com/" --param-template "user[%k]=%v" -w <wordlist>
 ```
 
 Now every request would look like `/?user[a]=hg2s4&user[b]=a34fa&...`
-
-It is even possible to imitate not included body types, for example, application/xml:
-
-```bash
-x8 -u "https://example.com/" --as-body --param-template "<%k>%v</%k>" -H "Content-Type: application/xml" -b "<?xml version="1.0" ?>%s" -w <wordlist>
-```
-
-#### Variables
-
-In the next example, `something` will take on new values every request:
-```bash
-x8 -u "https://example.com/?something={{random}}&%s" -w <wordlist>
-```
 
 #### Percent encoding
 
@@ -102,15 +98,13 @@ GET /?path=..%2faction.php%3fWTDa8%3Da7UOS%26rTIDA%3DexMFp...%23 HTTP/1.1
 Host: example.com
 ```
 
-#### Headers
-
-With v3.0.0 it is possible to discover headers as well:
+#### Search for headers
 
 ```bash
 x8 -u "https://example.com" --headers -w <wordlist>
 ```
 
-#### Header values
+#### Search for header values
 
 You can also target single headers:
 
@@ -118,10 +112,13 @@ You can also target single headers:
 x8 -u "https://example.com" -H "Cookie: %s" -w <wordlist>
 ```
 
-# Test
+# Test site
 
-Feel free to check whether the tool works as expected and compare it with other tools at https://4rt.one/index.html.
-There are total 8 parameteres and 2 headers to be found!
+You can check the tool and compare it with other tools on the following urls:
+
+`https://4rt.one/level1` (GET)
+`https://4rt.one/level2` (POST JSON)
+`https://4rt.one/level3` (GET)
 
 # Usage
 
@@ -130,86 +127,92 @@ USAGE:
     x8 [FLAGS] [OPTIONS]
 
 FLAGS:
-        --append                         Append to the output file instead of overwriting it.
-        --as-body                        Send parameters via body.
-                                         Built in body types that can be detected automatically: json, urlencode
-        --disable-cachebuster
+        --append                       Append to the output file instead of overwriting it.
         --disable-colors
-        --disable-custom-parameters      Do not check automatically parameters like admin=true
+        --disable-custom-parameters    Do not automatically check parameters like admin=true
         --disable-progress-bar
-    -C, --disable-response-correction    Do not beautify responses before processing. Reduces accuracy.
-        --encode                         Encodes query or body before a request, i.e & -> %26, = -> %3D
-                                         List of chars to encode: ", `, , <, >, &, #, ;, /, =, %
-    -L, --follow-redirects               Follow redirections
-        --force                          Ignore 'binary data detected', 'the page is too huge', 'param_template lacks
-                                         variables' error messages
-    -h, --help                           Prints help information
-        --headers                        Switch to header discovery mode.
-                                         Forbidden chars would be automatically removed from headers names
-        --is-json                        If the output is valid json and the content type does not contain 'json'
-                                         keyword - specify this argument for a more accurate search
-        --keep-newlines                  --body 'a\r\nb' -> --body 'a{{new_line}}b'.
-                                         Works with body and parameter templates only.
-        --reflected-only                 Disable page comparison and search for reflected parameters only.
-        --replay-once                    If replay proxy is specified, send all found parameters within one request.
-        --test                           Prints request and response
-    -V, --version                        Prints version information
-        --verify                         Verify found parameters one more time.
+        --encode                       Encodes query or body before making a request, i.e & -> %26, = -> %3D
+                                       List of chars to encode: ", `, , <, >, &, #, ;, /, =, %
+    -L, --follow-redirects             Follow redirections
+        --force                        Force searching for parameters on pages > 25MB. Remove an error in case there's 1
+                                       worker with --one-worker-per-host option.
+    -h, --help                         Prints help information
+        --headers                      Switch to header discovery mode.
+                                       NOTE Content-Length and Host headers are automatically removed from the list
+        --invert                       By default, parameters are sent within the body only in case PUT or POST methods
+                                       are used.
+                                       It's possible to overwrite this behavior by specifying the option
+        --mimic-browser                Add default headers that browsers usually set.
+        --one-worker-per-host          Multiple urls with the same host will be checked one after another,
+                                       while urls with different hosts - are in parallel.
+                                       Doesn't increase the number of workers
+        --reflected-only               Disable page comparison and search for reflected parameters only.
+        --remove-empty                 Skip writing to file outputs of url:method pairs without found parameters
+        --replay-once                  If a replay proxy is specified, send all found parameters within one request.
+        --strict                       Only report parameters that have changed the different parts of a page
+        --test                         Prints request and response
+    -V, --version                      Prints version information
+        --verify                       Verify found parameters.
 
 OPTIONS:
     -b, --body <body>                                       Example: --body '{"x":{%s}}'
                                                             Available variables: {{random}}
-    -t, --body-type <body type>
-            Available: urlencode, json
-            Can be detected automatically if --body is specified (default is "urlencode")
-    -c <concurrency>                                        The number of concurrent requests [default: 1]
+    -c <concurrency>                                        The number of concurrent requests per url [default: 1]
         --custom-parameters <custom-parameters>
             Check these parameters with non-random values like true/false yes/no
             (default is "admin bot captcha debug disable encryption env show sso test waf")
         --custom-values <custom-values>
-            Check custom parameters with these values (default is "1 0 false off null true yes no")
+            Values for custom parameters (default is "1 0 false off null true yes no")
 
+    -t, --data-type <data-type>
+            Available: urlencode, json
+            Can be detected automatically if --body is specified (default is "urlencode")
     -d, --delay <Delay between requests in milliseconds>     [default: 0]
     -H <headers>                                            Example: -H 'one:one' 'two:two'
-        --learn-requests <learn_requests_count>             Set the custom number of learning requests. [default: 9]
+        --http <http>                                       HTTP version. Supported versions: --http 1.1, --http 2
+    -j, --joiner <joiner>
+            How to join parameter templates. Example: --joiner '&'
+            Default: urlencoded - '&', json - ', ', header values - '; '
+        --learn-requests <learn-requests-count>             Set the custom number of learn requests. [default: 9]
     -m, --max <max>
-            Change the maximum number of parameters.
-            (default is 128/192/256 for query, 64/128/196 for headers and 512 for body)
-    -X, --method <method>
-            Available: GET, POST, PUT, PATCH, DELETE, HEAD. [default: GET]
-
+            Change the maximum number of parameters per request.
+            (default is 128/192/256 for query, 64 for headers and 512 for body)
+    -X, --method <methods>                                  Multiple values are supported: -X GET POST
     -o, --output <file>
     -O, --output-format <output-format>                     standart, json, url, request [default: standart]
-    -P, --param-template <parameter_template>
-            %k - key, %v - value. Example: --param-template 'user[%k]=%v&' [default: ]
-
+    -P, --param-template <parameter-template>
+            %k - key, %v - value. Example: --param-template 'user[%k]=%v'
+            Default: urlencoded - <%k=%v>, json - <"%k":%v>, headers - <%k=%v>
+        --progress-bar-len <progress-bar-len>                [default: 26]
         --proto <proto>                                     Protocol to use with request file (default is "https")
     -x, --proxy <proxy>
+        --recursion-depth <recursion-depth>
+            Check the same list of parameters with the found parameters until there are no new parameters to be found.
+            Conflicts with --verify for now.
         --replay-proxy <replay-proxy>
-            Request target with every found parameter via replay proxy at the end.
+            Request target with every found parameter via the replay proxy at the end.
 
     -r, --request <request>                                 The file with the raw http request
-        --save-responses <save-responses>                   Save matched responses to a directory
-    -u, --url <url>                                         You can add a custom injection point with %s.
-        --value-size <value_size>
-            Custom value size. Affects {{random}} variables as well [default: 7]
+        --save-responses <save-responses>
+            Save request and response to a directory when a parameter is found
 
+        --split-by <split-by>
+            Split the request into lines by the provided sequence. By default splits by \r, \n and \r\n
+
+        --timeout <timeout>                                 HTTP request timeout in seconds. [default: 15]
+    -u, --url <url>
+            You can add a custom injection point with %s.
+            Multiple urls and filenames are supported:
+            -u filename.txt
+            -u https://url1 http://url2
     -v, --verbose <verbose>                                 Verbose level 0/1/2 [default: 1]
-    -w, --wordlist <wordlist>                               The file with parameters
+    -w, --wordlist <wordlist>
+            The file with parameters (leave empty to read from stdin) [default: ]
+
+    -W, --workers <workers>
+            The number of concurrent url checks.
+            Use -W0 to run everything in parallel [default: 1]
 ```
-
-
-# Troubleshooting
-
-I chose the POST/PUT method and/or provided a body, but the tool sends parameters via query.
-- make sure you are adding --as-body flag.
-
-The tool fails to send requests via <a href="https://portswigger.net/burp">burp suite proxy</a>.
-- try to use --http2 flag.
-
-# Limitations
-
-- Currently, it is impossible to use some non-regular paths like `/sth1/../sth2`.
 
 # Wordlists
 Parameters:
@@ -219,42 +222,43 @@ Parameters:
 Headers:
 - [Param Miner](https://github.com/danielmiessler/SecLists/tree/master/Discovery/Web-Content/BurpSuite-ParamMiner)
 
-# Burp Suite integrations
+# Burp Suite integration
 
-It is possible to run parameter discovery in a few clicks using burp suite extensions:
-
-## [x8-Burp](https://github.com/Impact-I/x8-Burp)
-![preview](https://user-images.githubusercontent.com/54232788/126073100-ed09e8b1-0ffa-4432-aa34-f0451586a992.png)
-
-### NOTE
-Currently the extension supports only v2.5.0.
-
-## [Send To](https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e)
+The burpsuite integration is done via the [https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e](send to) extension.
 
 ### Setting up
 
 1. Open Burp Suite and go to the extender tab.
-2. Find and install the "Custom Send To" extension in BApp Store.
+2. Find and install the "Custom Send To" extension from the BApp Store.
 3. Go to the "Send to" tab and click Add.
 
-Name - x8 query.
+Name the entry and insert the following line to the command:
 
-Command - `/path/to/x8 -r %R -w wordlist.txt --proto %T`. You can also add your frequently used arguments like `--output-format`,`--replay-proxy`, `-c`...
+```
+/path/to/x8 --progress-bar-len 20 -c 3 -r %R -w /path/to/wordlist --proto %T
+```
 
-Then switch from Run in background to Run in terminal.
+You can also add your frequently used arguments like `--output-format`,`--replay-proxy`, `--recursion-depth`, ..
 
-![command](https://user-images.githubusercontent.com/54232788/125414936-edf8872d-d3ba-4a7e-8bb1-3af0d7685e48.png)
+**NOTE** if the progress bar doesn't work properly --- try to decrease the value of `--progress-bar-len`.
 
-4. Repeat step 3 with Name - "x8 body" and add `--as-body` flag to the Command.
+Switch from Run in background to Run in terminal.
+
+![image](https://user-images.githubusercontent.com/54232788/201471567-2a388157-e2f1-4d68-aebe-5ecc3c1090ee.png)
+
+If you experience bad fonts within the terminal, you can change the `xterm` options in Send To Miscellaneous Options. Just replace the content with `xterm -rv -fa 'Monospace' -fs 10 -hold -e %C`
 
 Now you can go to the proxy/repeater tab and send the request to the tool:
 
-![extension_tab](https://user-images.githubusercontent.com/54232788/124345628-2f29d400-dbeb-11eb-991e-7ba1a2800522.png)
+![image](https://user-images.githubusercontent.com/54232788/201518132-87fd0c40-5877-4f46-a036-590967759b3f.png)
 
 In the next dialog, you can change the command and run it in a new terminal window.
 
-![dialog](https://user-images.githubusercontent.com/54232788/125414941-9404ac7b-e1e0-4a33-ac1a-aaf2cad0c231.png)
+![image](https://user-images.githubusercontent.com/54232788/201518230-3d7959c4-3530-497d-9aca-b20de80321cb.png)
 
+And a new terminal window with the running tool should open.
+
+![image](https://user-images.githubusercontent.com/54232788/201518309-895054dc-b0b7-4892-907a-664e494bcd4f.png)
 
 # Installation
 
@@ -275,7 +279,6 @@ In the next dialog, you can change the command and run it in a new terminal wind
         cargo install x8
         ```
 - Mac
-    - currently, there are no binaries for Mac OS
     - from source code (rust should be installed)
         ```bash
         git clone https://github.com/Sh1Yo/x8
@@ -289,7 +292,3 @@ In the next dialog, you can change the command and run it in a new terminal wind
 
 - Windows
     - from releases
-
---
-btc - bc1qje9f85652r5a0anfxcs8yzu97nes740qxg3mxt4um30myj5sc7mss0v3yw
-xmr - 46pni5AY9Ra399sivBykVucaK6KdU3rYiSqFsZinfaEgd3qUkeZvRxjEdhPPmsmZQwTDPBSrvSpkaj4LsHqLH6GG7zMmgiW
