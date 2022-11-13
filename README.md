@@ -261,6 +261,8 @@ And a new terminal window with the running tool should open.
 
 # Installation
 
+**NOTE** starting with v4.0.0 the installation via `cargo install` isn't possible because I've changed a few http libs. I'll try to return this installation method in the future.
+
 - Linux
     - from releases
     - from blackarch repositories (repositories should be installed)
@@ -273,20 +275,12 @@ And a new terminal window with the running tool should open.
         cd x8
         cargo build --release
         ```
-    - using cargo install
-        ```bash
-        cargo install x8
-        ```
 - Mac
     - from source code (rust should be installed)
         ```bash
         git clone https://github.com/Sh1Yo/x8
         cd x8
         cargo build --release
-        ```
-    - using cargo install
-        ```bash
-        cargo install x8
         ```
 
 - Windows
