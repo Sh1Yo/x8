@@ -368,7 +368,7 @@ impl<'a> Response<'a> {
     }
 
     /// print the request and response
-    pub fn print_all(&mut self) -> String {
-        self.request.as_mut().unwrap().print() + &self.print()
+    pub fn print_all(&self) -> String {
+        self.request.as_ref().unwrap().print_sent() + &self.print()
     }
 }

@@ -93,7 +93,7 @@ pub(super) fn save_request(
     response: &Response,
     param_key: &str,
 ) -> Result<String, Box<dyn Error>> {
-    let output = response.print();
+    let output = response.print_all();
 
     let filename = format!(
         "{}/{}-{}-{}-{}",

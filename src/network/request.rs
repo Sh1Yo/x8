@@ -359,7 +359,10 @@ impl<'a> Request<'a> {
 
     pub fn print(&mut self) -> String {
         self.prepare();
+        self.print_sent()
+    }
 
+    pub fn print_sent(&self) -> String {
         let host = if self.headers.contains_key("Host") {
             self.headers.get_value("Host").unwrap().to_string()
         } else {
