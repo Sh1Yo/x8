@@ -35,7 +35,7 @@ async fn main() {
     std::process::exit(match init().await {
         Ok(_) => 0,
         Err(err) => {
-            utils::error(err, None, None);
+            utils::error(err, None, None, None);
             1
         }
     });
