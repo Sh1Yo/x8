@@ -212,7 +212,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
                                         }
 
                                         let msg = if config.verbose > 0 {
-                                            format!("\n{}", output)
+                                            format!("\n{}\n\n", output)
                                         } else {
                                             format!("{}", output)
                                         };

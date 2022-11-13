@@ -273,7 +273,7 @@ impl<'a> Runner<'a> {
 
         for _ in 0..self.config.learn_requests_count {
             // to increase stability
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
 
             let response = Request::new_random(&self.request_defaults, self.max)
                 .send()
