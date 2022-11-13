@@ -14,6 +14,9 @@
 
 The tool helps to find hidden parameters that can be vulnerable or can reveal interesting functionality that other testers miss. Great accuracy is achieved thanks to the line-by-line comparison of pages, comparison of response code and reflections.
 
+# Documentation
+
+The documentation that explains every feature can be found on [https://sh1yo.art/x8docs/](https://sh1yo.art/x8docs/).
 
 - [Features](#features)
 - [Examples](#examples)
@@ -29,10 +32,6 @@ The tool helps to find hidden parameters that can be vulnerable or can reveal in
 - [Wordlists](#wordlists)
 - [Burp Suite integration](#burp-suite-integration)
 - [Installation](#installation)
-
-# Documentation
-
-The documentation that explains every feature can be found on [https://sh1yo.art/x8docs/](https://sh1yo.art/x8docs/).
 
 # Features
 
