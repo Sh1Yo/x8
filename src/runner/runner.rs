@@ -408,7 +408,7 @@ impl<'a> Runner<'a> {
             "{}{} {} ({}) [{}] {{{}}}",
             id,
             self.request_defaults.method.blue(),
-            self.request_defaults.url().green(),
+            self.request_defaults.url_without_default_port().green(),
             self.initial_response.code(),
             self.initial_response.text.len().to_string().green(),
             self.request_defaults

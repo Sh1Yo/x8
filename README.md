@@ -234,7 +234,7 @@ The burpsuite integration is done via the [https://portswigger.net/bappstore/f08
 Name the entry and insert the following line to the command:
 
 ```
-/path/to/x8 --progress-bar-len 20 -c 3 -r %R -w /path/to/wordlist --proto %T
+/path/to/x8 --progress-bar-len 20 -c 3 -r %R -w /path/to/wordlist --proto %T --port %P
 ```
 
 You can also add your frequently used arguments like `--output-format`,`--replay-proxy`, `--recursion-depth`, ..
