@@ -369,6 +369,6 @@ impl<'a> Response<'a> {
 
     /// print the request and response
     pub fn print_all(&self) -> String {
-        self.request.as_ref().unwrap().print_sent() + &self.print()
+        self.request.as_ref().unwrap().print_sent() + "\n\n" + &self.print()
     }
 }
