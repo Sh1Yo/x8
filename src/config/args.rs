@@ -362,7 +362,7 @@ Increase the amount of workers to remove the error or use --force.")?;
         // if the request file is specified - get protocol (https/http) from args, specify scheme and port, and parse request file
         let proto = args
             .value_of("proto")
-            .ok_or("--proto wasn't provided")?
+            .unwrap_or("https")
             .to_string();
 
         let scheme = proto.replace("://", "");
