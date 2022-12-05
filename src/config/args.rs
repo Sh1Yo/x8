@@ -102,6 +102,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
         .arg(
             Arg::with_name("burp-proxy")
                 .short("B")
+                .help("Equal to -x http://localhost:8080")
                 .conflicts_with("proxy")
         )
         .arg(
