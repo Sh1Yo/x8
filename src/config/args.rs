@@ -97,6 +97,12 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
                 .short("x")
                 .long("proxy")
                 .value_name("proxy")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("burp-proxy")
+                .short("B")
+                .conflicts_with("proxy")
         )
         .arg(
             Arg::with_name("delay")
@@ -534,13 +540,19 @@ Increase the amount of workers to remove the error or use --force.")?;
         verbose
     };
 
+    let proxy = if args.is_present("burp-proxy") {
+        "http://localhost:8080".to_string()
+    } else {
+        args.value_of("proxy").unwrap_or("").to_string()
+    };
+
     // TODO maybe replace empty with None
     Ok(Config {
         urls,
         methods,
         wordlist: args.value_of("wordlist").unwrap_or("").to_string(),
         custom_parameters,
-        proxy: args.value_of("proxy").unwrap_or("").to_string(),
+        proxy,
         replay_proxy: args.value_of("replay-proxy").unwrap_or("").to_string(),
         replay_once: args.is_present("replay-once"),
         output_file: args.value_of("output").unwrap_or("").to_string(),
