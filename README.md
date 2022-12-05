@@ -127,6 +127,7 @@ USAGE:
 
 FLAGS:
         --append                       Append to the output file instead of overwriting it.
+    -B                                 Equal to -x http://localhost:8080
         --disable-colors
         --disable-custom-parameters    Do not automatically check parameters like admin=true
         --disable-progress-bar
@@ -182,6 +183,7 @@ OPTIONS:
     -P, --param-template <parameter-template>
             %k - key, %v - value. Example: --param-template 'user[%k]=%v'
             Default: urlencoded - <%k=%v>, json - <"%k":%v>, headers - <%k=%v>
+    -p, --port <port>                                       Port to use with request file
         --progress-bar-len <progress-bar-len>                [default: 26]
         --proto <proto>                                     Protocol to use with request file (default is "https")
     -x, --proxy <proxy>
