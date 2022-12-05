@@ -42,6 +42,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
         )
         .arg(Arg::with_name("port")
             .long("port")
+            .short("-p")
             .help("Port to use with request file")
             .takes_value(true)
             .requires("request")
