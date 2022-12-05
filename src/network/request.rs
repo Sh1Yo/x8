@@ -443,12 +443,11 @@ impl<'a> RequestDefaults {
         disable_custom_parameters: bool,
     ) -> Result<Self, Box<dyn Error>> {
         // TODO recheck logic
-        let mut injection_place = if (method == "POST" || method == "PUT") && !invert
-            || (method != "POST" && method != "PUT" && invert)
-        {
-            InjectionPlace::Body
-        } else if headers_discovery {
+        let mut injection_place = if headers_discovery {
             InjectionPlace::Headers
+        } else if (method == "POST" || method == "PUT") && !invert
+        || (method != "POST" && method != "PUT" && invert) {
+            InjectionPlace::Body
         } else {
             InjectionPlace::Path
         };
