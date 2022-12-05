@@ -368,14 +368,10 @@ Increase the amount of workers to remove the error or use --force.")?;
 
         let scheme = proto.replace("://", "");
 
-        let port: u16 = if args.value_of("port").is_some() {
-            args.value_of("port").unwrap().parse()?
+        let port: Option<u16> = if args.value_of("port").is_some() {
+            Some(args.value_of("port").unwrap().parse()?)
         } else {
-            if scheme == "https" {
-                443
-            } else {
-                80
-            }
+            None
         };
 
         parse_request(&request, &scheme, port, args.value_of("split-by"))?

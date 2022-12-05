@@ -24,7 +24,7 @@ pub(super) fn convert_to_string_if_some(el: Option<&str>) -> Option<String> {
 pub(super) fn parse_request<'a>(
     request: &'a str,
     scheme: &str,
-    port: u16,
+    port: Option<u16>,
     split_by: Option<&str>,
 ) -> Result<
     (
@@ -111,6 +111,21 @@ pub(super) fn parse_request<'a>(
             body.push_str(part);
         }
     }
+
+    // port from the --port argument has a priority against port within the host header
+    let (host, port) = if port.is_some() {
+       (host.split(':').next().unwrap().to_string(), port.unwrap())
+    } else if port.is_none() && host.contains(':') {
+        let mut host = host.split(':');
+        (host.next().unwrap().to_string(), host.next().unwrap().parse()?)
+    } else {
+        // neither --port nor port within the host header were specified
+        if scheme == "http" {
+            (host.to_string(), 80u16)
+        } else {
+            (host.to_string(), 443u16)
+        }
+    };
 
     Ok((
         vec![method],
