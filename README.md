@@ -20,13 +20,6 @@ The documentation that explains every feature can be found on [https://sh1yo.art
 
 - [Features](#features)
 - [Examples](#examples)
-    - [Send parameters via query](#send-parameters-via-query)
-    - [Send parameters via body](#send-parameters-via-body)
-    - [Custom template](#custom-template)
-    - [Variables](#variables)
-    - [Percent encoding](#percent-encoding)
-    - [Headers](#headers)
-    - [Header values](#header-values)
 - [Test site](#test-site)
 - [Usage](#usage)
 - [Wordlists](#wordlists)
@@ -225,7 +218,7 @@ Headers:
 
 # Burp Suite integration
 
-The burpsuite integration is done via the [https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e](send to) extension.
+The burpsuite integration is done via the [send to](https://portswigger.net/bappstore/f089f1ad056545489139cb9f32900f8e) extension.
 
 ### Setting up
 
