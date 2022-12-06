@@ -1,10 +1,9 @@
 [![Twitter](https://img.shields.io/twitter/follow/sh1yo_.svg?logo=twitter)](https://twitter.com/sh1yo_)
-
-![crates.io](https://img.shields.io/crates/v/x8.svg)
-![stars](https://img.shields.io/github/stars/Sh1Yo/x8)
 ![github_downloads](https://img.shields.io/github/downloads/sh1yo/x8/total?label=downloads&logo=github)
-![lang](https://img.shields.io/github/languages/top/sh1yo/x8)
-<!--![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust)-->
+![stars](https://img.shields.io/github/stars/Sh1Yo/x8)
+<!-- ![crates.io](https://img.shields.io/crates/v/x8.svg) -->
+<!-- ![lang](https://img.shields.io/github/languages/top/sh1yo/x8) -->
+<!-- ![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust) -->
 
 <h1 align="center">x8</h1>
 
