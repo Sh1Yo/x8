@@ -26,7 +26,7 @@ lazy_static! {
 }
 
 /// enum mainly created for the correct json parsing
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DataType {
     /// we need a different data type for json because some json values can be used without quotes (numbers, booleans, ..)
     /// and therefore this type should be treated differently
@@ -41,7 +41,7 @@ pub enum DataType {
 }
 
 /// where to insert parameters
-#[derive(Debug, Clone, PartialEq, Serialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Copy)]
 pub enum InjectionPlace {
     Path,
     Body,

@@ -61,7 +61,7 @@ impl<'a> Response<'a> {
     pub fn compare(
         &self,
         initial_response: &'a Response<'a>,
-        old_diffs: &Vec<String>,
+        old_diffs: &[String],
     ) -> Result<(bool, Vec<String>), Box<dyn Error>> {
         let mut is_code_diff: bool = false;
         let mut diffs: Vec<String> = Vec::new();
@@ -108,7 +108,7 @@ impl<'a> Response<'a> {
                 .get_value_case_insensitive("content-type")
                 .unwrap()
                 .contains("json"))
-            || (self.text.starts_with("{") && self.text.ends_with("}"))
+            || (self.text.starts_with('{') && self.text.ends_with('}'))
         {
             let body = self.text.replace("\\\"", "'").replace("\",", "\",\n");
             let body = RE_JSON_BRACKETS.replace_all(&body, "${bracket}\n");

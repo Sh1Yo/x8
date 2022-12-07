@@ -24,7 +24,7 @@ pub struct Stable {
     pub reflections: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum ReasonKind {
     Code,
     Text,
@@ -48,15 +48,15 @@ pub struct FoundParameter {
 impl FoundParameter {
     pub fn new<S: Into<String>>(
         name: S,
-        diffs: &Vec<String>,
+        diffs: &[String],
         status: u16,
         size: usize,
         reason_kind: ReasonKind,
     ) -> Self {
         let name = name.into();
 
-        let (name, value) = if name.contains("=") {
-            let mut name = name.split("=");
+        let (name, value) = if name.contains('=') {
+            let mut name = name.split('=');
             (
                 name.next().unwrap().to_string(),
                 Some(name.next().unwrap().to_string()),
@@ -79,7 +79,7 @@ impl FoundParameter {
     pub fn get(&self) -> (String, String) {
         (
             self.name.clone(),
-            self.value.clone().unwrap_or(random_line(VALUE_LENGTH)),
+            self.value.clone().unwrap_or_else(|| random_line(VALUE_LENGTH)),
         )
     }
 
@@ -235,7 +235,7 @@ pub(super) async fn verify<'a>(
             .send()
             .await?;
 
-        let (is_code_diff, new_diffs) = response.compare(initial_response, &diffs)?;
+        let (is_code_diff, new_diffs) = response.compare(initial_response, diffs)?;
         let mut is_the_body_the_same = true;
 
         if !new_diffs.is_empty() {
@@ -244,10 +244,7 @@ pub(super) async fn verify<'a>(
 
         response.fill_reflected_parameters(initial_response);
 
-        if is_code_diff
-            || !(!stable.body || is_the_body_the_same)
-            || !response.reflected_parameters.is_empty()
-        {
+        if is_code_diff || !response.reflected_parameters.is_empty() || stable.body && !is_the_body_the_same {
             filtered_params.push(param.clone());
         }
     }
@@ -319,7 +316,7 @@ impl ParamPatterns {
         if param_chars.contains(&'-') {
             // we're treating as if there's only one '-' for now.
             // maybe needs to be changed in future
-            let mut splitted = param.split("-");
+            let mut splitted = param.split('-');
 
             patterns.push(ParamPatterns::BeforeDash(
                 splitted.next().unwrap().to_string(),
@@ -332,7 +329,7 @@ impl ParamPatterns {
         if param_chars.contains(&'_') {
             // we're treating as if there's only one '_' for now.
             // maybe needs to be changed in future
-            let mut splitted = param.split("_");
+            let mut splitted = param.split('_');
 
             patterns.push(ParamPatterns::BeforeUnderscore(
                 splitted.next().unwrap().to_string(),
@@ -380,10 +377,7 @@ pub(super) async fn _smart_verify(
 
         response.fill_reflected_parameters(initial_response);
 
-        if !is_code_the_same
-            || !(!stable.body || is_the_body_the_same)
-            || !response.reflected_parameters.is_empty()
-        {
+        if !is_code_the_same || !response.reflected_parameters.is_empty() || stable.body && !is_the_body_the_same {
             filtered_params.push(param.clone());
         }
     }
@@ -397,6 +391,6 @@ pub(super) fn fold_url(url: &str, n: usize) -> String {
         //we need to add some spaces to align the progress bars
         url.to_string() + &" ".repeat(2 + n - url.len())
     } else {
-        "..".to_owned() + &url[url.len() - n..].to_string()
+        "..".to_owned() + &url[url.len() - n..]
     }
 }

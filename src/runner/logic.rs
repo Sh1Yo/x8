@@ -67,8 +67,7 @@ impl<'a> Runner<'a> {
 
             let (reflected_parameter, repeat) = response.proceed_reflected_parameters();
 
-            if reflected_parameter.is_some() {
-                let reflected_parameter = reflected_parameter.unwrap();
+            if let Some(reflected_parameter) = reflected_parameter {
 
                 let mut found_params = shared_found_params.lock();
                 if !found_params.iter().any(|x| x.name == reflected_parameter) {
@@ -98,10 +97,10 @@ impl<'a> Runner<'a> {
 
                     response.write_and_save(
                         self.id,
-                        &self.config,
+                        self.config,
                         &self.initial_response,
                         kind,
-                        &reflected_parameter,
+                        reflected_parameter,
                         None,
                         self.progress_bar,
                     )?;
@@ -164,7 +163,7 @@ impl<'a> Runner<'a> {
             if params.len() == 1 {
                 response.write_and_save(
                     self.id,
-                    &self.config,
+                    self.config,
                     &self.initial_response,
                     ReasonKind::Code,
                     &params[0],
@@ -231,26 +230,24 @@ impl<'a> Runner<'a> {
 
             // check whether the page still(after making a random request and storing it's diffs) has an unique diffs
             for diff in new_diffs.iter() {
-                if !diffs.contains(&diff) {
+                if !diffs.contains(diff) {
                     let mut found_params = shared_found_params.lock();
 
                     // there's only one parameter left that changing the page
                     if params.len() == 1 && !found_params.iter().any(|x| x.name == params[0]) {
                         // repeating --strict checks. We need to do it twice because we're usually running in parallel
                         // and some parameters may be found after the first check
-                        if self.config.strict {
-                            if found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
-                                return Ok(());
-                            }
+                        if self.config.strict && found_params.iter().any(|x| x.diffs == new_diffs.join("|")) {
+                            return Ok(());
                         }
 
                         response.write_and_save(
                             self.id,
-                            &self.config,
+                            self.config,
                             &self.initial_response,
                             ReasonKind::Text,
                             &params[0],
-                            Some(&diff),
+                            Some(diff),
                             self.progress_bar,
                         )?;
 

@@ -13,8 +13,8 @@ use super::structs::Config;
 
 /// shorcut to convert Option<&str> to Option<String> to be able to return it from the function
 pub(super) fn convert_to_string_if_some(el: Option<&str>) -> Option<String> {
-    if el.is_some() {
-        Some(el.unwrap().to_string())
+    if let Some(val) = el {
+        Some(val.to_string())
     } else {
         None
     }
@@ -38,12 +38,12 @@ pub(super) fn parse_request<'a>(
     Box<dyn Error>,
 > {
     // request by lines
-    let lines = if split_by.is_none() {
-        request.lines().collect::<Vec<&str>>()
-    } else {
+    let lines = if let Some(val) = split_by {
         request
-            .split(&split_by.unwrap().replace("\\r", "\r").replace("\\n", "\n"))
+            .split(&val.replace("\\r", "\r").replace("\\n", "\n"))
             .collect::<Vec<&str>>()
+    } else {
+        request.lines().collect::<Vec<&str>>()
     };
     let mut lines = lines.iter();
 
@@ -64,7 +64,7 @@ pub(super) fn parse_request<'a>(
         .contains("HTTP/2");
 
     // parse headers
-    while let Some(line) = lines.next() {
+    for line in lines.by_ref() {
         if line.is_empty() {
             break;
         }
@@ -105,7 +105,7 @@ pub(super) fn parse_request<'a>(
     }
 
     let mut body = lines.next().unwrap_or(&"").to_string();
-    while let Some(part) = lines.next() {
+    for part in lines {
         if !part.is_empty() {
             body.push_str("\r\n");
             body.push_str(part);
@@ -121,9 +121,9 @@ pub(super) fn parse_request<'a>(
     } else {
         // neither --port nor port within the host header were specified
         if scheme == "http" {
-            (host.to_string(), 80u16)
+            (host, 80u16)
         } else {
-            (host.to_string(), 443u16)
+            (host, 443u16)
         }
     };
 

@@ -107,7 +107,7 @@ impl RunnerOutput {
                 let line = if !self.found_params.is_empty()
                     && self.injection_place == InjectionPlace::Path
                 {
-                    if !self.url.contains("?") {
+                    if !self.url.contains('?') {
                         self.url.clone() + "?%s"
                     } else {
                         self.url.clone() + "&%s"

@@ -14,9 +14,9 @@ use std::{
 use url::Url;
 
 /// in order to be able to use make_query() for headers as well
-const HEADERS_TEMPLATE: &'static str = "%k\x00@%=%@\x00%v";
-const HEADERS_MIDDLE: &'static str = "\x00@%=%@\x00";
-const HEADERS_JOINER: &'static str = "\x01@%&%@\x01";
+const HEADERS_TEMPLATE: &str = "%k\x00@%=%@\x00%v";
+const HEADERS_MIDDLE: &str = "\x00@%=%@\x00";
+const HEADERS_JOINER: &str = "\x01@%&%@\x01";
 
 use super::{
     response::Response,
@@ -104,7 +104,7 @@ impl<'a> Request<'a> {
             defaults: l,
             headers: Vec::new(),
             body: l.body.clone(),
-            parameters: parameters,
+            parameters,
             prepared_parameters: Vec::new(), //l.parameters.clone(),
             non_random_parameters: Vec::new(),
             prepared: false,
@@ -189,8 +189,8 @@ impl<'a> Request<'a> {
         self.non_random_parameters = Vec::from_iter(
             self.parameters
                 .iter()
-                .filter(|x| x.contains("="))
-                .map(|x| x.split("="))
+                .filter(|x| x.contains('='))
+                .map(|x| x.split('='))
                 .map(|mut x| {
                     (
                         x.next().unwrap().to_owned(),
@@ -243,7 +243,7 @@ impl<'a> Request<'a> {
             InjectionPlace::HeaderValue => {
                 // in case someone searches headers while sending a valid body - it's usually important to set Content-Type header as well.
                 if self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
-                    if self.body.starts_with("{") {
+                    if self.body.starts_with('{') {
                         self.set_header("Content-Type", "application/json");
                     } else {
                         self.set_header("Content-Type", "application/x-www-form-urlencoded");
@@ -261,7 +261,7 @@ impl<'a> Request<'a> {
             InjectionPlace::Headers => {
                 // in case someone searches headers while sending a valid body - it's usually important to set Content-Type header as well.
                 if self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
-                    if self.body.starts_with("{") {
+                    if self.body.starts_with('{') {
                         self.set_header("Content-Type", "application/json");
                     } else {
                         self.set_header("Content-Type", "application/x-www-form-urlencoded");
@@ -382,7 +382,7 @@ impl<'a> Request<'a> {
 
     pub fn print_sent(&self) -> String {
         let host = if self.headers.contains_key("Host") {
-            self.headers.get_value("Host").unwrap().to_string()
+            self.headers.get_value("Host").unwrap()
         } else {
             self.defaults.host.to_owned()
         };
@@ -476,26 +476,26 @@ impl<'a> RequestDefaults {
 
         let (template, joiner) = (
             template
-                .unwrap_or(guessed_template.to_string().into())
+                .unwrap_or_else(|| guessed_template.to_string().into())
                 .into(),
-            joiner.unwrap_or(guessed_joiner.to_string().into()).into().replace("\\r", "\r").replace("\\n", "\n"),
+            joiner.unwrap_or_else(|| guessed_joiner.to_string().into()).into().replace("\\r", "\r").replace("\\n", "\n"),
         );
 
         let url = Url::parse(url)?;
 
-        let (path, body) = if data_type.is_some() {
+        let (path, body) = if let Some(data_type) = data_type {
             RequestDefaults::fix_path_and_body(
                 // &url[url::Position::BeforePath..].to_string() instead of url.path() because we need to preserve query as well
-                &url[url::Position::BeforePath..].to_string(),
+                &url[url::Position::BeforePath..],
                 body,
                 &joiner,
                 &injection_place,
-                data_type.unwrap(),
+                data_type,
             )
         } else {
             // injection within headers
             (
-                url[url::Position::BeforePath..].to_string().to_string(),
+                url[url::Position::BeforePath..].to_string(),
                 body.to_owned(),
             )
         };
@@ -509,8 +509,8 @@ impl<'a> RequestDefaults {
             port: url.port_or_known_default().ok_or("Wrong scheme")?,
             delay,
             client,
-            template: template.to_string(),
-            joiner: joiner.to_string(),
+            template,
+            joiner,
             encode,
             is_json,
             body,
@@ -529,8 +529,8 @@ impl<'a> RequestDefaults {
         injection_place: &InjectionPlace,
         data_type: Option<DataType>,
     ) -> (&'a str, &'a str, bool, Option<DataType>) {
-        if data_type.is_some() {
-            match data_type.unwrap() {
+        if let Some(data_type) = data_type {
+            match data_type {
                 // %v isn't within quotes because not every json value needs to be in quotes
                 DataType::Json => ("\"%k\": %v", ", ", true, Some(DataType::Json)),
                 DataType::Urlencoded => ("%k=%v", "&", false, Some(DataType::Urlencoded)),
@@ -539,7 +539,7 @@ impl<'a> RequestDefaults {
         } else {
             match injection_place {
                 InjectionPlace::Body => {
-                    if body.starts_with("{") {
+                    if body.starts_with('{') {
                         ("\"%k\": %v", ", ", true, Some(DataType::Json))
                     } else {
                         ("%k=%v", "&", false, Some(DataType::Urlencoded))
@@ -566,8 +566,8 @@ impl<'a> RequestDefaults {
                     (path.to_string(), body.to_string())
                 } else if body.is_empty() {
                     match data_type {
-                        DataType::Urlencoded => (path.to_string(), format!("%s")),
-                        DataType::Json => (path.to_string(), format!("{{%s}}")),
+                        DataType::Urlencoded => (path.to_string(), "%s".to_string()),
+                        DataType::Json => (path.to_string(), "{{%s}}".to_string()),
                         _ => unreachable!(),
                     }
                 } else {
@@ -585,7 +585,7 @@ impl<'a> RequestDefaults {
             InjectionPlace::Path => {
                 if path.contains("%s") {
                     (path.to_string(), body.to_string())
-                } else if path.contains("?") {
+                } else if path.contains('?') {
                     (format!("{}{}%s", path, joiner), body.to_string())
                 } else if joiner == "&" {
                     (format!("{}?%s", path), body.to_string())

@@ -159,16 +159,13 @@ pub fn color_id(id: usize) -> String {
         id.to_string().yellow()
     } else if id % 2 == 0 {
         id.to_string().bright_green()
-    } else if id % 1 == 0 {
-        id.to_string().magenta()
     } else {
-        unreachable!()
-    }
-    .to_string()
+        id.to_string().magenta()
+    }.to_string()
 }
 
 /// moves urls with different hosts to different vectors
-pub fn order_urls(urls: &Vec<String>) -> Vec<Vec<String>> {
+pub fn order_urls(urls: &[String]) -> Vec<Vec<String>> {
     // LinkedHashMap instead of hashmap for preserving the order
     // LinkedHashMap<HOST, Vec<URL>>
     let mut sorted_urls: LinkedHashMap<String, Vec<String>> = LinkedHashMap::new();

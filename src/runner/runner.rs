@@ -77,7 +77,7 @@ impl<'a> Runner<'a> {
 
         // find how many times was the random parameter reflected
         request_defaults.amount_of_reflections =
-            initial_response.count(&temp_request_defaults.parameters.iter().next().unwrap().1);
+            initial_response.count(&temp_request_defaults.parameters.first().unwrap().1);
 
         // some "magic" to be able to return initial_response
         // otherwise throws lifetime errors
@@ -115,7 +115,7 @@ impl<'a> Runner<'a> {
         // add only unique possible params to the vec of all params (the tool works properly only with unique parameters)
         // less efficient than making it within the sorted vec but I want to preserve the order
         for param in self.possible_params.iter() {
-            if !params.contains(&param) {
+            if !params.contains(param) {
                 params.push(param.to_owned());
             }
         }
@@ -153,7 +153,7 @@ impl<'a> Runner<'a> {
                 filtered_params
             } else {
                 utils::info(
-                    &self.config,
+                    self.config,
                     self.id,
                     self.progress_bar,
                     "~",
@@ -165,15 +165,15 @@ impl<'a> Runner<'a> {
 
         // replay request with found parameters via another proxy
         if !self.config.replay_proxy.is_empty() {
-            if let Err(_) = replay(
-                &self.config,
+            if replay(
+                self.config,
                 &self.request_defaults,
                 &create_client(self.config)?,
                 &found_params,
-            )
-            .await {
+            ).await
+            .is_err() {
                 utils::info(
-                    &self.config,
+                    self.config,
                     self.id,
                     self.progress_bar,
                     "~",
@@ -205,7 +205,7 @@ impl<'a> Runner<'a> {
                     //do not request parameters that already have been found
                     if found_params
                         .iter()
-                        .map(|x| x.name.split("=").next().unwrap())
+                        .map(|x| x.name.split('=').next().unwrap())
                         .any(|x| x == k)
                     {
                         continue;
@@ -242,7 +242,7 @@ impl<'a> Runner<'a> {
             },
         };
 
-        self.max = default_max.abs() as usize;
+        self.max = default_max.unsigned_abs();
 
         //make a few requests and collect all persistent diffs, check for stability
         self.empty_reqs().await?;
@@ -311,7 +311,7 @@ impl<'a> Runner<'a> {
             .is_empty()
         {
             utils::info(
-                &self.config,
+                self.config,
                 self.id,
                 self.progress_bar,
                 "~",
