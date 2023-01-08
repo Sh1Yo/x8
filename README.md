@@ -279,3 +279,10 @@ And a new terminal window with the running tool should open.
 
 - Windows
     - from releases
+
+- Docker
+    ```bash
+    git clone https://github.com/Sh1Yo/x8
+    cd x8
+    docker build -t x8 .
+    ```
