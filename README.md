@@ -281,8 +281,10 @@ And a new terminal window with the running tool should open.
     - from releases
 
 - Docker
-    ```bash
-    git clone https://github.com/Sh1Yo/x8
-    cd x8
-    docker build -t x8 .
-    ```
+    - installation
+        ```bash
+        git clone https://github.com/Sh1Yo/x8
+        cd x8
+        docker build -t x8 .
+        ```
+    - [usage](https://github.com/Sh1Yo/x8/pull/29)
