@@ -9,7 +9,7 @@
 
 <h3 align="center">Hidden parameters discovery suite written in Rust.</h3>
 
-<p align="center"><a href="https://asciinema.org/a/HwNa4PC2OZODxyazxCWORF9wB" target="_blank"><img src="https://asciinema.org/a/HwNa4PC2OZODxyazxCWORF9wB.svg" /></a></p>
+<p align="center"><img src=https://user-images.githubusercontent.com/54232788/212553519-f4cdfb1c-f5f2-4238-a6a8-e9393b98b529.gif></p>
 
 The tool helps to find hidden parameters that can be vulnerable or can reveal interesting functionality that other testers miss. Great accuracy is achieved thanks to the line-by-line comparison of pages, comparison of response code and reflections.
 
