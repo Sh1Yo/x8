@@ -125,6 +125,7 @@ pub fn create_client(config: &Config) -> Result<Client, Box<dyn Error>> {
         .http1_title_case_headers()
         .cookie_store(true)
         .http09_responses()
+        .no_trust_dns()
         .use_rustls_tls();
 
     if !config.proxy.is_empty() {
