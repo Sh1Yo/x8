@@ -118,7 +118,7 @@ pub(super) fn save_request(
     Ok(filename)
 }
 
-pub fn create_client(config: &Config) -> Result<Client, Box<dyn Error>> {
+pub fn create_client(config: &Config, replay: bool) -> Result<Client, Box<dyn Error>> {
     let mut client = Client::builder()
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(config.timeout as u64))
@@ -127,9 +127,19 @@ pub fn create_client(config: &Config) -> Result<Client, Box<dyn Error>> {
         .http09_responses()
         .use_rustls_tls();
 
-    if !config.proxy.is_empty() {
-        client = client.proxy(reqwest::Proxy::all(&config.proxy)?);
+    if replay {
+        client = client.proxy(match reqwest::Proxy::all(&config.replay_proxy) {
+            Ok(val) => val,
+            Err(err) => {
+                Err(format!("Unable to parse replay_proxy: {}", err))?
+            }
+        });
+    } else {
+        if !config.proxy.is_empty() {
+            client = client.proxy(reqwest::Proxy::all(&config.proxy)?);
+        }
     }
+
     if !config.follow_redirects {
         client = client.redirect(reqwest::redirect::Policy::none());
     }

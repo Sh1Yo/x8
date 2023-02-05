@@ -186,12 +186,14 @@ impl Parameters for Vec<FoundParameter> {
     }
 }
 
+/// replays a request with parameters via a different proxy
 pub(super) async fn replay<'a>(
     config: &Config,
     request_defaults: &RequestDefaults,
     replay_client: &Client,
     found_params: &Vec<FoundParameter>,
 ) -> Result<(), Box<dyn Error>> {
+
     // get cookies
     Request::new(request_defaults, vec![])
         .send_by(replay_client)
@@ -220,6 +222,7 @@ pub(super) async fn replay<'a>(
     Ok(())
 }
 
+/// verifies found parameters by requesting the page with found parameters yet one time
 pub(super) async fn verify<'a>(
     initial_response: &'a Response<'a>,
     request_defaults: &'a RequestDefaults,

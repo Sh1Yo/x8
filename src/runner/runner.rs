@@ -165,20 +165,38 @@ impl<'a> Runner<'a> {
 
         // replay request with found parameters via another proxy
         if !self.config.replay_proxy.is_empty() {
-            if replay(
-                self.config,
-                &self.request_defaults,
-                &create_client(self.config)?,
-                &found_params,
-            ).await
-            .is_err() {
-                utils::info(
+
+            let client = match create_client(self.config, true) {
+                Ok(val) => Some(val),
+                Err(err) => {
+                    utils::info(
+                        self.config,
+                        self.id,
+                        self.progress_bar,
+                        "~",
+                        err,
+                    );
+
+                    None
+                }
+            };
+
+            if client.is_some() {
+                if replay(
                     self.config,
-                    self.id,
-                    self.progress_bar,
-                    "~",
-                    "was unable to resend found parameters via different proxy",
-                );
+                    &self.request_defaults,
+                    &client.unwrap(),
+                    &found_params,
+                ).await
+                .is_err() {
+                    utils::info(
+                        self.config,
+                        self.id,
+                        self.progress_bar,
+                        "~",
+                        "was unable to resend found parameters via another proxy",
+                    );
+                }
             }
         }
 

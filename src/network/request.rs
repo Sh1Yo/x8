@@ -415,7 +415,7 @@ impl<'a> RequestDefaults {
             url.into().as_str(),    //as well as url
             config.custom_headers.clone(),
             config.delay,
-            create_client(config)?,
+            create_client(config, false)?,
             config.template.clone(),
             config.joiner.clone(),
             config.encode,
