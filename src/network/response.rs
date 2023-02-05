@@ -171,8 +171,12 @@ impl<'a> Response<'a> {
         if self.reflected_parameters.is_empty() {
             return (None, false);
 
-            // only one reflected parameter - return it
-        } else if self.reflected_parameters.len() == 1 {
+        // only one reflected parameter - return it
+        // but firstly we need to check that the amount of parameters is > 2
+        // because there can be a parameter that changes the page
+        // in this case, the page may return the different amount of reflections to every parameter
+        // and this another random parameter will look like a reflected one and may cause false positives
+        } else if self.reflected_parameters.len() == 1 && self.request.as_ref().unwrap().prepared_parameters.len() > 2 {
             return (
                 Some(self.reflected_parameters.keys().next().unwrap()),
                 false,
