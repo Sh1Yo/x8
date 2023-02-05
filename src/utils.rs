@@ -92,7 +92,7 @@ pub fn init_progress(config: &Config) -> Vec<(ProgressBar, Vec<String>)> {
     // we're creating an empty progress bar to make one empty line between progress bars and the tool's output
     let empty_line = m.add(ProgressBar::new(128));
     let empty_sty = ProgressStyle::with_template(" ").unwrap();
-    empty_line.set_style(empty_sty);
+    empty_line.set_style(empty_sty.clone());
     empty_line.inc(1);
     urls_to_progress.push((empty_line, vec![String::new()]));
 
@@ -110,6 +110,9 @@ pub fn init_progress(config: &Config) -> Vec<(ProgressBar, Vec<String>)> {
             0,
             ProgressBar::new(0)
         );
+
+        pb.set_style(empty_sty.clone());
+
         if config.disable_progress_bar {
             pb.set_draw_target(ProgressDrawTarget::hidden());
         }
