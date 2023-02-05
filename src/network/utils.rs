@@ -127,6 +127,10 @@ pub fn create_client(config: &Config, replay: bool) -> Result<Client, Box<dyn Er
         .http09_responses()
         .use_rustls_tls();
 
+    if config.disable_trustdns {
+        client = client.no_trust_dns();
+    }
+
     if replay {
         client = client.proxy(match reqwest::Proxy::all(&config.replay_proxy) {
             Ok(val) => val,

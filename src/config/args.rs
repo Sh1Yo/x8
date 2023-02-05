@@ -186,6 +186,11 @@ It's possible to overwrite this behavior by specifying the option")
                 .long("disable-colors")
         )
         .arg(
+            Arg::with_name("disable-trustdns")
+                .long("disable-trustdns")
+                .help("Can solve some dns related problems")
+        )
+        .arg(
             Arg::with_name("disable-progress-bar")
                 .long("disable-progress-bar")
         )
@@ -592,5 +597,6 @@ Increase the amount of workers to remove the error or use --force.")?;
         data_type,
         max,
         disable_colors: args.is_present("disable-colors"),
+        disable_trustdns: args.is_present("disable-trustdns"),
     })
 }

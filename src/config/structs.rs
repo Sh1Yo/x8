@@ -130,4 +130,6 @@ pub struct Config {
     pub follow_redirects: bool,
 
     pub disable_colors: bool,
+
+    pub disable_trustdns: bool,
 }
