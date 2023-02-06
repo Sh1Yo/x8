@@ -54,7 +54,8 @@ pub enum Status {
 impl<'a> Response<'a> {
     /// count how many times we can see the string in the response
     pub fn count(&self, string: &str) -> usize {
-        self.text.to_lowercase().matches(string).count()
+        let re = Regex::new(&format!("(?i){}", string)).unwrap();
+        re.find_iter(&self.text).count()
     }
 
     /// calls check_diffs & returns code and found diffs
@@ -151,6 +152,8 @@ impl<'a> Response<'a> {
         };
 
         for (k, v) in prepated_parameters.iter() {
+            // maybe it's better to remove count from the initial response
+            // sure it's increases accuracy a bit, but the performance impact is high
             let new_count = self.count(v) - initial_response.count(v);
 
             if self
