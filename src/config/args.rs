@@ -281,7 +281,7 @@ Conflicts with --verify for now.")
             Arg::with_name("max")
                 .short("m")
                 .long("max")
-                .help("Change the maximum number of parameters per request.\n(default is 128/192/256 for query, 64 for headers and 512 for body)")
+                .help("Change the maximum number of parameters per request.\n(default is <= 256 for query, 64 for headers and 512 for body)")
                 .takes_value(true)
         )
         .arg(
