@@ -442,7 +442,7 @@ impl<'a> RequestDefaults {
         body: &str,
         disable_custom_parameters: bool,
     ) -> Result<Self, Box<dyn Error>> {
-        // TODO recheck logic
+
         let mut injection_place = if headers_discovery {
             InjectionPlace::Headers
         } else if (method == "POST" || method == "PUT") && !invert

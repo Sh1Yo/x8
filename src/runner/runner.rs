@@ -112,6 +112,16 @@ impl<'a> Runner<'a> {
         // makes a few request to check page's behavior
         self.stability_checker().await?;
 
+        if self.config.max.is_none() {
+            utils::info(
+                self.config,
+                self.id,
+                self.progress_bar,
+                "info",
+                format!("Amount of parameters per request - {}", self.max),
+            );
+        }
+
         // add only unique possible params to the vec of all params (the tool works properly only with unique parameters)
         // less efficient than making it within the sorted vec but I want to preserve the order
         for param in self.possible_params.iter() {
@@ -249,12 +259,12 @@ impl<'a> Runner<'a> {
     /// makes several requests in order to learn how the page behaves
     /// tries to increase the max amount of parameters per request in case the default value not changed
     async fn stability_checker(&mut self) -> Result<(), Box<dyn Error>> {
-        //guess or get from the user the amount of parameters to send per request
+        // guess or get from the user the amount of parameters to send per request
         let default_max = match self.config.max {
             Some(var) => var as isize,
             None => match self.request_defaults.injection_place {
                 InjectionPlace::Body => -512,
-                InjectionPlace::Path => -128,
+                InjectionPlace::Path => self.try_to_guess_the_right_max_for_query().await?,
                 InjectionPlace::Headers => -64,
                 InjectionPlace::HeaderValue => -64,
             },
@@ -262,14 +272,14 @@ impl<'a> Runner<'a> {
 
         self.max = default_max.unsigned_abs();
 
-        //make a few requests and collect all persistent diffs, check for stability
+        // make a few requests and collect all persistent diffs, check for stability
         self.empty_reqs().await?;
 
         if self.config.reflected_only && !self.stable.reflections {
             Err("Reflections are not stable")?;
         }
 
-        //check whether it is possible to use 192 or 256 params in a single request instead of 128 default
+        // check whether it is possible to use 192 or 256 params in a single request instead of 128 default
         if default_max == -128 {
             self.try_to_increase_max().await?;
         }
@@ -346,7 +356,10 @@ impl<'a> Runner<'a> {
     /// checks whether the increasing of the amount of parameters changes the page
     /// changes self.max in case the page is stable with more parameters per request
     pub async fn try_to_increase_max(&mut self) -> Result<(), Box<dyn Error>> {
-        let response = Request::new_random(&self.request_defaults, self.max + 64)
+
+        let delta = self.max / 2;
+
+        let response = Request::new_random(&self.request_defaults, self.max + delta)
             .send()
             .await?;
 
@@ -360,7 +373,7 @@ impl<'a> Runner<'a> {
 
         // in case the page isn't different from previous one - try to increase max amount of parameters by 128
         if !is_code_different && (!self.stable.body || is_the_body_the_same) {
-            let response = Request::new_random(&self.request_defaults, self.max + 128)
+            let response = Request::new_random(&self.request_defaults, self.max + delta*2)
                 .send()
                 .await?;
 
@@ -372,13 +385,59 @@ impl<'a> Runner<'a> {
             }
 
             if !is_code_different && (!self.stable.body || is_the_body_the_same) {
-                self.max += 128
+                self.max += delta*2
             } else {
-                self.max += 64
+                self.max += delta
             }
         }
 
         Ok(())
+    }
+
+    /// tries to detect the right amount of parameters that can be send per request in query
+    /// TODO maybe detect based on reflection as well
+    pub async fn try_to_guess_the_right_max_for_query(&mut self) -> Result<isize, Box<dyn Error>> {
+
+        let mut max = 128;
+
+        let mut response = match Request::new_random(&self.request_defaults, max)
+            .send()
+            .await {
+                Ok(val) => val,
+                // some servers may cut connection in case url is too long
+                // that's why we assume that this request returned response with status code = 0.
+                Err(_) => {
+                    Request::empty_response(Request::new_random(&self.request_defaults, 0))
+                }
+        };
+
+        loop {
+            // the choosen max is okay
+            if self.initial_response.code == response.code {
+                break
+            }
+
+            if Request::new_random(&self.request_defaults, 0).send().await?.code != self.initial_response.code {
+                Err("The page became unstable (code)")?
+            };
+
+            max /= 2;
+
+            if max < 4 {
+                Err("Unable to guess the max amount of parameters per request. Try to use --max command line argument.")?
+            }
+
+            response = match Request::new_random(&self.request_defaults, max)
+                .send()
+                .await {
+                    Ok(val) => val,
+                    Err(_) => {
+                        Request::empty_response(Request::new_random(&self.request_defaults, 0))
+                    }
+            };
+        }
+
+        Ok(max as isize *-1)
     }
 
     pub fn prepare_progress_bar(&self, sty: ProgressStyle, length: usize) {
