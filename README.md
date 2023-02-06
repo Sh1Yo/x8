@@ -123,6 +123,7 @@ FLAGS:
         --disable-colors
         --disable-custom-parameters    Do not automatically check parameters like admin=true
         --disable-progress-bar
+        --disable-trustdns             Can solve some dns related problems
         --encode                       Encodes query or body before making a request, i.e & -> %26, = -> %3D
                                        List of chars to encode: ", `, , <, >, &, #, ;, /, =, %
     -L, --follow-redirects             Follow redirections
@@ -168,7 +169,7 @@ OPTIONS:
         --learn-requests <learn-requests-count>             Set the custom number of learn requests. [default: 9]
     -m, --max <max>
             Change the maximum number of parameters per request.
-            (default is 128/192/256 for query, 64 for headers and 512 for body)
+            (default is <= 256 for query, 64 for headers and 512 for body)
     -X, --method <methods>                                  Multiple values are supported: -X GET POST
     -o, --output <file>
     -O, --output-format <output-format>                     standart, json, url, request [default: standart]
