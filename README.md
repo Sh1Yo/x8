@@ -30,7 +30,7 @@ The documentation that explains every feature can be found on [https://sh1yo.art
 - Fast.
 - Has flexible request configuration thanks to the concept of templates and injection points.
 - Scalability. The tool can check up to thousands of urls per run.
-- More accurate than analogs, especially in diffictult cases.
+- More accurate than similar tools, especially in difficult cases.
 - Can discover parameters with not random values, like admin=true.
 - Highly configurable.
 - Almost raw requests were achieved due to the external lib modification.
