@@ -20,7 +20,7 @@ const HEADERS_JOINER: &str = "\x01@%&%@\x01";
 
 use super::{
     response::Response,
-    utils::{DataType, Headers, InjectionPlace, FRAGMENT, create_client},
+    utils::{DataType, Headers, InjectionPlace, FRAGMENT, create_client, is_binary_content},
 };
 
 #[derive(Debug, Clone, Default)]
@@ -68,6 +68,9 @@ pub struct RequestDefaults {
 
     /// the default amount of reflection per non existing parameter
     pub amount_of_reflections: usize,
+
+    /// check body of responses with binary content type
+    pub check_binary: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -343,7 +346,11 @@ impl<'a> Request<'a> {
 
         let body_bytes = res.bytes().await?.to_vec();
 
-        let text = String::from_utf8_lossy(&body_bytes).to_string();
+        let text = if is_binary_content(headers.get_value_case_insensitive("content-type")) && !self.defaults.check_binary {
+            String::new()
+        } else {
+            String::from_utf8_lossy(&body_bytes).to_string()
+        };
 
         let mut response = Response {
             code,
@@ -424,6 +431,7 @@ impl<'a> RequestDefaults {
             config.headers_discovery,
             &config.body,
             config.disable_custom_parameters,
+            config.check_binary
         )
     }
 
@@ -441,6 +449,7 @@ impl<'a> RequestDefaults {
         headers_discovery: bool,
         body: &str,
         disable_custom_parameters: bool,
+        check_binary: bool,
     ) -> Result<Self, Box<dyn Error>> {
 
         let mut injection_place = if headers_discovery {
@@ -520,6 +529,8 @@ impl<'a> RequestDefaults {
             amount_of_reflections: 0,
 
             parameters: Vec::new(),
+
+            check_binary
         })
     }
 

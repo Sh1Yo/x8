@@ -4,8 +4,19 @@ mod tests {
 
     use crate::network::{
         request::{Request, RequestDefaults},
-        utils::{Headers, InjectionPlace},
+        utils::{Headers, InjectionPlace, is_binary_content},
     };
+
+    #[test]
+    fn check_is_binary_content(){
+        assert!(is_binary_content(Some("application/pdf".to_string())));
+        assert!(is_binary_content(Some("something/zip".to_string())));
+        assert!(is_binary_content(Some("image/png".to_string())));
+        assert!(is_binary_content(Some("image/something".to_string())));
+
+        assert!(!is_binary_content(Some("application/json".to_string())));
+        assert!(!is_binary_content(Some("application/html".to_string())));
+    }
 
     #[test]
     fn query_creation() {
@@ -34,6 +45,7 @@ mod tests {
             false,
             false,
             "",
+            false,
             false,
         )
         .unwrap();
@@ -66,6 +78,7 @@ mod tests {
             false,
             false,
             "{\"something\":1}",
+            false,
             false,
         )
         .unwrap();
