@@ -542,8 +542,10 @@ impl<'a> RequestDefaults {
     ) -> (&'a str, &'a str, bool, Option<DataType>) {
         if let Some(data_type) = data_type {
             match data_type {
-                // %v isn't within quotes because not every json value needs to be in quotes
-                DataType::Json => ("\"%k\": %v", ", ", true, Some(DataType::Json)),
+                // %v isn't within quotes because not every json value needs to be in quotes (for example numbers)
+                // spaces betwenn json parts are removed because in cases when the json payload gets inserted into the urlencoded body
+                // the spaces aren't automatically urlencoded
+                DataType::Json => ("\"%k\":%v", ",", true, Some(DataType::Json)),
                 DataType::Urlencoded => ("%k=%v", "&", false, Some(DataType::Urlencoded)),
                 _ => unreachable!(),
             }
@@ -551,7 +553,7 @@ impl<'a> RequestDefaults {
             match injection_place {
                 InjectionPlace::Body => {
                     if body.starts_with('{') {
-                        ("\"%k\": %v", ", ", true, Some(DataType::Json))
+                        ("\"%k\":%v", ",", true, Some(DataType::Json))
                     } else {
                         ("%k=%v", "&", false, Some(DataType::Urlencoded))
                     }
