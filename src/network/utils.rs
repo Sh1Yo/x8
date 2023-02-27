@@ -2,6 +2,7 @@ use std::{time::Duration, error::Error};
 
 use lazy_static::lazy_static;
 use percent_encoding::{AsciiSet, CONTROLS};
+use regex::Regex;
 use reqwest::Client;
 use serde::Serialize;
 
@@ -157,4 +158,22 @@ pub fn create_client(config: &Config, replay: bool) -> Result<Client, Box<dyn Er
     }
 
     Ok(client.build()?)
+}
+
+/// check whether the content is binary
+/// so we can ignore the body in comparing
+/// a few reasons for it:
+/// 1. the comparing of binary content takes a lot of time
+/// 2. page diff anyway will be checked by the content-length header
+/// because the content-length header usually static for binary files
+pub fn is_binary_content(content_type: Option<String>) -> bool {
+    lazy_static!{
+        static ref RE_BINARY_MIME: Regex = Regex::new(
+            "((video|audio|font|image)/\
+    |\
+    /(zip|octet-stream|x-tar|vnd\\.rar|pdf|gzip|epub-zip|x-bzip|x-bzip2|x-freearc|x-7z-compressed))"
+        ).unwrap();
+    }
+
+    content_type.is_some() && RE_BINARY_MIME.is_match(&content_type.unwrap())
 }
