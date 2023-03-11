@@ -581,7 +581,7 @@ impl<'a> RequestDefaults {
                 } else if body.is_empty() {
                     match data_type {
                         DataType::Urlencoded => (path.to_string(), "%s".to_string()),
-                        DataType::Json => (path.to_string(), "{{%s}}".to_string()),
+                        DataType::Json => (path.to_string(), "{%s}".to_string()),
                         _ => unreachable!(),
                     }
                 } else {
