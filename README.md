@@ -1,11 +1,9 @@
 [![Twitter](https://img.shields.io/twitter/follow/sh1yo_.svg?logo=twitter)](https://twitter.com/sh1yo_)
-
 ![stars](https://img.shields.io/github/stars/Sh1Yo/x8)
 [![issues](https://img.shields.io/github/issues/sh1yo/x8?color=%20%237fb3d5%20)](https://github.com/sh1yo/x8/issues)
 
 [![Latest Version](https://img.shields.io/github/release/sh1yo/x8.svg?style=flat-square)](https://github.com/sh1yo/x8/releases)
 [![crates.io](https://img.shields.io/crates/v/x8.svg)](https://crates.io/crates/x8)
-
 [![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust)](https://crates.io/crates/x8)
 [![github_downloads](https://img.shields.io/github/downloads/sh1yo/x8/total?label=downloads&logo=github)](https://github.com/sh1yo/x8/releases)
 
