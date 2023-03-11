@@ -132,7 +132,9 @@ impl<'a> Request<'a> {
     pub fn url(&self) -> String {
         format!(
             "{}://{}:{}{}",
-            &self.defaults.scheme, &self.defaults.host, &self.defaults.port, &self.path
+            &self.defaults.scheme, &self.defaults.host, &self.defaults.port
+            // space in path throws an error in default reqwest crate
+           ,&self.path.replace(" ", "%20")
         )
     }
 
@@ -320,6 +322,7 @@ impl<'a> Request<'a> {
             request = request.header(k, v)
         }
 
+        println!("\nuri is {}\n", self.url());
         let request = request.body(self.body.to_owned()).unwrap();
 
         tokio::time::sleep(self.defaults.delay).await;
