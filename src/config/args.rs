@@ -332,6 +332,10 @@ Conflicts with --verify for now.")
                 .long("http")
                 .help("HTTP version. Supported versions: --http 1.1, --http 2")
                 .takes_value(true)
+        ).arg(
+            Arg::with_name("check-binary")
+                .long("check-binary")
+                .help("Check the body of responses with binary content types")
         );
 
     let args = app.clone().get_matches();
@@ -598,5 +602,6 @@ Increase the amount of workers to remove the error or use --force.")?;
         max,
         disable_colors: args.is_present("disable-colors"),
         disable_trustdns: args.is_present("disable-trustdns"),
+        check_binary: args.is_present("check-binary"),
     })
 }

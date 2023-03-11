@@ -132,4 +132,7 @@ pub struct Config {
     pub disable_colors: bool,
 
     pub disable_trustdns: bool,
+
+    /// check body of responses with binary content type
+    pub check_binary: bool,
 }
