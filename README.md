@@ -1,9 +1,10 @@
 [![Twitter](https://img.shields.io/twitter/follow/sh1yo_.svg?logo=twitter)](https://twitter.com/sh1yo_)
 ![github_downloads](https://img.shields.io/github/downloads/sh1yo/x8/total?label=downloads&logo=github)
+![issues](https://img.shields.io/github/issues/sh1yo/x8?color=%20%237fb3d5%20)
 ![stars](https://img.shields.io/github/stars/Sh1Yo/x8)
-<!-- ![crates.io](https://img.shields.io/crates/v/x8.svg) -->
+![crates.io](https://img.shields.io/crates/v/x8.svg)
 <!-- ![lang](https://img.shields.io/github/languages/top/sh1yo/x8) -->
-<!-- ![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust) -->
+![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust)
 
 <h1 align="center">x8</h1>
 
@@ -11,11 +12,19 @@
 
 <p align="center"><img src=https://user-images.githubusercontent.com/54232788/212553519-f4cdfb1c-f5f2-4238-a6a8-e9393b98b529.gif></p>
 
-The tool helps to find hidden parameters that can be vulnerable or can reveal interesting functionality that other testers miss. Great accuracy is achieved thanks to the line-by-line comparison of pages, comparison of response code and reflections.
+The tool aids in identifying hidden parameters that could potentially be vulnerable or reveal interesting functionality that may be missed by other testers. Its high accuracy is achieved through line-by-line comparison of pages, comparison of response codes, and reflections.
 
 # Documentation
 
-The documentation that explains every feature can be found on [https://sh1yo.art/x8docs/](https://sh1yo.art/x8docs/).
+The documentation that explains every feature can be accessed at [https://sh1yo.art/x8docs/](https://sh1yo.art/x8docs/). The source of the documentation is located at [/docs.md](docs.md).
+
+# Links
+
+- [Releases](https://github.com/Sh1Yo/x8/releases)
+- [Issues](https://github.com/Sh1Yo/x8/issues)
+- [Crates.io](https://crates.io/crates/x8)
+
+# Tree
 
 - [Features](#features)
 - [Examples](#examples)
@@ -28,12 +37,12 @@ The documentation that explains every feature can be found on [https://sh1yo.art
 # Features
 
 - Fast.
-- Has flexible request configuration thanks to the concept of templates and injection points.
-- Scalability. The tool can check up to thousands of urls per run.
-- More accurate than similar tools, especially in difficult cases.
-- Can discover parameters with not random values, like admin=true.
-- Highly configurable.
-- Almost raw requests were achieved due to the external lib modification.
+- Offers flexible request configuration through the use of templates and injection points.
+- Highly scalable, capable of checking thousands of URLs per run.
+- Provides higher accuracy compared to similar tools, especially in difficult cases.
+- Capable of discovering parameters with non-random values, such as admin=true.
+- Highly configurable with a wide range of customizable options.
+- Achieves almost raw requests through external library modification.
 
 # Examples
 
@@ -108,7 +117,7 @@ x8 -u "https://example.com" -H "Cookie: %s" -w <wordlist>
 You can check the tool and compare it with other tools on the following urls:
 
 `https://4rt.one/level1` (GET)
-`https://4rt.one/level2` (POST JSON)
+<!-- `https://4rt.one/level2` (POST JSON) -->
 `https://4rt.one/level3` (GET)
 
 # Usage
@@ -120,6 +129,8 @@ USAGE:
 FLAGS:
         --append                       Append to the output file instead of overwriting it.
     -B                                 Equal to -x http://localhost:8080
+        --check-binary                 Check the body of responses with binary content types
+        --disable-additional-checks    Private
         --disable-colors
         --disable-custom-parameters    Do not automatically check parameters like admin=true
         --disable-progress-bar
@@ -222,11 +233,11 @@ The burpsuite integration is done via the [send to](https://portswigger.net/bapp
 
 ### Setting up
 
-1. Open Burp Suite and go to the extender tab.
-2. Find and install the "Custom Send To" extension from the BApp Store.
-3. Go to the "Send to" tab and click Add.
+1. Launch Burp Suite and navigate to the 'Extender' tab.
+2. Locate and install the 'Custom Send To' extension from the BApp Store.
+3. Open the 'Send to' tab and click on the 'Add' button to configure the extension.
 
-Name the entry and insert the following line to the command:
+Give a name to the entry and insert the following line into the command:
 
 ```
 /path/to/x8 --progress-bar-len 20 -c 3 -r %R -w /path/to/wordlist --proto %T --port %P
@@ -234,29 +245,38 @@ Name the entry and insert the following line to the command:
 
 You can also add your frequently used arguments like `--output-format`,`--replay-proxy`, `--recursion-depth`, ..
 
-**NOTE** if the progress bar doesn't work properly --- try to decrease the value of `--progress-bar-len`.
+**NOTE** if the progress bar doesn't work properly --- try to reducing the value of `--progress-bar-len`.
 
 Switch from Run in background to Run in terminal.
 
 ![image](https://user-images.githubusercontent.com/54232788/201471567-2a388157-e2f1-4d68-aebe-5ecc3c1090ee.png)
 
-If you experience bad fonts within the terminal, you can change the `xterm` options in Send To Miscellaneous Options. Just replace the content with `xterm -rv -fa 'Monospace' -fs 10 -hold -e %C`
+If you encounter issues with font rendering in the terminal, you can adjust the `xterm` options in **Send to Miscellaneous Options**. Simply replace the existing content with `xterm -rv -fa 'Monospace' -fs 10 -hold -e %C`, or substitute `xterm` with your preferred terminal emulator.
 
 Now you can go to the proxy/repeater tab and send the request to the tool:
 
 ![image](https://user-images.githubusercontent.com/54232788/201518132-87fd0c40-5877-4f46-a036-590967759b3f.png)
 
-In the next dialog, you can change the command and run it in a new terminal window.
+In the next dialog, you can modify the command and execute it in a new terminal window.
 
 ![image](https://user-images.githubusercontent.com/54232788/201518230-3d7959c4-3530-497d-9aca-b20de80321cb.png)
 
-And a new terminal window with the running tool should open.
+After executing the command, a new terminal window will appear, displaying the running tool.
 
-![image](https://user-images.githubusercontent.com/54232788/201518309-895054dc-b0b7-4892-907a-664e494bcd4f.png)
+![image](https://user-images.githubusercontent.com/54232788/224473570-cabbd4ee-8c15-4a09-bc2a-c660c534a429.jpg)
 
 # Installation
 
-**NOTE** starting with v4.0.0 the installation via `cargo install` isn't possible because I've changed a few http libs. I'll try to return this installation method in the future.
+**NOTE**: Starting with v4.0.0, installing via `cargo install` uses the `crate` branch instead of `main`. This branch includes the original `reqwest` library that performs HTTP normalizations and prevents sending invalid requests. If you want to use the modified reqwest version without these limitations, I recommend installing via the `Releases` page or building the sources.
+
+- Docker
+    - installation
+        ```bash
+        git clone https://github.com/Sh1Yo/x8
+        cd x8
+        docker build -t x8 .
+        ```
+    - [usage](https://github.com/Sh1Yo/x8/pull/29)
 
 - Linux
     - from releases
@@ -270,6 +290,10 @@ And a new terminal window with the running tool should open.
         cd x8
         cargo build --release
         ```
+    - via cargo install
+        ```bash
+        cargo install x8
+        ```
 - Mac
     - from source code (rust should be installed)
         ```bash
@@ -277,15 +301,10 @@ And a new terminal window with the running tool should open.
         cd x8
         cargo build --release
         ```
+    - via cargo install
+        ```bash
+        cargo install x8
+        ```
 
 - Windows
     - from releases
-
-- Docker
-    - installation
-        ```bash
-        git clone https://github.com/Sh1Yo/x8
-        cd x8
-        docker build -t x8 .
-        ```
-    - [usage](https://github.com/Sh1Yo/x8/pull/29)
