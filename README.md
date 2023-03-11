@@ -1,10 +1,15 @@
 [![Twitter](https://img.shields.io/twitter/follow/sh1yo_.svg?logo=twitter)](https://twitter.com/sh1yo_)
-![github_downloads](https://img.shields.io/github/downloads/sh1yo/x8/total?label=downloads&logo=github)
-![issues](https://img.shields.io/github/issues/sh1yo/x8?color=%20%237fb3d5%20)
+
 ![stars](https://img.shields.io/github/stars/Sh1Yo/x8)
-![crates.io](https://img.shields.io/crates/v/x8.svg)
+[![issues](https://img.shields.io/github/issues/sh1yo/x8?color=%20%237fb3d5%20)](https://github.com/sh1yo/x8/issues)
+
+[![Latest Version](https://img.shields.io/github/release/sh1yo/x8.svg?style=flat-square)](https://github.com/sh1yo/x8/releases)
+[![crates.io](https://img.shields.io/crates/v/x8.svg)](https://crates.io/crates/x8)
+
+[![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust)](https://crates.io/crates/x8)
+[![github_downloads](https://img.shields.io/github/downloads/sh1yo/x8/total?label=downloads&logo=github)](https://github.com/sh1yo/x8/releases)
+
 <!-- ![lang](https://img.shields.io/github/languages/top/sh1yo/x8) -->
-![crates_downloads](https://img.shields.io/crates/d/x8?logo=rust)
 
 <h1 align="center">x8</h1>
 
@@ -17,12 +22,6 @@ The tool aids in identifying hidden parameters that could potentially be vulnera
 # Documentation
 
 The documentation that explains every feature can be accessed at [https://sh1yo.art/x8docs/](https://sh1yo.art/x8docs/). The source of the documentation is located at [/docs.md](docs.md).
-
-# Links
-
-- [Releases](https://github.com/Sh1Yo/x8/releases)
-- [Issues](https://github.com/Sh1Yo/x8/issues)
-- [Crates.io](https://crates.io/crates/x8)
 
 # Tree
 
