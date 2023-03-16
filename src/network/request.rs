@@ -322,7 +322,6 @@ impl<'a> Request<'a> {
             request = request.header(k, v)
         }
 
-        println!("\nuri is {}\n", self.url());
         let request = request.body(self.body.to_owned()).unwrap();
 
         tokio::time::sleep(self.defaults.delay).await;
