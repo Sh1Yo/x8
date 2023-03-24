@@ -67,17 +67,18 @@ async fn init() -> Result<(), Box<dyn Error>> {
         } else if config.methods.len() != 1 {
             Err("--test option works only with 1 method")?;
         }
+
         //TODO move to func?
         writeln!(
             io::stdout(),
             "{}",
-            Request::new(
+            Request::new_random(
                 &RequestDefaults::from_config(
                     &config,
                     config.methods[0].as_str(),
                     config.urls[0].as_str()
                 )?,
-                Vec::new()
+                config.max.unwrap_or(16)
             )
             .send()
             .await?
