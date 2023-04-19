@@ -207,7 +207,7 @@ async fn init() -> Result<(), Box<dyn Error>> {
                                             match output_file.as_mut().unwrap().write_all(
                                                 &strip_ansi_escapes::strip(&(output.normal().clear().to_string()+"\n").as_bytes()).unwrap()
                                             ).await {
-                                                Ok(()) => (),
+                                                Ok(()) => output_file.as_mut().unwrap().flush().await.unwrap(),
                                                 Err(err) => utils::error(err, Some(url), Some(progress_bar), Some(config)),
                                             };
                                         }
