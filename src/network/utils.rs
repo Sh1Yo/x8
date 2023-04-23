@@ -39,6 +39,7 @@ pub enum DataType {
     /// to exclude false positive /?{"ZXxZPLN":"ons9XDZ", ..} or Cookie: {"ZXxZPLN":"ons9XDZ", ..} queries
     // it still can be bypassed with the correct --data-type argument
     ProbablyJson,
+    Headers
 }
 
 /// where to insert parameters

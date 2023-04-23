@@ -3,7 +3,7 @@ use crate::{
         structs::Config,
         utils::{convert_to_string_if_some, parse_request},
     },
-    network::utils::DataType,
+    network::utils::{DataType, Headers},
 };
 use clap::{crate_version, App, AppSettings, Arg};
 use std::{collections::HashMap, error::Error, fs, io::{self, Write}};
@@ -442,7 +442,11 @@ Increase the amount of workers to remove the error or use --force.")?;
                     Err("Incorrect --data-type specified")?
                 }
             }
-            None => None,
+            None => if headers.get_value_case_insensitive("content-type") == Some("application/json".to_string()) {
+                Some(DataType::ProbablyJson)
+            } else {
+                None
+            },
         };
 
         let http_version = if args.value_of("http").is_some() {

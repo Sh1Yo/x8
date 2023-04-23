@@ -83,7 +83,7 @@ pub(super) fn parse_request<'a>(
         match key.to_lowercase().as_str() {
             "content-type" => {
                 if value.contains("json") {
-                    data_type = Some(DataType::Json)
+                    data_type = Some(DataType::ProbablyJson)
                 } else if value.contains("urlencoded") {
                     data_type = Some(DataType::Urlencoded)
                 }

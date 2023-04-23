@@ -444,7 +444,7 @@ impl<'a> RequestDefaults {
         template: Option<S>,
         joiner: Option<S>,
         encode: bool,
-        data_type: Option<DataType>,
+        mut data_type: Option<DataType>,
         invert: bool,
         headers_discovery: bool,
         body: &str,
@@ -461,23 +461,24 @@ impl<'a> RequestDefaults {
             InjectionPlace::Path
         };
 
-        if headers_discovery && custom_headers.iter().any(|x| x.1.contains("%s")) {
-            injection_place = InjectionPlace::HeaderValue;
+        if headers_discovery {
+            data_type = Some(DataType::Headers);
+            
+            if custom_headers.iter().any(|x| x.1.contains("%s")) {
+                injection_place = InjectionPlace::HeaderValue;
+            }
         }
 
-        let data_type = if data_type.is_none()
-            || data_type.is_some() && data_type != Some(DataType::ProbablyJson)
-        {
+        let data_type = if data_type != Some(DataType::ProbablyJson) {
             data_type
-
         // explained in DataType enum comments
         // tl.dr. data_type was taken from a parsed request's content-type so we are not 100% sure what did a user mean
-        } else if data_type == Some(DataType::ProbablyJson)
-            && injection_place == InjectionPlace::Body
-        {
+        } else if injection_place == InjectionPlace::Body {
             Some(DataType::Json)
-        } else {
+        } else if injection_place == InjectionPlace::Path {
             Some(DataType::Urlencoded)
+        } else {
+            unreachable!()
         };
 
         let (guessed_template, guessed_joiner, is_json, data_type) =
@@ -540,11 +541,11 @@ impl<'a> RequestDefaults {
         injection_place: &InjectionPlace,
         data_type: Option<DataType>,
     ) -> (&'a str, &'a str, bool, Option<DataType>) {
-        if let Some(data_type) = data_type {
+        if data_type.is_some() && data_type != Some(DataType::Headers) {
             match data_type {
                 // %v isn't within quotes because not every json value needs to be in quotes
-                DataType::Json => ("\"%k\": %v", ", ", true, Some(DataType::Json)),
-                DataType::Urlencoded => ("%k=%v", "&", false, Some(DataType::Urlencoded)),
+                Some(DataType::Json) => ("\"%k\": %v", ", ", true, Some(DataType::Json)),
+                Some(DataType::Urlencoded) => ("%k=%v", "&", false, Some(DataType::Urlencoded)),
                 _ => unreachable!(),
             }
         } else {
