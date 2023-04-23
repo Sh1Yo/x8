@@ -224,7 +224,6 @@ impl<'a> Runner<'a> {
     ) -> Result<(), Box<dyn Error>> {
         if !self.request_defaults.disable_custom_parameters {
             let mut custom_parameters = self.config.custom_parameters.clone();
-            let mut local_found_parameters = Vec::new();
             let mut params = Vec::new();
 
             // in a loop check common parameters like debug, admin, .. with common values true, 1, false..
@@ -234,7 +233,6 @@ impl<'a> Runner<'a> {
                     //do not request parameters that already have been found
                     if found_params
                         .iter()
-                        .chain(local_found_parameters.iter())
                         .map(|x| x.name.split('=').next().unwrap())
                         .any(|x| x == k)
                     {
@@ -250,21 +248,8 @@ impl<'a> Runner<'a> {
                     break;
                 }
 
-                local_found_parameters.append(&mut self.check_parameters(&params).await?.1);
+                found_params.append(&mut self.check_parameters(&params).await?.1);
                 params.clear();
-            }
-
-            // in case all parameters were detected - treat this as a false positive and ignore
-            if local_found_parameters.len() != custom_parameters.len() {
-                found_params.append(&mut local_found_parameters);
-            } else {
-                utils::info(
-                    self.config,
-                    self.id,
-                    self.progress_bar,
-                    "~",
-                    "False-positives were detected with parameters with non-random values and therefore such parameters were discarded.",
-                );
             }
         }
 
