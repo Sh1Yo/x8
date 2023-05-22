@@ -373,6 +373,19 @@ Increase the amount of workers to remove the error or use --force.")?;
         None => String::new(),
     };
 
+    let data_type  = match args.value_of("data-type") { 
+        Some(val) => {
+            if val == "json" {
+                Some(DataType::Json)
+            } else if val == "urlencoded" {
+                Some(DataType::Urlencoded)
+            } else {
+                Err("Incorrect --data-type specified")?
+            }
+        }
+        None => None
+    };
+
     // parse the default request information
     // either via the request file or via provided parameters
     let (methods, urls, headers, body, data_type, http_version) = if !request.is_empty() {
@@ -390,7 +403,7 @@ Increase the amount of workers to remove the error or use --force.")?;
             None
         };
 
-        parse_request(&request, &scheme, port, args.value_of("split-by"))?
+        parse_request(&request, &scheme, port, data_type, args.value_of("split-by"))?
     } else {
         // parse everything from user-supplied command line arguments
         let methods = if args.is_present("method") {
@@ -432,18 +445,14 @@ Increase the amount of workers to remove the error or use --force.")?;
         };
 
         // TODO replace with ".parse()" or sth like it
-        let data_type = match args.value_of("data-type") {
+        let data_type = match data_type {
             Some(val) => {
-                if val == "json" {
-                    Some(DataType::Json)
-                } else if val == "urlencoded" {
-                    Some(DataType::Urlencoded)
-                } else {
-                    Err("Incorrect --data-type specified")?
-                }
+                Some(val)
             }
             None => if headers.get_value_case_insensitive("content-type") == Some("application/json".to_string()) {
                 Some(DataType::ProbablyJson)
+            } else if   headers.get_value_case_insensitive("content-type") == Some("application/x-www-form-urlencoded".to_string()) {
+                Some(DataType::ProbablyUrlencoded)
             } else {
                 None
             },

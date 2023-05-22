@@ -469,12 +469,18 @@ impl<'a> RequestDefaults {
             }
         }
 
-        let data_type = if data_type != Some(DataType::ProbablyJson) {
+        let data_type = if data_type != Some(DataType::ProbablyJson) 
+        && data_type != Some(DataType::ProbablyUrlencoded) {
             data_type
+
         // explained in DataType enum comments
         // tl.dr. data_type was taken from a parsed request's content-type so we are not 100% sure what did a user mean
         } else if injection_place == InjectionPlace::Body {
-            Some(DataType::Json)
+            match data_type {
+                Some(DataType::ProbablyJson) => Some(DataType::Json),
+                Some(DataType::ProbablyUrlencoded) => Some(DataType::Urlencoded),
+                _ => unreachable!()
+            }
         } else if injection_place == InjectionPlace::Path {
             Some(DataType::Urlencoded)
         } else {
