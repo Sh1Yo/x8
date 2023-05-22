@@ -245,7 +245,7 @@ impl<'a> Request<'a> {
             }
             InjectionPlace::HeaderValue => {
                 // in case someone searches headers while sending a valid body - it's usually important to set Content-Type header as well.
-                if self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
+                if !self.defaults.custom_headers.contains_key("Content-Type") && self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
                     if self.body.starts_with('{') {
                         self.set_header("Content-Type", "application/json");
                     } else {
@@ -263,7 +263,7 @@ impl<'a> Request<'a> {
             }
             InjectionPlace::Headers => {
                 // in case someone searches headers while sending a valid body - it's usually important to set Content-Type header as well.
-                if self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
+                if !self.defaults.custom_headers.contains_key("Content-Type") && self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
                     if self.body.starts_with('{') {
                         self.set_header("Content-Type", "application/json");
                     } else {
