@@ -254,7 +254,8 @@ async fn init() -> Result<(), Box<dyn Error>> {
             .parse_output(&config);
 
         if output_file.is_some() {
-            output_file.unwrap().write_all(output.as_bytes()).await?;
+            output_file.as_mut().unwrap().write_all(output.as_bytes()).await?;
+            output_file.as_mut().unwrap().flush().await?;
         }
 
         write!(io::stdout(), "\n{}", output).ok();
