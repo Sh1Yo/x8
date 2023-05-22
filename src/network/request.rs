@@ -588,7 +588,12 @@ impl<'a> RequestDefaults {
                         DataType::Json => {
                             let mut body = body.to_owned();
                             body.pop(); // remove the last '}'
-                            (path.to_string(), format!("{}, %s}}", body))
+                            if body != "{" {
+                                (path.to_string(), format!("{}, %s}}", body))
+                            } else {
+                                // the json body was empty so the first comma is not needed
+                                (path.to_string(), format!("{}%s}}", body))
+                            }
                         }
                         _ => unreachable!(),
                     }
