@@ -2015,7 +2015,7 @@ dependencies = [
 
 [[package]]
 name = "x8"
-version = "4.2.2-dev"
+version = "4.3.0-dev"
 dependencies = [
  "async-recursion",
  "atty",

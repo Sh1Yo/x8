@@ -160,7 +160,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
         .arg(
             Arg::with_name("invert")
                 .long("invert")
-                .help("By default, parameters are sent within the body only in case PUT or POST methods are used.
+                .help("By default, parameters are sent within the body only in case POST,PUT,PATCH,DELETE methods are used.
 It's possible to overwrite this behavior by specifying the option")
                 .conflicts_with("headers-discovery")
         )
