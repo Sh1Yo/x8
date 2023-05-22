@@ -544,7 +544,7 @@ impl<'a> RequestDefaults {
         if data_type.is_some() && data_type != Some(DataType::Headers) {
             match data_type {
                 // %v isn't within quotes because not every json value needs to be in quotes
-                Some(DataType::Json) => ("\"%k\": %v", ", ", true, Some(DataType::Json)),
+                Some(DataType::Json) => ("\"%k\":%v", ",", true, Some(DataType::Json)),
                 Some(DataType::Urlencoded) => ("%k=%v", "&", false, Some(DataType::Urlencoded)),
                 _ => unreachable!(),
             }
@@ -552,7 +552,7 @@ impl<'a> RequestDefaults {
             match injection_place {
                 InjectionPlace::Body => {
                     if body.starts_with('{') {
-                        ("\"%k\": %v", ", ", true, Some(DataType::Json))
+                        ("\"%k\":%v", ",", true, Some(DataType::Json))
                     } else {
                         ("%k=%v", "&", false, Some(DataType::Urlencoded))
                     }
@@ -589,7 +589,7 @@ impl<'a> RequestDefaults {
                             let mut body = body.to_owned();
                             body.pop(); // remove the last '}'
                             if body != "{" {
-                                (path.to_string(), format!("{}, %s}}", body))
+                                (path.to_string(), format!("{},%s}}", body))
                             } else {
                                 // the json body was empty so the first comma is not needed
                                 (path.to_string(), format!("{}%s}}", body))
