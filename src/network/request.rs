@@ -454,8 +454,8 @@ impl<'a> RequestDefaults {
 
         let mut injection_place = if headers_discovery {
             InjectionPlace::Headers
-        } else if (method == "POST" || method == "PUT") && !invert
-        || (method != "POST" && method != "PUT" && invert) {
+        } else if (method == "POST" || method == "PUT" || method == "PATCH" || method == "DELETE") && !invert
+        || (method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE" && invert) {
             InjectionPlace::Body
         } else {
             InjectionPlace::Path
