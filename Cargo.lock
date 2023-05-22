@@ -2070,7 +2070,7 @@ dependencies = [
 
 [[package]]
 name = "x8"
-version = "4.3.0-crate"
+version = "4.3.0"
 dependencies = [
  "async-recursion",
  "atty",
