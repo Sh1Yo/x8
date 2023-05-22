@@ -451,8 +451,6 @@ Increase the amount of workers to remove the error or use --force.")?;
             }
             None => if headers.get_value_case_insensitive("content-type") == Some("application/json".to_string()) {
                 Some(DataType::ProbablyJson)
-            } else if   headers.get_value_case_insensitive("content-type") == Some("application/x-www-form-urlencoded".to_string()) {
-                Some(DataType::ProbablyUrlencoded)
             } else {
                 None
             },

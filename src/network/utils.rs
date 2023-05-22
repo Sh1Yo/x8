@@ -40,10 +40,6 @@ pub enum DataType {
     ProbablyJson,
 
     Urlencoded,
-    
-    /// the same as for ProbablyJson 
-    ProbablyUrlencoded,
-
     Headers
 }
 

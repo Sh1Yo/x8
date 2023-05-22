@@ -84,8 +84,6 @@ pub(super) fn parse_request<'a>(
             "content-type" => {
                 if value.contains("json") && data_type.is_none() {
                     data_type = Some(DataType::ProbablyJson)
-                } else if value.contains("urlencoded") && data_type.is_none() {
-                    data_type = Some(DataType::ProbablyUrlencoded)
                 }
             }
             "host" => {
