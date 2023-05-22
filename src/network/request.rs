@@ -247,7 +247,7 @@ impl<'a> Request<'a> {
             }
             InjectionPlace::HeaderValue => {
                 // in case someone searches headers while sending a valid body - it's usually important to set Content-Type header as well.
-                if self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
+                if !self.defaults.custom_headers.contains_key("Content-Type") && self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
                     if self.body.starts_with('{') {
                         self.set_header("Content-Type", "application/json");
                     } else {
@@ -265,7 +265,7 @@ impl<'a> Request<'a> {
             }
             InjectionPlace::Headers => {
                 // in case someone searches headers while sending a valid body - it's usually important to set Content-Type header as well.
-                if self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
+                if !self.defaults.custom_headers.contains_key("Content-Type") && self.defaults.method != "GET" && self.defaults.method != "HEAD" && !self.body.is_empty() {
                     if self.body.starts_with('{') {
                         self.set_header("Content-Type", "application/json");
                     } else {
@@ -446,7 +446,7 @@ impl<'a> RequestDefaults {
         template: Option<S>,
         joiner: Option<S>,
         encode: bool,
-        data_type: Option<DataType>,
+        mut data_type: Option<DataType>,
         invert: bool,
         headers_discovery: bool,
         body: &str,
@@ -456,30 +456,33 @@ impl<'a> RequestDefaults {
 
         let mut injection_place = if headers_discovery {
             InjectionPlace::Headers
-        } else if (method == "POST" || method == "PUT") && !invert
-        || (method != "POST" && method != "PUT" && invert) {
+        } else if (method == "POST" || method == "PUT" || method == "PATCH" || method == "DELETE") && !invert
+        || (method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE" && invert) {
             InjectionPlace::Body
         } else {
             InjectionPlace::Path
         };
 
-        if headers_discovery && custom_headers.iter().any(|x| x.1.contains("%s")) {
-            injection_place = InjectionPlace::HeaderValue;
+        if headers_discovery {
+            data_type = Some(DataType::Headers);
+            
+            if custom_headers.iter().any(|x| x.1.contains("%s")) {
+                injection_place = InjectionPlace::HeaderValue;
+            }
         }
 
-        let data_type = if data_type.is_none()
-            || data_type.is_some() && data_type != Some(DataType::ProbablyJson)
-        {
+        let data_type = if data_type != Some(DataType::ProbablyJson) {
             data_type
 
         // explained in DataType enum comments
         // tl.dr. data_type was taken from a parsed request's content-type so we are not 100% sure what did a user mean
-        } else if data_type == Some(DataType::ProbablyJson)
-            && injection_place == InjectionPlace::Body
-        {
+        // we don't need probablyurlencoded because urlencoded is fine for get requests
+        } else if injection_place == InjectionPlace::Body && data_type == Some(DataType::ProbablyJson) {
             Some(DataType::Json)
-        } else {
+        } else if injection_place == InjectionPlace::Path {
             Some(DataType::Urlencoded)
+        } else {
+            unreachable!()
         };
 
         let (guessed_template, guessed_joiner, is_json, data_type) =
@@ -542,18 +545,18 @@ impl<'a> RequestDefaults {
         injection_place: &InjectionPlace,
         data_type: Option<DataType>,
     ) -> (&'a str, &'a str, bool, Option<DataType>) {
-        if let Some(data_type) = data_type {
+        if data_type.is_some() && data_type != Some(DataType::Headers) {
             match data_type {
                 // %v isn't within quotes because not every json value needs to be in quotes
-                DataType::Json => ("\"%k\": %v", ", ", true, Some(DataType::Json)),
-                DataType::Urlencoded => ("%k=%v", "&", false, Some(DataType::Urlencoded)),
+                Some(DataType::Json) => ("\"%k\":%v", ",", true, Some(DataType::Json)),
+                Some(DataType::Urlencoded) => ("%k=%v", "&", false, Some(DataType::Urlencoded)),
                 _ => unreachable!(),
             }
         } else {
             match injection_place {
                 InjectionPlace::Body => {
                     if body.starts_with('{') {
-                        ("\"%k\": %v", ", ", true, Some(DataType::Json))
+                        ("\"%k\":%v", ",", true, Some(DataType::Json))
                     } else {
                         ("%k=%v", "&", false, Some(DataType::Urlencoded))
                     }
@@ -589,7 +592,12 @@ impl<'a> RequestDefaults {
                         DataType::Json => {
                             let mut body = body.to_owned();
                             body.pop(); // remove the last '}'
-                            (path.to_string(), format!("{}, %s}}", body))
+                            if body != "{" {
+                                (path.to_string(), format!("{},%s}}", body))
+                            } else {
+                                // the json body was empty so the first comma is not needed
+                                (path.to_string(), format!("{}%s}}", body))
+                            }
                         }
                         _ => unreachable!(),
                     }

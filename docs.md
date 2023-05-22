@@ -22,27 +22,27 @@ Usually, the tool's output looks like this:
 -r --request <filename>
 ```
 
-The file with the raw http request.
+This option specifies the file containing the raw HTTP request.
 
-When the request file is used -- no default headers (`Accept`, `User-Agent`, etc) are added to the request.
+When using a request file, the tool does not add default headers such as `Accept` and `User-Agent` to the request.
 
-For now, an url gets created directly from the `Host` header; therefore, it's not possible to set an arbitrary `Host` header from within a request file. If you want to set a different `Host` header, see `-H` from [this](#http-request-from-command-line-arguments) category.
+At present, the URL is created directly from the Host header, so it is not possible to set an arbitrary Host header from within a request file. If you want to set a different Host header, see the `-H` option in the [HTTP Request from Command Line Arguments](#http-request-from-command-line-arguments) category.
 
 ```
 --proto <http/https>
 ```
 
-An additional and required to the `--request` argument.
+This argument is additional and required when using the `--request` option.
 
-Either http or https can be specified.
+Specify either `http` or `https`.
 
 ```
 --split-by <value>
 ```
 
-How to split the request file. By default, the `.lines()` method is used that treats `\r`, `\n`, and `\r\n` as line separators.
+This option specifies how to split the request file. By default, the `.lines()` method is used, which treats `\r`, `\n`, and `\r\n` as line separators.
 
-Example to split only by `\n`: `--split-by '\n'`
+For example, to split only by `\n`, use `--split-by '\n'`.
 
 ### http request from command-line arguments [conflicts with -\-request]
 
@@ -50,17 +50,17 @@ Example to split only by `\n`: `--split-by '\n'`
 -u --url <values>
 ```
 
-The target url. Multiple urls can be provided via `-u https://example.com https://4rt.one` or via a filename: `-u targets.txt`.
+This option specifies the target URL. Multiple URLs can be provided using `-u https://example.com https://4rt.one`, or by using a filename: `-u targets.txt`.
 
-To specify an injection point use **%s**. `-u https://4rt.one?a=b` equals to `-u https://4rt.one/?a=b&%s`
+To specify an injection point, use `%s`. For example, `-u https://4rt.one?a=b` is equivalent to `-u https://4rt.one/?a=b&%s`.
 
-Supported variables -- **{{random}}**. `-u https://4rt.one/?something={{random}}` the **something** parameter will take on new values every request.
+Supported variables include {{random}}. For instance, `-u https://4rt.one/?something={{random}}` will cause the something parameter to take on new values for every request.
 
 ```
 -X --method <values>
 ```
 
-The request method.
+This option specifies the request method.
 
 An example with multiple values: `-X GET POST`
 
@@ -68,47 +68,49 @@ An example with multiple values: `-X GET POST`
 -b --body <value>
 ```
 
-The request body.
+This option specifies the request body.
 
-To specify an injection point use **%s**. `-b '{"some":"value"}'` equals to `-b '{"some":"value", %s}'`
+To specify an injection point, use `%s`. For example, `-b '{"some":"value"}'` is equivalent to `-b '{"some":"value", %s}'`.
 
-Supported variables -- **{{random}}**.
+Supported variables include `{{random}}`.
 
 ```
 -H <values>
 ```
 
-The request headers.
+This option specifies the request headers.
 
-Example: `-H "User-Agent: Mozilla" "X-Something: awesome"`
+For example, `-H "User-Agent: Mozilla" "X-Something: awesome"`.
 
-You can overwrite the default `Host` header as well.
+You can overwrite the default Host header as well.
 
-**NOTE** The overwriting of the `Host` header works properly only with `HTTP/1.1` because there's no `Host` header for `HTTP/2`. Instead, for `HTTP/2` there's a special `:authority` header, but the tool currently can't change special `HTTP/2` headers.
+**NOTE**: Overwriting the `Host` header works properly only with `HTTP/1.1` because there is no `Host` header for `HTTP/2`. Instead, for `HTTP/2`, there is a special `:authority` header, but the tool currently cannot change special `HTTP/2` headers.
 
-**NOTE** You can encounter some case-related problems. The library that I'm using for requests is reqwest. It uppercases the first letter of the header name(or one after `-`) and lowercases other ones for `HTTP/1.1`. On the other hand, for `HTTP/2` requests, reqwest lowercases every header name (as per `HTTP/2` specs)
+**NOTE**: You may encounter some case-related problems. The library that I am using for requests is `reqwest`. It capitalizes the first letter of the header name (or one after `-`) and lowers the rest for `HTTP/1.1`. However, for `HTTP/2` requests, `reqwest` lowers every header name (as per `HTTP/2` specs).
 
 ```
 --http <1.1/2>
 ```
 
-To force the specific http version.
+This option forces the use of a specific HTTP version. You can specify either `1.1` or `2`.
+
+For example, `--http 1.1` will force the use of `HTTP/1.1`, while `--http 2` will force the use of `HTTP/2`.
 
 ### Parameters
 
-The main purpose of the tool is to handle all the different situations. To achieve it, I added a few options that allow accurate control of how and where the parameters are inserted.
+The tool's primary purpose is to handle a wide range of situations. To accomplish this, several options have been added that provide precise control over how and where parameters are inserted.
 
-To insert parameters into specific place use **%s** variable.
+To insert parameters into specific locations, use the `%s` variable.
 
 ```
 -P --param-template <value>
 ```
 
-**%k** --- key, **%v** -- value.
+Here, `%k` represents the key, and `%v` represents the value.
 
-For ordinary get requests the parameter template is usually `%k=%v`.
+For standard GET requests, the parameter template is typically `%k=%v`.
 
-Default values: for urlencoded `%k=%v`, for json `"%k":%v`, and for header values `%k=%v`
+Default values are `%k=%v` for URL-encoded data, `"%k":%v` for JSON, and `%k=%v` for header values.
 
 Examples:
 
@@ -120,11 +122,12 @@ Examples:
 -j --joiner <value>
 ```
 
-This argument determines how to join parameters together. For ordinary get requests it's `&`.
+This argument determines how to join parameters together. For ordinary GET requests, it's `&`.
 
-Default values: for urlencoded `&`, for json `, `, for header values `; `
+Default values: for urlencoded `&`, for JSON `,`, for header values `; `
 
-- Custom made xml discovery format: `--body "<root>%s</root>" --joiner "\n" --param-template "<%k>%v</%k>"`
+- Custom made XML discovery format: `--body "<root>%s</root>" --joiner "\n" --param-template "<%k>%v</%k>"`
+
 
 ```
 -t --data-type <json/urlencoded>
@@ -137,11 +140,11 @@ For example, when the body isn't provided with the `POST` method. By default, **
 ```
 --encode
 ```
-In some contexts, you may need to encode special chars. `&` -> `%26`
+In some contexts, you may need to encode special characters. `&` becomes `%26`
 
-List of chars to encode: **["` <>&#;/=%]**
+List of characters to encode: **["`<>&#;/=%]**
 
-- For example, when you find an app that forwards a specific parameter to the backend: `-u 'https://4rt.one/v?uid=00000%26%s' --encode`
+For example, when you find an app that forwards a specific parameter to the backend: `-u 'https://4rt.one/v?uid=00000%26%s' --encode`
 
 `https://4rt.one/v?uid=<value>%26param%3dvalue` -> makes request to -> `http://internal/secret?uid=<value>&param=value`
 
@@ -157,7 +160,7 @@ Default values:
 
 `--custom-values 1 0 false off null true yes no`
 
-*Usually, adding an additional custom parameter is free, while adding a custom value costs 1 req per value.*
+*Usually, adding an additional custom parameter is free, while adding a custom value costs 1 request per value.*
 
 ```
 --disable-custom-parameters
@@ -169,9 +172,9 @@ Disables checking for custom parameters by default.
 -m --max <uint>
 ```
 
-How many parameters to send in every request.
+Determines how many parameters to send in every request.
 
-By default: for query <=256 (starts with 128 and tries to increase up to 256. With v4.2.0 the logic was improved and the value may even be less than 128), 64 for headers and header values, and 512 for body.
+By default: for query parameters, it starts with 128 and tries to increase up to 256. With v4.2.0, the logic was improved and the value may even be less than 128. For headers and header values, the default is 64. For the body, the default is 512.
 
 ### Behavior
 
@@ -179,19 +182,15 @@ By default: for query <=256 (starts with 128 and tries to increase up to 256. Wi
 --headers
 ```
 
-Search for headers.
+Search for headers. By default, the tool sends 64 headers per requests, but this can be configured with the `-m` option.
 
-**Note** You may encounter with all the limitations described in `-H` from [this](#http-request-from-command-line-arguments) section.
-
-By default sends 64 headers per requests. Can be configured with `-m`.
+**Note**: You may encounter all the limitations described in `-H` from [HTTP Request From Command-Line Arguments](#http-request-from-command-line-arguments) section.
 
 ```
 --invert
 ```
 
-Sometimes you may need to send parameters via body with the `GET` method or via query with the `POST` method.
-
-By default, parameters are sent within the request body only with the `PUT` and `POST` methods, but it can be overwriten with the `--invert` option.
+Sometimes you may need to send parameters via the body with the `GET` method or via query with the `POST` method. By default, parameters are sent within the request body only with the `PUT` and `POST` methods, but it can be overwritten with the `--invert` option.
 
 ```
 --recursion-depth <uint> [default: 1]
@@ -199,23 +198,19 @@ By default, parameters are sent within the request body only with the `PUT` and 
 
 Checks the same list of parameters over and over, adding found parameters every run.
 
-*Only parameters that don't change the page's code are added to the next run*
+*Only parameters that don't change the page's code are added to the next run.*
 
 ```
 --reflected-only
 ```
 
-To search only for reflected parameters.
-
-Reduces the amount of sent requests.
+Search only for reflected parameters to reduce the amount of sent requests.
 
 ```
 --strict
 ```
 
-Do not report parameters that change the same part of the page. Helps to get rid of mass false positives like when all the parameters containing `admin` cause page differences.
-
-Can lead to a few false negatives as well. In the future, will be replaced with a bit better logic.
+Do not report parameters that change the same part of the page. This helps to get rid of mass false positives, such as when all the parameters containing `admin` cause page differences. Note that this can lead to a few false negatives as well. In the future, this option will be replaced with a bit better logic.
 
 ### Concurrency
 
@@ -225,23 +220,23 @@ Implemented using async/awaits.
 -W --workers <uint> [default: 1]
 ```
 
-The number of concurrect url check.
+This specifies the number of concurrent URL checks.
 
-`-W 0` -- check all the urls in parallel.
+`-W 0` -- checks all URLs in parallel.
 
 ```
 --one-worker-per-host
 ```
 
-Only urls with different hosts will be checked in parallel.
+This option only checks URLs with different hosts in parallel.
 
-**NOTE** can be a bit misleading, but this option doesn't increase the number of workers in case there're fewer workers than hosts. You can use `-W 0` for the actual one **worker** per **host**.
+**Note**: This option does not increase the number of workers if there are fewer workers than hosts. You can use `-W 0` for one **worker** per **host**.
 
 ```
 -c --concurrency <uint> [default: 1]
 ```
 
-The amount of concurrent jobs for every worker.
+This specifies the number of concurrent jobs for each worker.
 
 ### Output
 
@@ -249,29 +244,31 @@ The amount of concurrent jobs for every worker.
 -v --verbose <0/1/2> [default: 1]
 ```
 
-Determines how much information to print into the console.
+This option determines how much information to print to the console.
 
-This depends on the amount of parallel url checks as well.
+The output also depends on the number of parallel URL checks.
 
-- 0 --- print only the initial config, urls' config, and their found parameters. The progress bar stays but can be disabled with `--disable-progress-bar`.
-- 1 --- 0 + prints every discovered parameter's kind if only 1 url is being checked in parallel.
+- 0 --- prints only the initial configuration, URL configuration, and their found parameters. The progress bar remains but can be disabled with `--disable-progress-bar`.
+- 1 --- 0 + prints every discovered parameter's kind if only one URL is being checked in parallel.
 - 2 --- 0 + prints every discovered parameter's kind always.
 
 ```
 -o --output <filename>
 ```
 
-A file with the final output.
+This option specifies the file where the final output is written.
 
-By default, the file overwrites unless`--append` is provided.
+By default, the file overwrites unless `--append` is provided.
 
-The file is dynamically populated unless the json output is used.
+The file is dynamically populated unless the JSON output is used.
 
 ```
 -O --output-format <standart/json/url/request>
 ```
 
-The final message about found parameters is printed to the console with this output format. In case `--output` is defined, the same message is printed to the file.
+This option specifies the output format for the final message about found parameters.
+
+If `--output` is defined, the same message is printed to the file.
 
 **standart**: `<METHOD> <URL> % <PARAMETERS devided by ', '>`
 
@@ -313,4 +310,4 @@ reason_kind can take on 4 values:
 --remove-empty
 ```
 
-Do not write entries without found parameters to the output file.
+This option excludes entries without found parameters from the output file.

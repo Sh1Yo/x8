@@ -274,7 +274,7 @@ impl<'a> Response<'a> {
             ReasonKind::NotReflected => format!(
                 "{}{}: {}",
                 &id_if_important,
-                "not reflected one".bright_cyan(),
+                "changes reflections".bright_cyan(),
                 parameter
             ),
         };

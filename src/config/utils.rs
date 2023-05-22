@@ -25,6 +25,7 @@ pub(super) fn parse_request<'a>(
     request: &'a str,
     scheme: &str,
     port: Option<u16>,
+    mut data_type: Option<DataType>,
     split_by: Option<&str>,
 ) -> Result<
     (
@@ -47,7 +48,6 @@ pub(super) fn parse_request<'a>(
     };
     let mut lines = lines.iter();
 
-    let mut data_type: Option<DataType> = None;
     let mut headers: Vec<(String, String)> = Vec::new();
     let mut host = String::new();
 
@@ -82,10 +82,8 @@ pub(super) fn parse_request<'a>(
 
         match key.to_lowercase().as_str() {
             "content-type" => {
-                if value.contains("json") {
-                    data_type = Some(DataType::Json)
-                } else if value.contains("urlencoded") {
-                    data_type = Some(DataType::Urlencoded)
+                if value.contains("json") && data_type.is_none() {
+                    data_type = Some(DataType::ProbablyJson)
                 }
             }
             "host" => {

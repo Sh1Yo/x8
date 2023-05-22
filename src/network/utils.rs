@@ -32,13 +32,15 @@ pub enum DataType {
     /// we need a different data type for json because some json values can be used without quotes (numbers, booleans, ..)
     /// and therefore this type should be treated differently
     Json,
-    Urlencoded,
 
     /// that's from parsed request's content-type header
     /// needs to be ignored in case the injection points not within the body
     /// to exclude false positive /?{"ZXxZPLN":"ons9XDZ", ..} or Cookie: {"ZXxZPLN":"ons9XDZ", ..} queries
     // it still can be bypassed with the correct --data-type argument
     ProbablyJson,
+
+    Urlencoded,
+    Headers
 }
 
 /// where to insert parameters

@@ -3,7 +3,7 @@ use crate::{
         structs::Config,
         utils::{convert_to_string_if_some, parse_request},
     },
-    network::utils::DataType,
+    network::utils::{DataType, Headers},
 };
 use clap::{crate_version, App, AppSettings, Arg};
 use std::{collections::HashMap, error::Error, fs, io::{self, Write}};
@@ -160,7 +160,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
         .arg(
             Arg::with_name("invert")
                 .long("invert")
-                .help("By default, parameters are sent within the body only in case PUT or POST methods are used.
+                .help("By default, parameters are sent within the body only in case POST,PUT,PATCH,DELETE methods are used.
 It's possible to overwrite this behavior by specifying the option")
                 .conflicts_with("headers-discovery")
         )
@@ -373,6 +373,19 @@ Increase the amount of workers to remove the error or use --force.")?;
         None => String::new(),
     };
 
+    let data_type  = match args.value_of("data-type") { 
+        Some(val) => {
+            if val == "json" {
+                Some(DataType::Json)
+            } else if val == "urlencoded" {
+                Some(DataType::Urlencoded)
+            } else {
+                Err("Incorrect --data-type specified")?
+            }
+        }
+        None => None
+    };
+
     // parse the default request information
     // either via the request file or via provided parameters
     let (methods, urls, headers, body, data_type, http_version) = if !request.is_empty() {
@@ -390,7 +403,7 @@ Increase the amount of workers to remove the error or use --force.")?;
             None
         };
 
-        parse_request(&request, &scheme, port, args.value_of("split-by"))?
+        parse_request(&request, &scheme, port, data_type, args.value_of("split-by"))?
     } else {
         // parse everything from user-supplied command line arguments
         let methods = if args.is_present("method") {
@@ -432,17 +445,15 @@ Increase the amount of workers to remove the error or use --force.")?;
         };
 
         // TODO replace with ".parse()" or sth like it
-        let data_type = match args.value_of("data-type") {
+        let data_type = match data_type {
             Some(val) => {
-                if val == "json" {
-                    Some(DataType::Json)
-                } else if val == "urlencoded" {
-                    Some(DataType::Urlencoded)
-                } else {
-                    Err("Incorrect --data-type specified")?
-                }
+                Some(val)
             }
-            None => None,
+            None => if headers.get_value_case_insensitive("content-type") == Some("application/json".to_string()) {
+                Some(DataType::ProbablyJson)
+            } else {
+                None
+            },
         };
 
         let http_version = if args.value_of("http").is_some() {
