@@ -567,6 +567,13 @@ Increase the amount of workers to remove the error or use --force.")?;
         args.value_of("proxy").unwrap_or("").to_string()
     };
 
+    if args.is_present("headers-discovery") {
+        writeln!(
+            io::stdout(),
+            "[#] NOTE. Invalid headers are ignored in the crates.io version of the tool."
+        ).ok();
+    }
+
     // TODO maybe replace empty with None
     Ok(Config {
         urls,

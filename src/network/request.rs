@@ -132,9 +132,7 @@ impl<'a> Request<'a> {
     pub fn url(&self) -> String {
         format!(
             "{}://{}:{}{}",
-            &self.defaults.scheme, &self.defaults.host, &self.defaults.port
-            // space in path throws an error in default reqwest crate
-           ,&self.path.replace(" ", "%20")
+            &self.defaults.scheme, &self.defaults.host, &self.defaults.port, &self.path
         )
     }
 
@@ -180,7 +178,6 @@ impl<'a> Request<'a> {
 
     /// replace injection points with parameters
     /// replace templates ({{random}}) with random values
-    /// additional param is for reflection counting TODO REMOVE
     ///
     /// in case self.parameters contains parameter with "="
     /// it gets splitted by =  and the default random value gets replaced with the right part:
@@ -233,7 +230,7 @@ impl<'a> Request<'a> {
         self.body = self.body.replace("{{random}}", &random_line(RANDOM_LENGTH));
 
         match self.defaults.injection_place {
-            InjectionPlace::Path => self.path = self.path.replace("%s", &self.make_query()),
+            InjectionPlace::Path => self.path = self.path.replace("%s", url_escape::encode_query_to_string(&self.make_query(), &mut String::new())),
             InjectionPlace::Body => {
                 self.body = self.body.replace("%s", &self.make_query());
 
@@ -319,7 +316,10 @@ impl<'a> Request<'a> {
             .uri(self.url());
 
         for (k, v) in &self.headers {
-            request = request.header(k, v)
+            // Invalid headers cause errors in the crates.io version of the tool
+            if reqwest::header::HeaderName::from_bytes(k.as_bytes()).is_ok() {
+                request = request.header(k, v)
+            }
         }
 
         let request = request.body(self.body.to_owned()).unwrap();
