@@ -186,6 +186,10 @@ It's possible to overwrite this behavior by specifying the option")
                 .long("disable-colors")
         )
         .arg(
+            Arg::with_name("force-enable-colors")
+                .long("force-enable-colors")
+        )
+        .arg(
             Arg::with_name("disable-trustdns")
                 .long("disable-trustdns")
                 .help("Can solve some dns related problems")
@@ -551,6 +555,11 @@ Increase the amount of workers to remove the error or use --force.")?;
     // disable colors
     if args.is_present("disable-colors") {
         colored::control::set_override(false);
+    }
+
+    // force enable colors to preseve colors while redirecting output
+    if args.is_present("force-enable-colors") {
+        colored::control::set_override(true);
     }
 
     // decrease verbose by 1 in case > 1 url is being checked in parallel
