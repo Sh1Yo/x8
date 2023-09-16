@@ -340,6 +340,10 @@ Conflicts with --verify for now.")
             Arg::with_name("check-binary")
                 .long("check-binary")
                 .help("Check the body of responses with binary content types")
+        ).arg(
+            Arg::with_name("cookies")
+                .long("cookies")
+                .help("Shortcut for adding injection point to cookies")
         );
 
     let args = app.clone().get_matches();
@@ -392,7 +396,7 @@ Increase the amount of workers to remove the error or use --force.")?;
 
     // parse the default request information
     // either via the request file or via provided parameters
-    let (methods, urls, headers, body, data_type, http_version) = if !request.is_empty() {
+    let (methods, urls, mut headers, body, data_type, http_version) = if !request.is_empty() {
         // if the request file is specified - get protocol (https/http) from args, specify scheme and port, and parse request file
         let proto = args
             .value_of("proto")
@@ -576,6 +580,14 @@ Increase the amount of workers to remove the error or use --force.")?;
         args.value_of("proxy").unwrap_or("").to_string()
     };
 
+    if args.is_present("cookies") {
+        if let Some(index) = headers.get_index_case_insensitive("cookie") {
+            headers[index] = (headers[index].0.clone(), headers[index].1.clone()+";%s")
+        } else {
+            headers.push(("Cookie".to_string(), "%s".to_string()));
+        }
+    }
+
     // TODO maybe replace empty with None
     Ok(Config {
         urls,
@@ -611,7 +623,7 @@ Increase the amount of workers to remove the error or use --force.")?;
         disable_custom_parameters: args.is_present("disable-custom-parameters"),
         one_worker_per_host: args.is_present("one-worker-per-host"),
         invert: args.is_present("invert"),
-        headers_discovery: args.is_present("headers-discovery"),
+        headers_discovery: args.is_present("headers-discovery") || args.is_present("cookies"),
         body,
         delay,
         custom_headers: headers
