@@ -131,6 +131,8 @@ pub struct Config {
 
     pub disable_colors: bool,
 
+    pub remove_banner: bool,
+
     pub disable_trustdns: bool,
 
     /// check body of responses with binary content type

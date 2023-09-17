@@ -344,6 +344,10 @@ Conflicts with --verify for now.")
             Arg::with_name("cookies")
                 .long("cookies")
                 .help("Shortcut for adding injection point to cookies")
+        ).arg(
+            Arg::with_name("remove-banner")
+                .long("remove-banner")
+                .help("Do not print initial banner")
         );
 
     let args = app.clone().get_matches();
@@ -633,6 +637,7 @@ Increase the amount of workers to remove the error or use --force.")?;
         data_type,
         max,
         disable_colors: args.is_present("disable-colors"),
+        remove_banner: args.is_present("remove-banner"),
         disable_trustdns: args.is_present("disable-trustdns"),
         check_binary: args.is_present("check-binary"),
     })
