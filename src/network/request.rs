@@ -336,7 +336,15 @@ impl<'a> Request<'a> {
 
         for (k, v) in res.headers() {
             let k = k.to_string();
-            let v = v.to_str().unwrap().to_string();
+
+            // sometimes conversion may fail
+            let v = match v.to_str() {
+                Ok(val) => val,
+                Err(_) => {
+                    log::debug!("Unable to parse {} header. The value is {:?}", k, v);
+                    ""
+                }
+            }.to_string();
 
             headers.push((k, v));
         }

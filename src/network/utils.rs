@@ -58,6 +58,7 @@ impl Default for InjectionPlace {
 
 pub trait Headers {
     fn contains_key(&self, key: &str) -> bool;
+    fn get_index_case_insensitive(&self, key: &str) -> Option<usize>;
     fn get_value(&self, key: &str) -> Option<String>;
     fn get_value_case_insensitive(&self, key: &str) -> Option<String>;
 }
@@ -70,6 +71,10 @@ impl Headers for Vec<(String, String)> {
             }
         }
         false
+    }
+
+    fn get_index_case_insensitive(&self, key: &str) -> Option<usize> {
+        self.iter().position(|r| r.0.to_lowercase() == key.to_ascii_lowercase())
     }
 
     fn get_value(&self, key: &str) -> Option<String> {

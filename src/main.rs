@@ -105,7 +105,9 @@ async fn init() -> Result<(), Box<dyn Error>> {
         params = read_stdin_lines();
     }
 
-    write_banner_config(&config, &params);
+    if !config.remove_banner {
+        write_banner_config(&config, &params);
+    }
 
     // such headers usually cause server to timeout
     // especially when http/2 is used
