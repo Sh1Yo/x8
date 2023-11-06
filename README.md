@@ -283,9 +283,13 @@ After executing the command, a new terminal window will appear, displaying the r
         ```
     - from source code (rust should be installed)
         ```bash
-        git clone https://github.com/Sh1Yo/x8
+        git clone https://github.com/sh1yo/x8
         cd x8
         cargo build --release
+        # move the binary to $PATH so you can use it without specifying the full path
+        cp ./target/release/x8 /usr/local/bin 
+        # if it says that /usr/local/bin doesn't exists you can try
+        # sudo cp ./target/release/x8 /usr/bin
         ```
     - via cargo install
         ```bash
@@ -294,9 +298,11 @@ After executing the command, a new terminal window will appear, displaying the r
 - Mac
     - from source code (rust should be installed)
         ```bash
-        git clone https://github.com/Sh1Yo/x8
+        git clone https://github.com/sh1yo/x8
         cd x8
         cargo build --release
+        # move the binary to $PATH so you can use it without specifying the full path
+        cp ./target/release/x8 /usr/local/bin 
         ```
     - via cargo install
         ```bash
