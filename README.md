@@ -106,7 +106,7 @@ x8 -u "https://example.com" --headers -w <wordlist>
 You can also target single headers:
 
 ```bash
-x8 -u "https://example.com" -H "Cookie: %s" -w <wordlist>
+x8 -u "https://example.com" --headers -H "Cookie: %s" -w <wordlist>
 ```
 
 # Test site
