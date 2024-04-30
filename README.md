@@ -282,6 +282,13 @@ After executing the command, a new terminal window will appear, displaying the r
         # pacman -Sy x8
         ```
     - from source code (rust should be installed)
+    - requirements
+        ```bash
+        apt install cmake -y
+        curl https://sh.rustup.rs -sSf | sh -s -- -y && source ~/.bashrc
+        sudo apt install pkg-config
+        sudo apt-get install libudev-dev
+        ```
         ```bash
         git clone https://github.com/sh1yo/x8
         cd x8
