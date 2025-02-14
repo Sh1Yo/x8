@@ -139,7 +139,7 @@ impl<'a> Request<'a> {
     pub fn make_query(&self) -> String {
         lazy_static! {
             static ref RE_JSON_WORDS_WITHOUT_QUOTES: Regex =
-                Regex::new(r#"^([1-9]\d*|null|false|true)$"#).unwrap();
+    Regex::new(r#"^([1-9]\d*|null|false|true|\{\}|\[\])$"#).unwrap();
         }
 
         let query = if self.defaults.is_json {
