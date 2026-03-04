@@ -298,7 +298,7 @@ async fn run(
                         !request_defaults.parameters.contains_key(&x.name)
                             && (x.reason_kind != ReasonKind::Code || x.status == 200)
                     })
-                    .map(|x| (x.get())),
+                    .map(|x| x.get()),
             ));
 
             utils::info(
